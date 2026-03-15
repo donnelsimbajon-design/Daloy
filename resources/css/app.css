@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.jsx';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* DALOY Color Palette (Mist Gray & Midnight Blue) */
+    --color-ocean-deep: #ECEFF1;
+    --color-ocean-card: #FFFFFF;
+    --color-ocean-surface: #F5F7F8;
+    --color-ocean-border: #CFD8DC;
+    --color-ocean-hover: #E0E0E0;
+
+    /* Accents (Midnight Blue) */
+    --color-biolum: #191970;
+    --color-biolum-bright: #2A2A8F;
+    --color-biolum-dim: #0F0F50;
+    --color-biolum-glow: #191970;
+
+    /* Text Colors */
+    --color-ocean-text: #263238;
+    --color-ocean-text-muted: #455A64;
+    --color-ocean-text-dim: #78909C;
+}
+
+/* DALOY Global Styles */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--color-ocean-deep);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-ocean-border);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-biolum-dim);
+}
+
+::selection {
+    background: rgba(25, 25, 112, 0.3);
+    color: #fff;
+}
+
+/* Profile tab transition */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+/* ═══════ Accessibility: Font Size ═══════ */
+:root {
+    --base-font-size: 16px;
+}
+
+html[data-font-size="small"] body {
+    font-size: 14px;
+}
+
+html[data-font-size="medium"] body {
+    font-size: 16px;
+}
+
+html[data-font-size="large"] body {
+    font-size: 18px;
+}
+
+html[data-font-size="large"] .text-sm {
+    font-size: 0.9375rem;
+}
+
+html[data-font-size="large"] .text-xs {
+    font-size: 0.8125rem;
+}
+
+html[data-font-size="small"] .text-sm {
+    font-size: 0.8125rem;
+}
+
+html[data-font-size="small"] .text-xs {
+    font-size: 0.6875rem;
+}
+
+/* ═══════ Accessibility: Reduce Motion ═══════ */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+}
+
+/* ═══════ Accessibility: High Contrast ═══════ */
+html[data-high-contrast="true"] {
+    --color-ocean-text: #000000;
+    --color-ocean-text-muted: #1a1a1a;
+    --color-ocean-text-dim: #333333;
+    --color-ocean-border: #999999;
+    --color-ocean-surface: #f0f0f0;
+}
+
+html[data-high-contrast="true"] button,
+html[data-high-contrast="true"] a {
+    text-decoration-thickness: 2px;
+}
+
+html[data-high-contrast="true"] input,
+html[data-high-contrast="true"] textarea,
+html[data-high-contrast="true"] select {
+    border-width: 2px;
+}
