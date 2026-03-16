@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
+import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
 import PostActions from '@/Components/PostActions';
 import CommentsSection from '@/Components/Comments/CommentsSection';
@@ -92,16 +92,22 @@ export default function PostCard({ post }) {
             {/* Header */}
             <div className="flex items-center justify-between p-3 sm:p-4 pb-0">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-border">
-                        {initials}
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-semibold text-ocean-text">{author.name || 'Unknown'}</h3>
-                            {author.username && (
-                                <span className="text-xs text-ocean-text-dim">@{author.username}</span>
+                    <Link href={`/users/${author.id}`} className="shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-border overflow-hidden hover:ring-biolum/50 transition-all">
+                            {author.profile_picture ? (
+                                <img src={author.profile_picture} alt={author.name} className="w-full h-full object-cover" />
+                            ) : (
+                                initials
                             )}
                         </div>
+                    </Link>
+                    <div>
+                        <Link href={`/users/${author.id}`} className="flex items-center gap-2 group">
+                            <h3 className="text-sm font-semibold text-ocean-text group-hover:text-biolum transition-colors">{author.name || 'Unknown'}</h3>
+                            {author.username && (
+                                <span className="text-xs text-ocean-text-dim group-hover:text-ocean-text-muted transition-colors">@{author.username}</span>
+                            )}
+                        </Link>
                         <p className="text-xs text-ocean-text-dim">
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}

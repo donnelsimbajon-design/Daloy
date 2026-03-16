@@ -136,3 +136,24 @@ html[data-high-contrast="true"] textarea,
 html[data-high-contrast="true"] select {
     border-width: 2px;
 }
+
+/* ═══════ Dark Mode ═══════ */
+html[data-theme="dark"].dark {
+    /* Backgrounds */
+    --color-ocean-deep: #141518;
+    --color-ocean-card: #1c1e21;
+    --color-ocean-surface: #26282d;
+    --color-ocean-border: #35383f;
+    --color-ocean-hover: #2e3035;
+
+    /* Accents (Midnight Blue tweaked for dark mode visibility) */
+    --color-biolum: #4D6AFF;
+    --color-biolum-bright: #738CFF;
+    --color-biolum-dim: #2A3E8C;
+    --color-biolum-glow: #4D6AFF;
+
+    /* Text Colors */
+    --color-ocean-text: #F1F5F9;
+    --color-ocean-text-muted: #CBD5E1;
+    --color-ocean-text-dim: #94A3B8;
+}

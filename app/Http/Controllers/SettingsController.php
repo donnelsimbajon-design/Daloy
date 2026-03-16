@@ -34,7 +34,7 @@ class SettingsController extends Controller
                 $user->only([
                     'id', 'name', 'username', 'email', 'bio', 'about', 'phone',
                     'location', 'profile_picture', 'background_picture', 'privacy_setting',
-                    'font_size', 'reduce_motion', 'high_contrast',
+                    'font_size', 'reduce_motion', 'high_contrast', 'dark_mode',
                 ]),
                 [
                     'notification_preferences' => $user->notification_preferences ?? $defaultNotifPrefs,
@@ -156,6 +156,7 @@ class SettingsController extends Controller
             'font_size' => 'required|in:small,medium,large',
             'reduce_motion' => 'required|boolean',
             'high_contrast' => 'required|boolean',
+            'dark_mode' => 'required|boolean',
         ]);
 
         $request->user()->update($validated);

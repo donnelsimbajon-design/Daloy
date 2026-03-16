@@ -97,7 +97,7 @@ export default function Settings({ user, blocked_users = [] }) {
     const passwordForm = useForm({ current_password: '', password: '', password_confirmation: '' });
     const privacyForm = useForm({ privacy_setting: user.privacy_setting || 'public' });
     const deleteForm = useForm({ password: '' });
-    const accessibilityForm = useForm({ font_size: user.font_size || 'medium', reduce_motion: user.reduce_motion || false, high_contrast: user.high_contrast || false });
+    const accessibilityForm = useForm({ font_size: user.font_size || 'medium', reduce_motion: user.reduce_motion || false, high_contrast: user.high_contrast || false, dark_mode: user.dark_mode || false });
 
     const submitProfile = (e) => { e.preventDefault(); profileForm.patch('/settings/profile'); };
     const submitPassword = (e) => { e.preventDefault(); passwordForm.put('/settings/password', { onSuccess: () => passwordForm.reset() }); };
@@ -473,6 +473,13 @@ export default function Settings({ user, blocked_users = [] }) {
                                         <p className="text-[12px] text-ocean-text-dim">Limit animations and transitions</p>
                                     </div>
                                     <Toggle on={accessibilityForm.data.reduce_motion} onChange={() => accessibilityForm.setData('reduce_motion', !accessibilityForm.data.reduce_motion)} />
+                                </div>
+                                <div className="flex items-center justify-between py-4 border-t border-ocean-border">
+                                    <div>
+                                        <p className="text-sm font-medium text-ocean-text">Dark mode</p>
+                                        <p className="text-[12px] text-ocean-text-dim">Use a dark color scheme</p>
+                                    </div>
+                                    <Toggle on={accessibilityForm.data.dark_mode} onChange={() => accessibilityForm.setData('dark_mode', !accessibilityForm.data.dark_mode)} />
                                 </div>
                                 <div className="flex items-center justify-between py-4 border-t border-ocean-border">
                                     <div>

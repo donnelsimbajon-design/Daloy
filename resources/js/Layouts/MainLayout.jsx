@@ -31,7 +31,16 @@ export default function MainLayout({ children }) {
         } else {
             root.removeAttribute('data-high-contrast');
         }
-    }, [user?.font_size, user?.reduce_motion, user?.high_contrast]);
+
+        // Dark mode
+        if (user?.dark_mode) {
+            root.classList.add('dark');
+            root.setAttribute('data-theme', 'dark');
+        } else {
+            root.classList.remove('dark');
+            root.removeAttribute('data-theme');
+        }
+    }, [user?.font_size, user?.reduce_motion, user?.high_contrast, user?.dark_mode]);
 
     return (
         <div className="min-h-screen bg-ocean-deep text-ocean-text">

@@ -26,6 +26,7 @@ class User extends Authenticatable
         'font_size',
         'reduce_motion',
         'high_contrast',
+        'dark_mode',
     ];
 
     protected $hidden = [
@@ -41,6 +42,7 @@ class User extends Authenticatable
             'notification_preferences' => 'array',
             'reduce_motion' => 'boolean',
             'high_contrast' => 'boolean',
+            'dark_mode' => 'boolean',
         ];
     }
 
