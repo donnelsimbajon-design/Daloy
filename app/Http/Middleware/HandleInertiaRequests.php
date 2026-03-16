@@ -114,12 +114,13 @@ class HandleInertiaRequests extends Middleware
 
         foreach ($friendRequests as $fr) {
             $notifications[] = [
-                'id'     => 'fr_' . $fr->id,
-                'user'   => $fr->sender->name ?? 'Unknown',
-                'avatar' => $fr->sender->profile_picture ?? null,
-                'action' => 'sent you a friend request',
-                'type'   => 'friend',
-                'time'   => $fr->created_at->diffForHumans(null, true) . ' ago',
+                'id'       => 'fr_' . $fr->id,
+                'user_id'  => $fr->sender_id,
+                'user'     => $fr->sender->name ?? 'Unknown',
+                'avatar'   => $fr->sender->profile_picture ?? null,
+                'action'   => 'sent you a friend request',
+                'type'     => 'friend',
+                'time'     => $fr->created_at->diffForHumans(null, true) . ' ago',
                 'raw_time' => $fr->created_at,
             ];
         }
@@ -134,12 +135,13 @@ class HandleInertiaRequests extends Middleware
 
         foreach ($followRequests as $flr) {
             $notifications[] = [
-                'id'     => 'flr_' . $flr->id,
-                'user'   => $flr->follower->name ?? 'Unknown',
-                'avatar' => $flr->follower->profile_picture ?? null,
-                'action' => 'wants to follow you',
-                'type'   => 'follow',
-                'time'   => $flr->created_at->diffForHumans(null, true) . ' ago',
+                'id'       => 'flr_' . $flr->id,
+                'user_id'  => $flr->follower_id,
+                'user'     => $flr->follower->name ?? 'Unknown',
+                'avatar'   => $flr->follower->profile_picture ?? null,
+                'action'   => 'wants to follow you',
+                'type'     => 'follow',
+                'time'     => $flr->created_at->diffForHumans(null, true) . ' ago',
                 'raw_time' => $flr->created_at,
             ];
         }

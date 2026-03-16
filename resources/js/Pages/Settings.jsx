@@ -226,34 +226,71 @@ export default function Settings({ user, blocked_users = [] }) {
             {/* ══════════════════════ PROFILE TAB ══════════════════════ */}
             {activeTab === 'profile' && (
                 <form onSubmit={submitProfile}>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        {/* Left: Basic Info */}
-                        <Card>
-                            <CardTitle title="Basic information" desc="Your public identity on Daloy." />
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input label="Full name" value={profileForm.data.name} onChange={e => profileForm.setData('name', e.target.value)} error={profileForm.errors.name} placeholder="John Doe" />
-                                    <Input label="Username" value={profileForm.data.username} onChange={e => profileForm.setData('username', e.target.value)} error={profileForm.errors.username} placeholder="johndoe" />
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* ── Left Column: Form (8 cols) ── */}
+                        <div className="lg:col-span-8 space-y-6">
+                            <Card>
+                                <CardTitle title="Basic information" desc="Your public identity on Daloy." />
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input label="Full name" value={profileForm.data.name} onChange={e => profileForm.setData('name', e.target.value)} error={profileForm.errors.name} placeholder="John Doe" />
+                                        <Input label="Username" value={profileForm.data.username} onChange={e => profileForm.setData('username', e.target.value)} error={profileForm.errors.username} placeholder="johndoe" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input label="Email" type="email" value={profileForm.data.email} onChange={e => profileForm.setData('email', e.target.value)} error={profileForm.errors.email} />
+                                        <Input label="Phone" value={profileForm.data.phone} onChange={e => profileForm.setData('phone', e.target.value)} error={profileForm.errors.phone} hint="Optional" placeholder="+63 9XX XXX XXXX" />
+                                    </div>
+                                    <Input label="Location" value={profileForm.data.location} onChange={e => profileForm.setData('location', e.target.value)} error={profileForm.errors.location} placeholder="Manila, Philippines" hint="Optional" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <Input label="Email" type="email" value={profileForm.data.email} onChange={e => profileForm.setData('email', e.target.value)} error={profileForm.errors.email} />
-                                    <Input label="Phone" value={profileForm.data.phone} onChange={e => profileForm.setData('phone', e.target.value)} error={profileForm.errors.phone} hint="Optional" placeholder="+63 9XX XXX XXXX" />
-                                </div>
-                                <Input label="Location" value={profileForm.data.location} onChange={e => profileForm.setData('location', e.target.value)} error={profileForm.errors.location} placeholder="Manila, Philippines" hint="Optional" />
-                            </div>
-                        </Card>
+                            </Card>
 
-                        {/* Right: Bio & About */}
-                        <Card>
-                            <CardTitle title="About you" desc="Tell people a bit about yourself." />
-                            <div className="space-y-4">
-                                <Textarea label="Bio" value={profileForm.data.bio} onChange={e => profileForm.setData('bio', e.target.value)} error={profileForm.errors.bio} maxLen={500} rows={3} placeholder="Write a short tagline…" />
-                                <Textarea label="About" value={profileForm.data.about} onChange={e => profileForm.setData('about', e.target.value)} error={profileForm.errors.about} maxLen={2000} rows={6} placeholder="Share more about yourself…" />
+                            <Card>
+                                <CardTitle title="About you" desc="Tell people a bit about yourself." />
+                                <div className="space-y-4">
+                                    <Textarea label="Bio" value={profileForm.data.bio} onChange={e => profileForm.setData('bio', e.target.value)} error={profileForm.errors.bio} maxLen={500} rows={3} placeholder="Write a short tagline…" />
+                                    <Textarea label="About" value={profileForm.data.about} onChange={e => profileForm.setData('about', e.target.value)} error={profileForm.errors.about} maxLen={2000} rows={6} placeholder="Share more about yourself…" />
+                                </div>
+                            </Card>
+                            
+                            <div className="flex justify-end">
+                                <SaveBtn processing={profileForm.processing} />
                             </div>
-                        </Card>
-                    </div>
-                    <div className="flex justify-end mt-5">
-                        <SaveBtn processing={profileForm.processing} />
+                        </div>
+
+                        {/* ── Right Column: Stats & Tips (4 cols) ── */}
+                        <div className="lg:col-span-4 space-y-6">
+                            <Card className="bg-biolum/5 border-biolum/10">
+                                <CardTitle title="Profile Status" />
+                                <div className="space-y-4 mt-2">
+                                    <div className="flex items-center justify-between p-3 rounded-xl bg-ocean-card/50 border border-ocean-border">
+                                        <span className="text-xs text-ocean-text-dim">Profile Strength</span>
+                                        <span className="text-xs font-bold text-biolum">Advanced</span>
+                                    </div>
+                                    <div className="w-full bg-ocean-surface rounded-full h-1.5 overflow-hidden">
+                                        <div className="bg-biolum h-full w-[85%] rounded-full shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                                    </div>
+                                    <p className="text-[11px] text-ocean-text-dim leading-relaxed">
+                                        Your profile is 85% complete. Add a detailed "About" section to reach 100%.
+                                    </p>
+                                </div>
+                            </Card>
+
+                            <Card>
+                                <CardTitle title="Privacy Tips" />
+                                <div className="space-y-3 mt-2">
+                                    {[
+                                        { t: 'Public Profile', d: 'Your profile is visible to everyone.' },
+                                        { t: 'Searchable', d: 'People can find you via search tide.' },
+                                        { t: 'SafetyFirst', d: 'Never share your real password.' }
+                                    ].map(tip => (
+                                        <div key={tip.t} className="p-3 rounded-xl hover:bg-ocean-surface transition-colors cursor-help">
+                                            <p className="text-xs font-bold text-ocean-text">{tip.t}</p>
+                                            <p className="text-[10px] text-ocean-text-dim mt-0.5">{tip.d}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </Card>
+                        </div>
                     </div>
                 </form>
             )}

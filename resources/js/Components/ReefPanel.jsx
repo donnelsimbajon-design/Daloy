@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import axios from 'axios';
 
 /* ── Static data (swap with API later) ───────────────────────────────── */
@@ -377,11 +377,45 @@ function NotificationsPanel() {
     const { social } = usePage().props;
     const notifications = social?.recent_notifications || [];
     const [search, setSearch] = useState('');
+    const [actionLoading, setActionLoading] = useState(null);
 
     const filtered = notifications.filter(n =>
-        n.user.toLowerCase().includes(search.toLowerCase()) ||
-        n.action.toLowerCase().includes(search.toLowerCase())
+        (n.user || '').toLowerCase().includes(search.toLowerCase()) ||
+        (n.action || '').toLowerCase().includes(search.toLowerCase())
     );
+
+    const handleAction = async (e, type, rawId) => {
+        e.stopPropagation();
+        setActionLoading(rawId);
+        try {
+            if (rawId.startsWith('fr_')) {
+                const id = rawId.replace('fr_', '');
+                if (type === 'accept') {
+                    await axios.post('/api/friend-request/accept', { request_id: id });
+                } else {
+                    await axios.post('/api/friend-request/reject', { request_id: id });
+                }
+            } else if (rawId.startsWith('flr_')) {
+                const id = rawId.replace('flr_', '');
+                if (type === 'accept') {
+                    await axios.post('/api/follow-request/accept', { request_id: id });
+                } else {
+                    await axios.post('/api/follow-request/reject', { request_id: id });
+                }
+            }
+            router.reload({ only: ['social'] });
+        } catch (error) {
+            console.error('Error handling request:', error);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const navigateToUser = (userId) => {
+        if (userId) {
+            router.visit(`/users/${userId}`);
+        }
+    };
 
     const typeColors = {
         friend: 'bg-blue-500',
@@ -410,7 +444,11 @@ function NotificationsPanel() {
 
             <div className="space-y-1">
                 {filtered.length > 0 ? filtered.map((notif) => (
-                    <div key={notif.id} className="flex items-start gap-3 p-3 rounded-xl hover:bg-ocean-surface/30 transition-colors cursor-pointer">
+                    <div
+                        key={notif.id}
+                        onClick={() => navigateToUser(notif.user_id)}
+                        className="flex items-start gap-3 p-3 rounded-xl hover:bg-ocean-surface/30 transition-colors cursor-pointer group/notif"
+                    >
                         {notif.avatar ? (
                             <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
                         ) : (
@@ -422,6 +460,44 @@ function NotificationsPanel() {
                                 {notif.action}
                             </p>
                             <p className="text-[10px] text-ocean-text-dim mt-0.5">{notif.time}</p>
+                            
+                            {notif.type === 'friend' && (
+                                <div className="mt-2 flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => handleAction(e, 'accept', notif.id)}
+                                        disabled={actionLoading === notif.id}
+                                        className="px-3 py-1 bg-biolum text-white text-[11px] font-medium rounded hover:bg-biolum-bright transition-colors disabled:opacity-50"
+                                    >
+                                        {actionLoading === notif.id ? '...' : 'Accept'}
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleAction(e, 'decline', notif.id)}
+                                        disabled={actionLoading === notif.id}
+                                        className="px-3 py-1 bg-transparent border border-ocean-border text-ocean-text-muted text-[11px] font-medium rounded hover:bg-ocean-surface transition-colors disabled:opacity-50"
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
+                            )}
+
+                            {notif.type === 'follow' && (
+                                <div className="mt-2 flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => handleAction(e, 'accept', notif.id)}
+                                        disabled={actionLoading === notif.id}
+                                        className="px-3 py-1 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {actionLoading === notif.id ? '...' : 'Accept'}
+                                    </button>
+                                    <button
+                                        onClick={(e) => handleAction(e, 'decline', notif.id)}
+                                        disabled={actionLoading === notif.id}
+                                        className="px-3 py-1 bg-transparent border border-ocean-border text-ocean-text-muted text-[11px] font-medium rounded hover:bg-ocean-surface transition-colors disabled:opacity-50"
+                                    >
+                                        Decline
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )) : (
