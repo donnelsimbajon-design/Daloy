@@ -29,7 +29,7 @@ function SearchBar({ value, onChange, placeholder }) {
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full pl-9 pr-3 py-2 bg-ocean-surface/60 border border-ocean-border rounded-xl text-xs text-ocean-text placeholder-ocean-text-dim focus:outline-none focus:border-biolum/40 focus:ring-1 focus:ring-biolum/20 transition-all"
+                className="w-full pl-9 pr-3 py-2.5 bg-ocean-card/40 border border-ocean-divider-subtle rounded-[14px] text-xs text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:border-biolum/40 focus:ring-1 focus:ring-biolum/15 focus:bg-ocean-card transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
             />
         </div>
     );
@@ -46,48 +46,60 @@ function TrendingPanel() {
     );
 
     return (
-        <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" />
-                    </svg>
+        <div className="space-y-0 animate-[fadeIn_0.25s_ease-out]">
+            {/* Section 1: Header & Search */}
+            <div className="pb-4">
+                <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="text-sm font-bold text-ocean-text leading-tight tracking-[-0.01em]">Trending Currents</h3>
+                        <p className="text-[10px] text-ocean-text-dim/60">What&apos;s hot right now</p>
+                    </div>
                 </div>
-                <div>
-                    <h3 className="text-sm font-bold text-ocean-text leading-tight">Trending Currents</h3>
-                    <p className="text-[10px] text-ocean-text-dim">What&apos;s hot right now</p>
+
+                <SearchBar value={search} onChange={setSearch} placeholder="Search trends..." />
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-ocean-divider-subtle mx-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" />
+
+            {/* Section 2: Tags */}
+            <div className="py-4">
+                <div className="flex flex-wrap gap-2">
+                    {filtered.length > 0 ? filtered.map((tag) => (
+                        <button
+                            key={tag}
+                            className="px-3.5 py-1.5 rounded-full text-xs font-bold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-white hover:border-biolum transition-all duration-300 active:scale-95 shadow-[0_1px_3px_rgba(25,25,112,0.05)] hover:shadow-[0_2px_8px_rgba(25,25,112,0.15)]"
+                        >
+                            {tag}
+                        </button>
+                    )) : (
+                        <p className="text-xs text-ocean-text-dim italic py-3">No trends matching &quot;{search}&quot;</p>
+                    )}
                 </div>
             </div>
 
-            <SearchBar value={search} onChange={setSearch} placeholder="Search trends..." />
+            {/* Divider */}
+            <div className="h-px bg-ocean-divider-subtle mx-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" />
 
-            <div className="flex flex-wrap gap-2">
-                {filtered.length > 0 ? filtered.map((tag) => (
-                    <button
-                        key={tag}
-                        className="px-3 py-1.5 rounded-full text-xs font-medium text-biolum bg-biolum/10 border border-biolum/20 hover:bg-biolum/20 hover:border-biolum/40 transition-all"
-                    >
-                        {tag}
-                    </button>
-                )) : (
-                    <p className="text-xs text-ocean-text-dim italic py-3">No trends matching &quot;{search}&quot;</p>
-                )}
-            </div>
-
-            {/* Extra section to fill space */}
-            <div className="pt-4 border-t border-ocean-border/40">
-                <h4 className="text-xs font-semibold text-ocean-text-dim uppercase tracking-wider mb-3">Popular Today</h4>
+            {/* Section 3: Popular Today */}
+            <div className="pt-4">
+                <h4 className="text-[10px] font-bold text-ocean-text-dim/60 uppercase tracking-[0.12em] mb-3">Popular Today</h4>
                 <div className="space-y-3">
                     {['#OceanicTech', '#LiquidMotion', '#Biolum'].map((tag, i) => (
-                        <div key={tag} className="flex items-center justify-between">
+                        <div key={tag} className="flex items-center justify-between p-2.5 rounded-[12px] hover:bg-ocean-card/50 transition-all">
                             <div className="flex items-center gap-3">
-                                <span className="text-xs font-bold text-ocean-text-dim w-5">{i + 1}</span>
+                                <span className="text-[11px] font-bold text-ocean-text-dim/40 w-5">{i + 1}</span>
                                 <div>
-                                    <p className="text-sm font-semibold text-ocean-text">{tag}</p>
-                                    <p className="text-[10px] text-ocean-text-dim">{Math.floor(Math.random() * 500 + 100)} posts</p>
+                                    <p className="text-sm font-bold text-ocean-text tracking-[-0.01em]">{tag}</p>
+                                    <p className="text-[10px] text-ocean-text-dim/50 font-normal">{Math.floor(Math.random() * 500 + 100)} posts</p>
                                 </div>
                             </div>
-                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <svg className="w-4 h-4 text-ocean-text-dim/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22" />
                             </svg>
                         </div>
@@ -126,17 +138,17 @@ function GroupsPanel() {
 
             <div className="space-y-2">
                 {filtered.length > 0 ? filtered.map((group) => (
-                    <div key={group.name} className="flex items-center justify-between p-3 rounded-xl bg-ocean-surface/30 border border-ocean-border/60 hover:border-ocean-hover hover:bg-ocean-surface/50 transition-all">
+                    <div key={group.name} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-3">
                             <div className={`w-10 h-10 rounded-xl ${group.color} flex items-center justify-center text-white font-bold text-sm`}>
                                 {group.initial}
                             </div>
                             <div>
-                                <h4 className="text-sm font-semibold text-ocean-text">{group.name}</h4>
-                                <p className="text-xs text-ocean-text-dim">{group.members} members · {group.active} active</p>
+                                <h4 className="text-sm font-bold text-ocean-text tracking-[-0.01em]">{group.name}</h4>
+                                <p className="text-[11px] text-ocean-text-dim/60">{group.members} members · {group.active} active</p>
                             </div>
                         </div>
-                        <button className="px-3.5 py-1.5 rounded-full text-xs font-bold text-ocean-text bg-biolum hover:bg-biolum-bright transition-colors uppercase tracking-wide">
+                        <button className="px-3.5 py-1.5 rounded-full text-xs font-bold text-white bg-biolum hover:bg-biolum-bright transition-colors uppercase tracking-wide shadow-[0_1px_3px_rgba(25,25,112,0.2)]">
                             Join
                         </button>
                     </div>
@@ -147,7 +159,7 @@ function GroupsPanel() {
 
             {/* Browse all */}
             <div className="pt-3">
-                <button className="w-full py-2.5 text-sm font-semibold text-biolum bg-biolum/10 rounded-xl hover:bg-biolum/20 transition-all">
+                <button className="w-full py-2.5 text-sm font-semibold text-biolum bg-biolum/10 rounded-[14px] hover:bg-biolum/20 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                     Browse All Groups
                 </button>
             </div>
@@ -224,7 +236,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     return (
         <div className="flex flex-col h-[60vh] min-h-[400px] flex-1 animate-[slideInRight_0.2s_ease-out]">
             {/* Header */}
-            <div className="flex items-center gap-3 pb-4 border-b border-ocean-border/60 shrink-0">
+            <div className="flex items-center gap-3 pb-4 border-b border-ocean-divider shrink-0">
                 <button 
                     onClick={onBack}
                     className="p-2 -ml-2 rounded-full hover:bg-ocean-surface/50 text-ocean-text-dim hover:text-ocean-text transition-colors"
@@ -261,7 +273,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                         const isSelf = msg.user_id === currentUser.id;
                         return (
                             <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
-                                <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 shadow-sm ${isSelf ? 'bg-biolum text-white rounded-tr-sm' : 'bg-ocean-surface/60 border border-ocean-border/50 text-ocean-text rounded-tl-sm'}`}>
+                                <div className={`max-w-[85%] rounded-[18px] px-4 py-2.5 ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`}>
                                     <p className="text-sm break-words">{msg.content}</p>
                                     <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -275,7 +287,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSend} className="pt-4 pb-2 border-t border-ocean-border/60 flex items-center gap-2 shrink-0">
+            <form onSubmit={handleSend} className="pt-4 pb-2 border-t border-ocean-divider flex items-center gap-2 shrink-0">
                 <button type="button" className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors shrink-0">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 </button>
@@ -548,7 +560,7 @@ function LanguagePanel() {
                 </div>
                 <div>
                     <h3 className="text-sm font-bold text-ocean-text leading-tight">Language</h3>
-                    <p className="text-[10px] text-ocean-text-dim">Choose your preferred language</p>
+                    <p className="text-[10px] text-ocean-text-dim/60">Choose your preferred language</p>
                 </div>
             </div>
 
@@ -557,15 +569,15 @@ function LanguagePanel() {
                     <button
                         key={lang.code}
                         onClick={() => handleLangChange(lang.code)}
-                        className={`w-full flex items-center gap-3 p-3.5 rounded-xl transition-all ${currentLang === lang.code
-                            ? 'bg-biolum/15 border border-biolum/40 text-biolum'
-                            : 'bg-ocean-surface/30 border border-ocean-border/60 hover:border-ocean-hover hover:bg-ocean-surface/50 text-ocean-text'
+                        className={`w-full flex items-center gap-3 p-3.5 rounded-[14px] transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03)] ${currentLang === lang.code
+                            ? 'bg-biolum/15 border border-biolum/40 text-biolum shadow-[0_1px_4px_rgba(25,25,112,0.1)]'
+                            : 'bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 text-ocean-text'
                             }`}
                     >
                         <span className="text-2xl">{lang.flag}</span>
                         <div className="text-left flex-1">
-                            <p className="text-sm font-semibold">{lang.name}</p>
-                            <p className="text-[11px] text-ocean-text-dim">{lang.native}</p>
+                            <p className="text-sm font-bold tracking-[-0.01em]">{lang.name}</p>
+                            <p className="text-[11px] text-ocean-text-dim/60">{lang.native}</p>
                         </div>
                         {currentLang === lang.code && (
                             <svg className="w-5 h-5 text-biolum shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -576,7 +588,7 @@ function LanguagePanel() {
                 ))}
             </div>
 
-            <div className="p-4 rounded-xl bg-ocean-surface/20 border border-ocean-border/40">
+            <div className="p-4 rounded-[14px] bg-ocean-surface/20 border border-ocean-divider-subtle shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                 <p className="text-[11px] text-ocean-text-dim leading-relaxed">
                     Changing language will translate navigation labels, buttons, and common UI text throughout the app.
                 </p>

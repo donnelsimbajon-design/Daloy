@@ -33,10 +33,7 @@ export default function Login({ status, canResetPassword }) {
                 {/* Logo */}
                 <div className="relative z-10 mb-8 text-center flex flex-col items-center">
                     <div className="flex items-center justify-center gap-0 mb-1">
-                        <div className="w-20 h-20 flex items-center justify-center z-10">
-                            <img src="/images/logo.png" alt="Daloy Logo" className="w-full h-full object-contain drop-shadow-md" />
-                        </div>
-                        <h1 className="text-6xl font-medium text-ocean-text tracking-wide -ml-5 mt-2" style={{ fontFamily: '"Pacifico", cursive' }}>aloy</h1>
+                        <h1 className="text-[5rem] leading-none mb-4 font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</h1>
                     </div>
                     <p className="text-sm text-ocean-text-muted mt-1">Dive into the current</p>
                 </div>

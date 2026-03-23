@@ -190,11 +190,8 @@ export default function NavDrawer({ isOpen, onClose }) {
                 {/* Header - fixed at top */}
                 <div className="flex items-center justify-between p-5 border-b border-ocean-border shrink-0">
                     <div className="flex items-center gap-0">
-                        <div className="w-12 h-12 flex items-center justify-center z-10">
-                            <img src="/images/logo.png" alt="Daloy Logo" className="w-full h-full object-contain drop-shadow" />
-                        </div>
-                        <div className="-ml-3">
-                            <span className="text-3xl font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>aloy</span>
+                        <div className="ml-2">
+                            <span className="text-3xl font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</span>
                             <p className="text-[10px] text-biolum tracking-widest uppercase mt-[-4px]">{t('Navigate the deep')}</p>
                         </div>
                     </div>

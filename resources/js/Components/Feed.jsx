@@ -3,9 +3,9 @@ import PostCard from '@/Components/PostCard';
 
 export default function Feed({ posts = [] }) {
     return (
-        <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-5 sm:space-y-6">
             {/* Posts */}
-            <div className="space-y-3 sm:space-y-4">
+            <div className="space-y-4 sm:space-y-5">
                 {posts.length > 0 ? (
                     posts.map((post) => (
                         <PostCard key={post.id} post={post} />

@@ -127,17 +127,32 @@ export default function StoryRail({ horizontal = false }) {
     const currentGroupItems = currentGroup ? currentGroup.items : [];
 
     return (
-        <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-[calc(100vh-120px)]'} relative`}>
+        <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-[calc(100vh-96px)]'} relative`}>
+            {/* Continuous vertical guide line — only for vertical mode */}
+            {!horizontal && (
+                <div
+                    className="absolute top-[72px] bottom-[40px] pointer-events-none z-0"
+                    style={{
+                        left: 'calc(50% - 0.5px)',
+                        width: '1px',
+                        backgroundColor: 'var(--color-ocean-divider-subtle)',
+                        boxShadow: '0 0 3px rgba(0, 0, 0, 0.03)',
+                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
+                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
+                    }}
+                />
+            )}
+
             {/* Header - only for vertical */}
             {!horizontal && (
-                <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0">Story</h3>
+                <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Story</h3>
             )}
 
             {/* Scroll Up Button - Vertical only */}
             {!horizontal && (
                 <button
                     onClick={() => scroll('up')}
-                    className="mb-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-10 bg-ocean-deep/50 rounded-full backdrop-blur-sm"
+                    className="mb-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
                 </button>
@@ -146,7 +161,7 @@ export default function StoryRail({ horizontal = false }) {
             {/* Stories List */}
             <div
                 ref={scrollContainerRef}
-                className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-2 w-[calc(100vw-2rem)]' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-5 no-scrollbar pb-4`}
+                className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-2 w-[calc(100vw-2rem)]' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-5 no-scrollbar pb-4 relative z-[1]`}
             >
                 {/* Your Story Avatar */}
                 <div className="flex flex-col items-center gap-2 group cursor-pointer shrink-0" onClick={() => setShowCreateMenu(true)}>
@@ -157,19 +172,21 @@ export default function StoryRail({ horizontal = false }) {
                         accept="image/*,video/*" 
                         className="hidden" 
                     />
-                    <div className={`relative p-1 rounded-full border-2 border-dashed border-ocean-border group-hover:border-biolum transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className={`${horizontal ? 'w-14 h-14' : 'w-16 h-16'} rounded-full overflow-hidden bg-ocean-surface flex items-center justify-center`}>
+                    <div className={`relative p-[1px] rounded-[18px] border border-dashed border-ocean-divider group-hover:border-biolum/60 group-hover:bg-biolum/5 transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.02)] group-hover:shadow-[0_4px_12px_rgba(25,25,112,0.08)] ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className={`${horizontal ? 'w-24 h-36' : 'w-[72px] h-[104px]'} rounded-[16px] border border-ocean-deep overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative`}>
                             {user?.profile_picture ? (
-                                <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
+                                <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover opacity-60" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-lg font-bold">
+                                <div className="w-full h-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
                                     {user?.name?.charAt(0)}
                                 </div>
                             )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/90 via-transparent to-transparent"></div>
+                            <span className="absolute bottom-3 text-[10px] font-bold text-ocean-text tracking-wide z-10">Your Story</span>
                         </div>
-                        <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-biolum border-2 border-ocean-deep flex items-center justify-center text-white text-lg font-bold">
+                        <div className="absolute bottom-8 right-1/2 translate-x-1/2 w-8 h-8 rounded-full bg-biolum border-2 border-ocean-deep flex items-center justify-center text-white text-lg font-bold shadow-[0_2px_6px_rgba(25,25,112,0.4)] z-20 group-hover:scale-110 transition-transform">
                             {uploading ? (
-                                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             ) : '+'}
                         </div>
                     </div>
@@ -179,23 +196,34 @@ export default function StoryRail({ horizontal = false }) {
                 {groupedStories.map((group) => (
                     <div
                         key={group.user.id}
-                        className="flex flex-col items-center gap-2 group cursor-pointer shrink-0"
+                        className="flex flex-col items-center gap-1 group cursor-pointer shrink-0 relative"
                         onClick={() => setSelectedStory(group.items[0])}
                     >
-                        <div className="p-1 rounded-full bg-biolum/20 group-hover:from-white group-hover:to-biolum transition-all duration-500">
-                            <div className={`${horizontal ? 'w-14 h-14' : 'w-16 h-16'} rounded-full border-[3px] border-ocean-deep overflow-hidden bg-ocean-surface transition-transform duration-300 group-hover:scale-105`}>
-                                {group.user.profile_picture ? (
-                                    <img src={group.user.profile_picture} alt={group.user.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-lg font-bold">
-                                        {group.user.name.charAt(0)}
-                                    </div>
-                                )}
+                        <div className="p-[2px] rounded-[18px] bg-gradient-to-tr from-biolum/40 to-biolum/10 group-hover:from-biolum/70 group-hover:to-biolum/30 transition-all duration-500 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-[0_4px_12px_rgba(25,25,112,0.15)]">
+                            <div className={`${horizontal ? 'w-24 h-36' : 'w-[72px] h-[104px]'} rounded-[16px] border border-ocean-deep overflow-hidden bg-ocean-surface transition-transform duration-300 group-hover:scale-[1.02] relative`}>
+                                {/* Story preview image (can just use the first story image or user avatar as full background) */}
+                                <img src={group.items[0].image || group.user.profile_picture} alt="Story" className="w-full h-full object-cover" />
+                                
+                                {/* Gradient Overlay for text readability (matches PostCard exact design) */}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                                
+                                {/* User avatar icon overlay snippet */}
+                                <div className="absolute top-2 left-2 w-6 h-6 rounded-full border border-ocean-divider/40 overflow-hidden bg-ocean-surface z-10 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
+                                    {group.user.profile_picture ? (
+                                        <img src={group.user.profile_picture} alt={group.user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-biolum text-white text-[9px] font-bold">
+                                            {group.user.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* User Name at bottom */}
+                                <span className="absolute bottom-2 left-0 right-0 px-1 text-center text-[10px] font-bold tracking-wide text-white truncate z-10 drop-shadow-md">
+                                    {group.user.name.split(' ')[0]}
+                                </span>
                             </div>
                         </div>
-                        <span className="text-[11px] font-bold text-ocean-text-muted group-hover:text-ocean-text transition-colors truncate max-w-[80px]">
-                            {group.user.name.split(' ')[0]}
-                        </span>
                     </div>
                 ))}
             </div>
@@ -204,7 +232,7 @@ export default function StoryRail({ horizontal = false }) {
             {!horizontal && (
                 <button
                     onClick={() => scroll('down')}
-                    className="mt-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-10 bg-ocean-deep/50 rounded-full backdrop-blur-sm animate-bounce"
+                    className="mt-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm animate-bounce"
                 >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                 </button>
@@ -224,7 +252,7 @@ export default function StoryRail({ horizontal = false }) {
                                 const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
                                 if (currentIndex > 0) setSelectedStory(stories[currentIndex - 1]);
                             }}
-                            className={`p-3 rounded-full bg-white/10 hover:bg-white/20 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-white/10 ${stories.findIndex(s => s.id === selectedStory.id) === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                            className={`p-3 rounded-full bg-ocean-deep/20 hover:bg-ocean-deep/40 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-ocean-border/20 shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${stories.findIndex(s => s.id === selectedStory.id) === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                         >
                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                         </button>
@@ -234,7 +262,7 @@ export default function StoryRail({ horizontal = false }) {
                                 const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
                                 if (currentIndex < stories.length - 1) setSelectedStory(stories[currentIndex + 1]);
                             }}
-                            className={`p-3 rounded-full bg-white/10 hover:bg-white/20 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-white/10 ${stories.findIndex(s => s.id === selectedStory.id) === stories.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+                            className={`p-3 rounded-full bg-ocean-deep/20 hover:bg-ocean-deep/40 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-ocean-border/20 shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${stories.findIndex(s => s.id === selectedStory.id) === stories.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                         >
                             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                         </button>
@@ -243,20 +271,20 @@ export default function StoryRail({ horizontal = false }) {
                     {/* Close Button - More accessible on mobile */}
                     <button
                         onClick={() => setSelectedStory(null)}
-                        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 text-ocean-text/60 hover:text-ocean-text transition-all hover:rotate-90 z-[120] bg-white/10 hover:bg-white/20 rounded-full md:bg-transparent"
+                        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 text-ocean-text-dim hover:text-ocean-text transition-all hover:rotate-90 z-[120] bg-ocean-deep/20 hover:bg-ocean-deep/40 rounded-full md:bg-transparent backdrop-blur-md md:backdrop-blur-none"
                     >
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
 
-                    <div className="relative z-10 w-full md:max-w-md h-full md:h-[min(90vh,800px)] md:aspect-[9/16] bg-ocean-card/30 md:rounded-3xl overflow-hidden border-x md:border border-white/20 ring-1 ring-white/5 flex flex-col backdrop-blur-md">
+                    <div className="relative z-10 w-full md:max-w-md h-full md:h-[min(90vh,800px)] md:aspect-[9/16] bg-ocean-card/40 md:rounded-[24px] overflow-hidden border-x md:border border-ocean-divider/30 ring-1 ring-ocean-deep/10 flex flex-col backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
                         {/* Progress Bars */}
                         <div className="absolute top-0 left-0 right-0 z-20 flex gap-1 px-1 py-4 md:px-4 md:top-4">
                             {currentGroupItems.map((s, idx) => {
                                 const currentIndex = currentGroupItems.findIndex(st => st.id === selectedStory.id);
                                 return (
-                                    <div key={s.id} className="h-0.5 md:h-1 flex-1 bg-white/20 rounded-full overflow-hidden">
+                                    <div key={s.id} className="h-0.5 md:h-1 flex-1 bg-ocean-border/40 rounded-full overflow-hidden shadow-[inset_0_1px_2px_rgba(0,0,0,0.1)]">
                                         <div className={`h-full bg-biolum transition-all duration-300 ${idx < currentIndex ? 'w-full' : idx === currentIndex ? 'animate-story-progress origin-left' : 'w-0'}`} />
                                     </div>
                                 );
@@ -265,7 +293,7 @@ export default function StoryRail({ horizontal = false }) {
 
                         {/* Story Header */}
                         <div className="absolute top-6 left-4 right-4 z-20 flex items-center gap-3 md:top-10">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-biolum overflow-hidden bg-ocean-surface shrink-0">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-ocean-divider/40 ring-2 ring-biolum/50 shadow-[0_2px_8px_rgba(0,0,0,0.2)] overflow-hidden bg-ocean-surface shrink-0">
                                 {selectedStory.user.profile_picture ? (
                                     <img src={selectedStory.user.profile_picture} alt={selectedStory.user.name} className="w-full h-full object-cover" />
                                 ) : (
@@ -322,7 +350,7 @@ export default function StoryRail({ horizontal = false }) {
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ocean-deep/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="absolute inset-0" onClick={() => setShowCreateMenu(false)} />
                     
-                    <button onClick={() => setShowCreateMenu(false)} className="absolute top-6 right-6 p-3 rounded-full bg-ocean-surface text-white hover:bg-ocean-border transition-all z-10">
+                    <button onClick={() => setShowCreateMenu(false)} className="absolute top-6 right-6 p-3 rounded-full bg-ocean-card/20 hover:bg-ocean-card/40 backdrop-blur-md text-white transition-all z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
@@ -330,23 +358,23 @@ export default function StoryRail({ horizontal = false }) {
                         {/* Photo Story Card */}
                         <div 
                             onClick={() => fileInputRef.current?.click()}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[1.5rem] bg-gradient-to-br from-[#4f8ff7] to-[#80B3FF] p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform duration-300 shadow-2xl relative overflow-hidden"
+                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#4f8ff7] to-[#80B3FF] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(79,143,247,0.3)] ring-1 ring-white/20 relative overflow-hidden"
                         >
-                            <div className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-sm relative z-10">
+                            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.3)] relative z-10 transition-transform group-hover:scale-110">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                             </div>
-                            <span className="text-white font-medium text-base text-center relative z-10">Create a photo story</span>
+                            <span className="text-white font-bold text-base text-center relative z-10 tracking-wide">Photo Story</span>
                         </div>
 
                         {/* Text Story Card */}
                         <div 
                             onClick={handleTextStorySelect}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[1.5rem] bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform duration-300 shadow-2xl relative overflow-hidden"
+                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(200,75,176,0.3)] ring-1 ring-white/20 relative overflow-hidden"
                         >
-                            <div className="w-16 h-16 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-sm relative z-10">
+                            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.3)] relative z-10 transition-transform group-hover:scale-110">
                                 <span className="text-2xl font-serif leading-none mt-1 font-light">T</span>
                             </div>
-                            <span className="text-white font-medium text-base text-center relative z-10">Create a text story</span>
+                            <span className="text-white font-bold text-base text-center relative z-10 tracking-wide">Text Story</span>
                         </div>
                     </div>
                 </div>,
@@ -360,8 +388,8 @@ export default function StoryRail({ horizontal = false }) {
                     {/* Left Sidebar (Settings) */}
                     <div className="w-full md:w-80 bg-ocean-deep border-r border-ocean-border flex flex-col shrink-0 h-full fixed md:relative z-20 md:z-auto transition-transform duration-300 transform md:translate-x-0 shadow-2xl">
                         {/* Header */}
-                        <div className="flex items-center gap-4 px-4 py-3 border-b border-ocean-border bg-ocean-deep">
-                            <button onClick={cancelUpload} className="w-10 h-10 flex items-center justify-center rounded-full bg-ocean-surface hover:bg-ocean-border text-ocean-text-dim hover:text-white transition-all focus:outline-none">
+                        <div className="flex items-center gap-4 px-4 py-3 border-b border-ocean-divider bg-ocean-deep">
+                            <button onClick={() => setShowCreateModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-ocean-card border border-ocean-divider-subtle hover:bg-ocean-surface text-ocean-text-dim hover:text-ocean-text transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                             </button>
                             <h2 className="text-[17px] font-semibold text-ocean-text">Your story</h2>
@@ -369,8 +397,8 @@ export default function StoryRail({ horizontal = false }) {
 
                         <div className="flex-1 overflow-y-auto w-full no-scrollbar">
                             {/* User Info */}
-                            <div className="p-4 mx-4 mt-4 border border-ocean-border/80 rounded-2xl bg-ocean-surface shadow-sm flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <div className="p-4 mx-4 mt-4 border border-ocean-divider-subtle rounded-[16px] bg-ocean-card shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-full border border-ocean-divider overflow-hidden flex-shrink-0">
                                     {user?.profile_picture ? (
                                         <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
                                     ) : (
@@ -392,7 +420,7 @@ export default function StoryRail({ horizontal = false }) {
                                         value={creationCaption}
                                         onChange={(e) => setCreationCaption(e.target.value)}
                                         placeholder={creationType === 'text' ? "Start typing..." : "Add a short caption..."}
-                                        className="w-full h-32 bg-ocean-surface border border-ocean-border rounded-xl p-3 text-ocean-text text-sm focus:ring-1 focus:ring-biolum focus:border-biolum transition-all resize-none placeholder:text-ocean-text-muted"
+                                        className="w-full h-32 bg-ocean-card/50 border border-ocean-divider-subtle rounded-[14px] p-3 text-ocean-text text-sm focus:ring-1 focus:ring-biolum/30 focus:border-biolum/50 transition-all resize-none placeholder:text-ocean-text-dim/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
                                     />
                                 </div>
 
@@ -402,7 +430,7 @@ export default function StoryRail({ horizontal = false }) {
                                         <select 
                                             value={creationVisibility} 
                                             onChange={(e) => setCreationVisibility(e.target.value)}
-                                            className="w-full bg-ocean-surface border border-ocean-border text-ocean-text font-medium rounded-xl p-3 pr-10 text-sm focus:outline-none focus:border-biolum focus:ring-1 focus:ring-biolum transition-all appearance-none cursor-pointer"
+                                            className="w-full bg-ocean-card/50 border border-ocean-divider-subtle text-ocean-text font-medium rounded-[14px] p-3 pr-10 text-sm focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all appearance-none cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
                                         >
                                             <option value="public" className="bg-ocean-deep border-none text-ocean-text">🌍 Public (Anyone)</option>
                                             <option value="friends" className="bg-ocean-deep border-none text-ocean-text">👥 Friends Only</option>
@@ -417,11 +445,11 @@ export default function StoryRail({ horizontal = false }) {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="p-4 flex items-center gap-3 bg-ocean-deep border-t border-ocean-border shrink-0">
-                            <button onClick={cancelUpload} className="px-6 py-2.5 rounded-xl border border-ocean-border text-ocean-text hover:bg-ocean-surface focus:outline-none font-medium text-sm transition-all">
+                        <div className="p-4 flex items-center gap-3 bg-ocean-deep border-t border-ocean-divider shrink-0">
+                            <button onClick={cancelUpload} className="px-6 py-2.5 rounded-full border border-ocean-divider-subtle bg-ocean-card text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text focus:outline-none font-semibold text-sm transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                                 Discard
                             </button>
-                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-xl bg-biolum text-white hover:bg-biolum-bright focus:outline-none font-semibold text-sm transition-all shadow-md shadow-biolum/20 disabled:opacity-50 disabled:cursor-not-allowed text-center">
+                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-full bg-biolum text-white hover:bg-biolum-bright focus:outline-none font-bold text-sm transition-all shadow-[0_1px_4px_rgba(25,25,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed text-center tracking-wide">
                                 {uploading ? 'Sharing...' : 'Share to story'}
                             </button>
                         </div>

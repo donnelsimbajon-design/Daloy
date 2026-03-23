@@ -17,6 +17,10 @@
     --color-ocean-border: #CFD8DC;
     --color-ocean-hover: #E0E0E0;
 
+    /* Pre-computed solid divider colors (no alpha = crisp at any DPI) */
+    --color-ocean-divider: #DDE3E6;
+    --color-ocean-divider-subtle: #E4E9EC;
+
     /* Accents (Midnight Blue) */
     --color-biolum: #191970;
     --color-biolum-bright: #2A2A8F;
@@ -52,6 +56,75 @@
     color: #fff;
 }
 
+/* ═══════ Global UI Polish ═══════ */
+
+/* Smooth transitions for all interactive elements */
+a, button, input, textarea, select {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Refined focus ring for accessibility and polish */
+input:focus, textarea:focus, select:focus {
+    box-shadow: 0 0 0 3px rgba(25, 25, 112, 0.12);
+}
+
+/* Subtle card hover lift effect */
+.hover-lift {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.hover-lift:hover {
+    transform: translateY(-1px);
+}
+
+/* Subtle image loading placeholder */
+img {
+    background: linear-gradient(135deg, var(--color-ocean-surface) 0%, var(--color-ocean-deep) 100%);
+}
+
+/* Smooth page rendering */
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+/* ═══════ Crisp Line Rendering & Subtle Depth ═══════ */
+
+/* Force GPU compositing on fixed positioned elements for pixel-snapped borders */
+nav[class*="fixed"],
+aside[class*="fixed"],
+div[class*="fixed"] {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+/* Reusable crisp 1px divider */
+.crisp-divider {
+    height: 1px;
+    background-color: var(--color-ocean-divider);
+    border: none;
+    flex-shrink: 0;
+}
+
+/* ── Subtle depth on structural dividers ── */
+
+/* Horizontal divider depth (shadow casts downward) */
+.divider-depth {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.025);
+}
+
+/* Vertical divider depth — right side (shadow casts right) */
+.divider-depth-r {
+    box-shadow: 1px 0 3px rgba(0, 0, 0, 0.025);
+}
+
+/* Vertical divider depth — left side (shadow casts left) */
+.divider-depth-l {
+    box-shadow: -1px 0 3px rgba(0, 0, 0, 0.025);
+}
+
 /* Profile tab transition */
 @keyframes fadeIn {
     from {
@@ -72,6 +145,16 @@
 
 .animate-slide-up {
     animation: slideUp 0.3s ease-out;
+}
+
+/* Fade-in entrance for elements */
+@keyframes subtleFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-subtle-in {
+    animation: subtleFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 /* ═══════ Accessibility: Font Size ═══════ */
@@ -145,6 +228,10 @@ html[data-theme="dark"].dark {
     --color-ocean-surface: #26282d;
     --color-ocean-border: #35383f;
     --color-ocean-hover: #2e3035;
+
+    /* Proper subtle dividers for dark mode */
+    --color-ocean-divider: #2c2f35;
+    --color-ocean-divider-subtle: #202227;
 
     /* Accents (Midnight Blue tweaked for dark mode visibility) */
     --color-biolum: #4D6AFF;

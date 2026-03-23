@@ -185,9 +185,9 @@ export default function Dashboard({ posts }) {
     const RailButton = ({ panel, title, icon, badge }) => (
         <button
             onClick={() => switchPanel(panel)}
-            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-300 group relative ${activePanel === panel
-                ? 'bg-biolum/20 border border-biolum/40'
-                : 'bg-ocean-card border border-ocean-border hover:border-biolum/30 hover:bg-ocean-surface'
+            className={`w-11 h-11 rounded-[14px] flex items-center justify-center transition-all duration-300 group relative ${activePanel === panel
+                ? 'bg-biolum/15 border border-biolum/30 shadow-[0_1px_4px_rgba(25,25,112,0.12)]'
+                : 'bg-ocean-card/70 border border-ocean-divider-subtle hover:border-biolum/25 hover:bg-ocean-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
                 }`}
             title={title}
         >
@@ -211,8 +211,10 @@ export default function Dashboard({ posts }) {
             <Head title="Deep Flow" />
 
             {/* ── Fixed Left Rail: Stories (Desktop only) ── */}
-            <aside className="hidden md:block fixed left-0 top-20 bottom-0 w-24 xl:w-28 pl-2 xl:pl-4 border-r border-white/5 z-20 bg-ocean-deep/50 backdrop-blur-sm">
-                <StoryRail />
+            <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-24 xl:w-28 border-r border-ocean-divider z-20 bg-ocean-deep/50 backdrop-blur-sm shadow-[1px_0_3px_rgba(0,0,0,0.025)]">
+                <div className="pt-4 pl-2 xl:pl-4 h-full">
+                    <StoryRail />
+                </div>
             </aside>
 
             {/* Dashboard Content — Main Area ───────────────────── */}
@@ -236,11 +238,11 @@ export default function Dashboard({ posts }) {
             </div>
 
             {/* ── Fixed Right Rail (desktop only) ───────────────── */}
-            <div className="hidden lg:block fixed right-0 top-20 bottom-0 z-20 flex">
+            <div className="hidden lg:block fixed right-0 top-16 bottom-0 z-20 flex">
                 <div className="flex h-full">
                     {/* Expandable Panel */}
                     <div className={`h-full overflow-y-auto overflow-x-hidden transition-all duration-400 ease-in-out ${activePanel ? 'w-[300px]' : 'w-0'}`}>
-                        <div className="w-[300px] h-full border-l border-ocean-border/40 bg-ocean-deep/95 backdrop-blur-sm">
+                        <div className="w-[300px] h-full border-l border-ocean-divider bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_3px_rgba(0,0,0,0.025)]">
                             <div className="p-4">
                                 <ReefPanel activePanel={activePanel} />
                             </div>
@@ -248,12 +250,12 @@ export default function Dashboard({ posts }) {
                     </div>
 
                     {/* Icon Buttons Rail — always visible */}
-                    <div className="flex flex-col items-center gap-2 px-2 pt-6 bg-ocean-deep border-l border-white/5 h-full">
+                    <div className="flex flex-col items-center gap-2.5 px-2 pt-6 bg-ocean-deep border-l border-ocean-divider h-full shadow-[-1px_0_3px_rgba(0,0,0,0.025)]">
                         <RailButton panel="trending" title="Trending Currents" icon={{ path: "M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" }} />
                         <RailButton panel="groups" title="Suggested Groups" icon={{ path: "M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" }} />
 
                         {/* Divider */}
-                        <div className="w-7 border-t border-ocean-border/40 my-1" />
+                        <div className="w-7 h-[1px] bg-ocean-divider-subtle my-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" />
 
                         <RailButton panel="messages" title="Messages" badge={unreadMessages} icon={{ strokeWidth: 1.5, path: "M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" }} />
                         <RailButton panel="notifications" title="Notifications" badge={totalNotifications} icon={{ strokeWidth: 1.5, path: "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" }} />
@@ -265,7 +267,7 @@ export default function Dashboard({ posts }) {
             {/* ── Mobile/Tablet Panel Overlay ───────────────────── */}
             <div className={`lg:hidden fixed inset-0 z-50 transition-opacity duration-300 ${activePanel ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                 <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setActivePanel(null)} />
-                <div className={`absolute right-0 top-0 bottom-0 w-[280px] bg-ocean-deep border-l border-ocean-border transition-transform duration-300 transform ${activePanel ? 'translate-x-0' : 'translate-x-full'}`}>
+                <div className={`absolute right-0 top-0 bottom-0 w-[280px] bg-ocean-deep border-l border-ocean-divider transition-transform duration-300 transform ${activePanel ? 'translate-x-0' : 'translate-x-full'}`}>
                     <div className="p-4 h-full overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-lg font-bold text-ocean-text capitalize">{activePanel}</h2>

@@ -88,12 +88,12 @@ export default function PostCard({ post }) {
     };
 
     return (
-        <div className="bg-ocean-card/60 backdrop-blur-sm rounded-xl sm:rounded-2xl border border-ocean-border overflow-hidden hover:border-ocean-hover transition-all duration-300 group">
+        <div className="bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider overflow-hidden hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
             {/* Header */}
-            <div className="flex items-center justify-between p-3 sm:p-4 pb-0">
+            <div className="flex items-center justify-between px-4 pt-4 pb-0">
                 <div className="flex items-center gap-3">
                     <Link href={`/users/${author.id}`} className="shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-border overflow-hidden hover:ring-biolum/50 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                             {author.profile_picture ? (
                                 <img src={author.profile_picture} alt={author.name} className="w-full h-full object-cover" />
                             ) : (
@@ -103,12 +103,12 @@ export default function PostCard({ post }) {
                     </Link>
                     <div>
                         <Link href={`/users/${author.id}`} className="flex items-center gap-2 group">
-                            <h3 className="text-sm font-semibold text-ocean-text group-hover:text-biolum transition-colors">{author.name || 'Unknown'}</h3>
+                            <h3 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors tracking-[-0.01em]">{author.name || 'Unknown'}</h3>
                             {author.username && (
-                                <span className="text-xs text-ocean-text-dim group-hover:text-ocean-text-muted transition-colors">@{author.username}</span>
+                                <span className="text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
                             )}
                         </Link>
-                        <p className="text-xs text-ocean-text-dim">
+                        <p className="text-[11px] text-ocean-text-dim/60 mt-0.5 leading-tight font-normal">
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
                             {' · '}{visibilityIcon[post.visibility] || '🌍'}
@@ -165,7 +165,7 @@ export default function PostCard({ post }) {
             </div>
 
             {/* Content */}
-            <div className="px-4 py-3">
+            <div className="px-4 py-3 pb-2">
                 {isEditing ? (
                     <div className="space-y-3">
                         <textarea
@@ -201,14 +201,14 @@ export default function PostCard({ post }) {
                         </div>
                     </div>
                 ) : (
-                    <p className="text-sm text-ocean-text leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                    <p className="text-sm text-ocean-text leading-[1.65] whitespace-pre-wrap">{post.content}</p>
                 )}
             </div>
 
             {/* Media Gallery */}
             {mediaItems.length > 0 && (
-                <div className="px-3 sm:px-4 pb-3">
-                    <div className={`grid gap-[2px] rounded-2xl overflow-hidden border border-ocean-border bg-ocean-border/30 w-full ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1' :
+                <div className="px-4 pb-3">
+                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1' :
                             mediaItems.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[4/3] sm:aspect-[16/9]' :
                                 mediaItems.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3] sm:aspect-[16/9]' :
                                     'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 items
@@ -222,7 +222,8 @@ export default function PostCard({ post }) {
                                 {media.type === 'video' ? (
                                     <video
                                         src={media.url}
-                                        className={`w-full h-full object-contain bg-black/95 ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
+                                        className={`w-full h-full object-contain ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
+                                        style={{ background: 'linear-gradient(135deg, var(--color-ocean-surface) 0%, var(--color-ocean-deep) 100%)' }}
                                         controls
                                         muted
                                     />
@@ -233,6 +234,10 @@ export default function PostCard({ post }) {
                                         className={`w-full h-full object-cover ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
                                     />
                                 )}
+                                {/* Gradient overlay for depth */}
+                                {media.type !== 'video' && (
+                                    <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
+                                )}
                             </div>
                         ))}
                     </div>
@@ -241,13 +246,14 @@ export default function PostCard({ post }) {
 
             {/* Fallback: single image from old format */}
             {mediaItems.length === 0 && post.media_urls && post.media_urls.length > 0 && (
-                <div className="px-3 sm:px-4 pb-3">
-                    <div className="rounded-lg sm:rounded-xl overflow-hidden border border-ocean-border">
+                <div className="px-4 pb-3">
+                    <div className="rounded-[16px] overflow-hidden border border-ocean-divider relative shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
                         <img
                             src={post.media_urls[0]}
                             alt="Post media"
                             className="w-full h-40 sm:h-56 object-cover group-hover:scale-[1.02] transition-transform duration-500"
                         />
+                        <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
                     </div>
                 </div>
             )}
@@ -276,7 +282,7 @@ export default function PostCard({ post }) {
             )}
 
             {/* Footer */}
-            <div className="px-3 sm:px-4 py-2.5 sm:py-3 border-t border-ocean-border/50">
+            <div className="px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
                 <div className="flex items-center justify-between">
                     <PostActions
                         reactionsCount={reactionsCount}
@@ -288,9 +294,9 @@ export default function PostCard({ post }) {
                     />
 
                     {/* Flow Velocity Badge */}
-                    <div className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
                         ? 'text-biolum bg-biolum/10 border border-biolum/20'
-                        : 'text-ocean-text-dim bg-ocean-surface border border-ocean-border'
+                        : 'text-ocean-text-dim/70 bg-ocean-surface/60 border border-ocean-divider-subtle'
                         }`}>
                         {flowVelocity}
                     </div>
