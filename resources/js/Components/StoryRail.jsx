@@ -127,7 +127,7 @@ export default function StoryRail({ horizontal = false }) {
     const currentGroupItems = currentGroup ? currentGroup.items : [];
 
     return (
-        <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-[calc(100vh-96px)]'} relative`}>
+        <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-full pt-3'} relative`}>
             {/* Continuous vertical guide line — only for vertical mode */}
             {!horizontal && (
                 <div
@@ -172,58 +172,48 @@ export default function StoryRail({ horizontal = false }) {
                         accept="image/*,video/*" 
                         className="hidden" 
                     />
-                    <div className={`relative p-[1px] rounded-[18px] border border-dashed border-ocean-divider group-hover:border-biolum/60 group-hover:bg-biolum/5 transition-all duration-300 shadow-[0_2px_8px_rgba(0,0,0,0.02)] group-hover:shadow-[0_4px_12px_rgba(25,25,112,0.08)] ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className={`${horizontal ? 'w-24 h-36' : 'w-[72px] h-[104px]'} rounded-[16px] border border-ocean-deep overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative`}>
+                    <div className={`relative p-0.5 rounded-full ring-2 ring-ocean-border border-dashed group-hover:ring-biolum/60 group-hover:bg-biolum/5 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-card overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative">
                             {user?.profile_picture ? (
-                                <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover opacity-60" />
+                                <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
                                     {user?.name?.charAt(0)}
                                 </div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-ocean-deep/90 via-transparent to-transparent"></div>
-                            <span className="absolute bottom-3 text-[10px] font-bold text-ocean-text tracking-wide z-10">Your Story</span>
                         </div>
-                        <div className="absolute bottom-8 right-1/2 translate-x-1/2 w-8 h-8 rounded-full bg-biolum border-2 border-ocean-deep flex items-center justify-center text-white text-lg font-bold shadow-[0_2px_6px_rgba(25,25,112,0.4)] z-20 group-hover:scale-110 transition-transform">
+                        <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-biolum border-[2.5px] border-ocean-card flex items-center justify-center text-white text-sm font-bold shadow-[0_2px_6px_rgba(25,25,112,0.4)] z-20 group-hover:scale-110 transition-transform">
                             {uploading ? (
-                                <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            ) : '+'}
+                                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                            ) : (
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            )}
                         </div>
                     </div>
+                    <span className="text-[10px] font-medium text-ocean-text-dim tracking-wide truncate max-w-[72px]">Your Story</span>
                 </div>
 
                 {/* Other Stories Avatars */}
                 {groupedStories.map((group) => (
                     <div
                         key={group.user.id}
-                        className="flex flex-col items-center gap-1 group cursor-pointer shrink-0 relative"
+                        className="flex flex-col items-center gap-2 group cursor-pointer shrink-0 relative"
                         onClick={() => setSelectedStory(group.items[0])}
                     >
-                        <div className="p-[2px] rounded-[18px] bg-gradient-to-tr from-biolum/40 to-biolum/10 group-hover:from-biolum/70 group-hover:to-biolum/30 transition-all duration-500 shadow-[0_2px_8px_rgba(0,0,0,0.04)] group-hover:shadow-[0_4px_12px_rgba(25,25,112,0.15)]">
-                            <div className={`${horizontal ? 'w-24 h-36' : 'w-[72px] h-[104px]'} rounded-[16px] border border-ocean-deep overflow-hidden bg-ocean-surface transition-transform duration-300 group-hover:scale-[1.02] relative`}>
-                                {/* Story preview image (can just use the first story image or user avatar as full background) */}
-                                <img src={group.items[0].image || group.user.profile_picture} alt="Story" className="w-full h-full object-cover" />
-                                
-                                {/* Gradient Overlay for text readability (matches PostCard exact design) */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
-                                
-                                {/* User avatar icon overlay snippet */}
-                                <div className="absolute top-2 left-2 w-6 h-6 rounded-full border border-ocean-divider/40 overflow-hidden bg-ocean-surface z-10 shadow-[0_2px_4px_rgba(0,0,0,0.2)]">
-                                    {group.user.profile_picture ? (
-                                        <img src={group.user.profile_picture} alt={group.user.name} className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-biolum text-white text-[9px] font-bold">
-                                            {group.user.name.charAt(0)}
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {/* User Name at bottom */}
-                                <span className="absolute bottom-2 left-0 right-0 px-1 text-center text-[10px] font-bold tracking-wide text-white truncate z-10 drop-shadow-md">
-                                    {group.user.name.split(' ')[0]}
-                                </span>
+                        <div className="p-0.5 rounded-full ring-2 ring-biolum/50 group-hover:ring-biolum transition-all duration-300">
+                            <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 group-hover:scale-105 relative">
+                                {group.user.profile_picture ? (
+                                    <img src={group.user.profile_picture} alt={group.user.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-biolum text-white text-2xl font-bold">
+                                        {group.user.name.charAt(0)}
+                                    </div>
+                                )}
                             </div>
                         </div>
+                        <span className="text-[10px] font-medium text-ocean-text-dim group-hover:text-ocean-text tracking-wide truncate max-w-[72px] text-center transition-colors">
+                            {group.user.name.split(' ')[0]}
+                        </span>
                     </div>
                 ))}
             </div>

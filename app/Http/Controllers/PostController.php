@@ -14,18 +14,35 @@ class PostController extends Controller
 {
     /**
      * Display the feed / dashboard with paginated posts.
+     * Feed includes: own posts, friends' posts, followed users' posts, and joined school posts.
      */
     public function index(Request $request)
     {
-        $posts = Post::with(['user:id,name,username,profile_picture', 'media'])
-            ->where(function ($query) use ($request) {
-                // Show public posts
-                $query->where('visibility', 'public');
+        $user = $request->user();
 
-                // Also show the user's own posts (any visibility)
-                if ($request->user()) {
-                    $query->orWhere('user_id', $request->user()->id);
+        // Collect IDs for the feed
+        $friendIds = $user->friends()->pluck('users.id')->toArray();
+        $followingIds = $user->following()->pluck('users.id')->toArray();
+        $joinedSchoolIds = $user->schools()->pluck('schools.id')->toArray();
+
+        // Merge unique user IDs: self + friends + following
+        $feedUserIds = array_unique(array_merge([$user->id], $friendIds, $followingIds));
+
+        $posts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name,cover_image,profile_image'])
+            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds) {
+                // Posts from feed users (public + followers visibility)
+                $query->where(function ($q) use ($feedUserIds) {
+                    $q->whereIn('user_id', $feedUserIds)
+                      ->whereIn('visibility', ['public', 'followers']);
+                });
+
+                // Posts from joined schools
+                if (!empty($joinedSchoolIds)) {
+                    $query->orWhereIn('school_id', $joinedSchoolIds);
                 }
+
+                // Always include own posts regardless of visibility
+                $query->orWhere('user_id', $feedUserIds[0]);
             })
             ->withCount(['comments', 'reactions'])
             ->withExists(['reactions as liked_by_user' => function ($q) {

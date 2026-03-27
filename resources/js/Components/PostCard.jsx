@@ -108,6 +108,16 @@ export default function PostCard({ post }) {
                                 <span className="text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
                             )}
                         </Link>
+                        {post.school && (
+                            <Link href={`/schools/${post.school.id}`} className="inline-flex items-center gap-1.5 mt-0.5 px-2 py-0.5 bg-biolum/8 border border-biolum/15 rounded-full hover:bg-biolum/15 transition-all group/school">
+                                {post.school.profile_image ? (
+                                    <img src={post.school.profile_image} alt="" className="w-3.5 h-3.5 rounded-full object-cover ring-1 ring-biolum/20" />
+                                ) : (
+                                    <svg className="w-3 h-3 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>
+                                )}
+                                <span className="text-[10px] font-bold text-biolum group-hover/school:text-biolum-bright transition-colors">{post.school.name}</span>
+                            </Link>
+                        )}
                         <p className="text-[11px] text-ocean-text-dim/60 mt-0.5 leading-tight font-normal">
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}

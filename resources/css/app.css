@@ -223,24 +223,24 @@ html[data-high-contrast="true"] select {
 /* ═══════ Dark Mode ═══════ */
 html[data-theme="dark"].dark {
     /* Backgrounds */
-    --color-ocean-deep: #141518;
-    --color-ocean-card: #1c1e21;
-    --color-ocean-surface: #26282d;
-    --color-ocean-border: #35383f;
-    --color-ocean-hover: #2e3035;
+    --color-ocean-deep: #0B0C10; /* Deeper, minimalist canvas */
+    --color-ocean-card: #121418; /* Subtle elevation */
+    --color-ocean-surface: #1A1C23; /* Interactive surfaces */
+    --color-ocean-border: #272B36; /* Clean, tight borders */
+    --color-ocean-hover: #1F222B;
 
     /* Proper subtle dividers for dark mode */
-    --color-ocean-divider: #2c2f35;
-    --color-ocean-divider-subtle: #202227;
+    --color-ocean-divider: #1E2129;
+    --color-ocean-divider-subtle: #15171C;
 
-    /* Accents (Midnight Blue tweaked for dark mode visibility) */
-    --color-biolum: #4D6AFF;
-    --color-biolum-bright: #738CFF;
-    --color-biolum-dim: #2A3E8C;
-    --color-biolum-glow: #4D6AFF;
+    /* Accents (Cleaner, more electric ocean bioluminescence) */
+    --color-biolum: #3B82F6;
+    --color-biolum-bright: #60A5FA;
+    --color-biolum-dim: #1D4ED8;
+    --color-biolum-glow: #3B82F6;
 
     /* Text Colors */
-    --color-ocean-text: #F1F5F9;
-    --color-ocean-text-muted: #CBD5E1;
-    --color-ocean-text-dim: #94A3B8;
+    --color-ocean-text: #F8FAFC; /* Crisp, high contrast */
+    --color-ocean-text-muted: #94A3B8; /* Softer reading text */
+    --color-ocean-text-dim: #64748B; /* Receding metadata text */
 }

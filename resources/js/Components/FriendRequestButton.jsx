@@ -1,17 +1,8 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 
-export default function FriendRequestButton({ user, onUpdate }) {
+export default function FriendRequestButton({ user, onUpdate, className = "", customText = false }) {
     const [loading, setLoading] = useState(false);
-
-    // Derive initial status from user object. 
-    // Expect user to have: is_friend (bool), friend_request_sent (bool), friend_request_received (bool)
-    // Or a single status field.
-    // For now, let's assume the parent component passes the processed status or we use the flags.
-
-    // Simplification: We use a derived state helper or props.
-    // Let's assume user object has:
-    // user.friendship_status: 'friends', 'sent', 'received', 'none'
 
     const status = user.friendship_status || 'none';
 
@@ -30,19 +21,6 @@ export default function FriendRequestButton({ user, onUpdate }) {
     const handleAccept = async () => {
         setLoading(true);
         try {
-            // we need request_id? Or just receiver_id logic in backend?
-            // backend expects request_id. 
-            // We need to fetch it or pass it. 
-            // If the user object comes from a list, it might not have the request_id easily unless we eager loaded it.
-            // Alternative: Backend accepts sender_id and finds the request.
-            // Let's assume we have request_id in user.friend_request_id OR we change backend to accept sender_id.
-            // Changing backend to accept sender_id is easier for frontend.
-            // But let's assume we pass request_id if available.
-            // Actually, for "Accept", usually we are in a list of requests.
-            // If we are on a profile, we might need to find the request.
-            // Let's update backend 'accept' to take sender_id from current context? No, valid request_id is safer.
-            // I'll assume we have it. If not, I'll update backend to find by user_id.
-
             await axios.post('/api/friend-request/accept', { request_id: user.friend_request_id });
             onUpdate({ ...user, friendship_status: 'friends' });
         } catch (error) {
@@ -51,11 +29,6 @@ export default function FriendRequestButton({ user, onUpdate }) {
             setLoading(false);
         }
     };
-
-    // ... Implement Reject, Cancel, Remove ...
-
-    // For brevity, only Send/Cancel/Remove for now if generic.
-    // But 'received' state needs Accept/Reject.
 
     if (status === 'friends') {
         return (
@@ -68,8 +41,9 @@ export default function FriendRequestButton({ user, onUpdate }) {
                     setLoading(false);
                 }}
                 disabled={loading}
-                className="px-3 py-1 bg-green-600 text-ocean-text rounded text-sm hover:bg-green-700"
+                className={className || "px-3 py-1.5 flex items-center justify-center gap-1.5 bg-ocean-surface border border-ocean-border text-ocean-text rounded-lg text-xs font-semibold hover:border-biolum/40 hover:text-biolum transition-all"}
             >
+                {customText && <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>}
                 {loading ? '...' : 'Friends'}
             </button>
         );
@@ -80,9 +54,6 @@ export default function FriendRequestButton({ user, onUpdate }) {
             <button
                 onClick={async () => {
                     setLoading(true);
-                    // Need request id usually. 
-                    // Fallback: search backend or use sender logic?
-                    // I will implemented 'cancel' in backend to user request_id.
                     if (user.friend_request_id) {
                         await axios.delete('/api/friend-request/cancel', { data: { request_id: user.friend_request_id } });
                         onUpdate({ ...user, friendship_status: 'none' });
@@ -90,20 +61,20 @@ export default function FriendRequestButton({ user, onUpdate }) {
                     setLoading(false);
                 }}
                 disabled={loading}
-                className="px-3 py-1 bg-gray-500 text-ocean-text rounded text-sm"
+                className={className || "px-3 py-1.5 flex items-center justify-center gap-1.5 bg-ocean-surface border border-ocean-border text-ocean-text-dim rounded-lg text-xs font-semibold hover:border-ocean-text-dim hover:text-ocean-text transition-all"}
             >
-                {loading ? '...' : 'Request Sent'}
+                {loading ? '...' : (customText ? 'Cancel Req' : 'Sent')}
             </button>
         );
     }
 
     if (status === 'received') {
         return (
-            <div className="flex gap-1">
+            <div className={`flex gap-1.5 ${customText ? 'w-full' : ''}`}>
                 <button
                     onClick={handleAccept}
                     disabled={loading}
-                    className="px-3 py-1 bg-blue-600 text-ocean-text rounded text-sm hover:bg-blue-700"
+                    className={className ? className.replace('bg-ocean-surface text-ocean-text hover:bg-ocean-hover', 'bg-biolum text-white hover:bg-biolum-bright flex-1') : "px-3 py-1.5 flex items-center justify-center gap-1.5 bg-biolum text-white rounded-lg text-xs font-semibold hover:bg-biolum-bright transition-all flex-1"}
                 >
                     Accept
                 </button>
@@ -115,9 +86,12 @@ export default function FriendRequestButton({ user, onUpdate }) {
                         setLoading(false);
                     }}
                     disabled={loading}
-                    className="px-3 py-1 bg-red-600 text-ocean-text rounded text-sm hover:bg-red-700"
+                    className={className ? className.replace('bg-biolum hover:bg-biolum-bright', 'bg-ocean-surface hover:bg-ocean-hover text-ocean-text w-10 shrink-0 border border-ocean-border') : "px-3 py-1.5 flex items-center justify-center bg-ocean-surface border border-ocean-border text-ocean-text rounded-lg text-xs font-semibold hover:border-rose-500/50 hover:text-rose-400 transition-all shrink-0"}
+                    title="Reject"
                 >
-                    Reject
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                 </button>
             </div>
         );
@@ -127,9 +101,10 @@ export default function FriendRequestButton({ user, onUpdate }) {
         <button
             onClick={handleSend}
             disabled={loading}
-            className="px-3 py-1 bg-biolum text-white rounded text-sm hover:bg-biolum-dark"
+            className={className || "px-3 py-1.5 flex items-center justify-center gap-1.5 bg-biolum text-white rounded-lg text-xs font-semibold hover:bg-biolum-bright border border-transparent shadow-[0_2px_8px_rgba(25,25,112,0.25)] transition-all"}
         >
-            {loading ? '...' : 'Add Friend'}
+            {customText && <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>}
+            {loading ? '...' : (customText ? 'Connect' : 'Add')}
         </button>
     );
 }

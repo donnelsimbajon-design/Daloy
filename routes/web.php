@@ -8,6 +8,8 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ReactionController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\SchoolController;
+use App\Http\Controllers\VoyagerController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -42,12 +44,24 @@ Route::middleware('auth')->group(function () {
 
     // Navigation Pages
     Route::get('/explore', function () { return Inertia::render('Explore'); });
-    Route::get('/schools', function () { return Inertia::render('Schools'); });
-    Route::get('/voyagers', function () { return Inertia::render('Voyagers'); });
     Route::get('/events', function () { return Inertia::render('Events'); });
     Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
     Route::get('/ripples', function () { return Inertia::render('Ripples'); });
     Route::get('/conversations', function () { return Inertia::render('Conversations'); });
+
+    // Schools / Groups (Dynamic)
+    Route::get('/schools', [SchoolController::class, 'index'])->name('schools.index');
+    Route::get('/schools/create', function () { return Inertia::render('SchoolCreate'); })->name('schools.create');
+    Route::post('/schools', [SchoolController::class, 'store'])->name('schools.store');
+    Route::get('/schools/{school}', [SchoolController::class, 'show'])->name('schools.show');
+    Route::post('/schools/{school}/toggle-membership', [SchoolController::class, 'toggleMembership'])->name('schools.toggle');
+    Route::post('/schools/{school}/posts', [SchoolController::class, 'storePost'])->name('schools.posts.store');
+    Route::post('/schools/{school}/cover-image', [SchoolController::class, 'updateCoverImage'])->name('schools.cover');
+    Route::post('/schools/{school}/profile-image', [SchoolController::class, 'updateProfileImage'])->name('schools.profile');
+    Route::put('/schools/{school}/details', [SchoolController::class, 'updateDetails'])->name('schools.details');
+
+    // Voyagers / Friends (Dynamic)
+    Route::get('/voyagers', [VoyagerController::class, 'index'])->name('voyagers.index');
 
     // User Profile
     Route::get('/users/{user}', [\App\Http\Controllers\UserProfileController::class, 'show'])->name('users.show');

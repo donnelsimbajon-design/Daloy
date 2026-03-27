@@ -198,8 +198,8 @@ export default function Settings({ user, blocked_users = [] }) {
                             { label: 'Following', value: user.following_count ?? 0 },
                         ].map(s => (
                             <div key={s.label} className="text-center">
-                                <p className="text-lg font-bold text-ocean-text">{s.value}</p>
-                                <p className="text-[11px] text-ocean-text-dim uppercase tracking-wide">{s.label}</p>
+                                <p className="text-lg font-semibold text-ocean-text">{s.value}</p>
+                                <p className="text-xs font-semibold text-ocean-text-dim">{s.label}</p>
                             </div>
                         ))}
                     </div>
@@ -211,9 +211,9 @@ export default function Settings({ user, blocked_users = [] }) {
                 <div className="flex gap-1 overflow-x-auto px-4 sm:px-0 pb-2 sm:pb-0 scrollbar-hide">
                     {tabs.map(tab => (
                         <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium whitespace-nowrap transition-all ${
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-medium whitespace-nowrap transition-colors ${
                                 activeTab === tab.id
-                                    ? 'bg-biolum text-white shadow-sm shadow-biolum/20'
+                                    ? 'bg-biolum text-ocean-deep'
                                     : 'text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface'
                             }`}>
                             <Ic d={tab.icon} className="w-4 h-4" />
@@ -264,7 +264,7 @@ export default function Settings({ user, blocked_users = [] }) {
                                 <div className="space-y-4 mt-2">
                                     <div className="flex items-center justify-between p-3 rounded-xl bg-ocean-card/50 border border-ocean-border">
                                         <span className="text-xs text-ocean-text-dim">Profile Strength</span>
-                                        <span className="text-xs font-bold text-biolum">Advanced</span>
+                                        <span className="text-xs font-semibold text-biolum">Advanced</span>
                                     </div>
                                     <div className="w-full bg-ocean-surface rounded-full h-1.5 overflow-hidden">
                                         <div className="bg-biolum h-full w-[85%] rounded-full shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
@@ -284,7 +284,7 @@ export default function Settings({ user, blocked_users = [] }) {
                                         { t: 'SafetyFirst', d: 'Never share your real password.' }
                                     ].map(tip => (
                                         <div key={tip.t} className="p-3 rounded-xl hover:bg-ocean-surface transition-colors cursor-help">
-                                            <p className="text-xs font-bold text-ocean-text">{tip.t}</p>
+                                            <p className="text-xs font-semibold text-ocean-text">{tip.t}</p>
                                             <p className="text-[10px] text-ocean-text-dim mt-0.5">{tip.d}</p>
                                         </div>
                                     ))}
@@ -580,7 +580,7 @@ export default function Settings({ user, blocked_users = [] }) {
                                         </div>
                                     </div>
                                     <button onClick={() => handleUnblock(bu.id)}
-                                        className="h-8 px-3 text-[12px] font-medium text-rose-500 border border-rose-200 rounded-lg hover:bg-rose-50 transition-all">
+                                        className="h-8 px-3 text-xs font-semibold text-rose-500 border border-rose-200 rounded-xl hover:bg-rose-50 transition-colors">
                                         Unblock
                                     </button>
                                 </div>

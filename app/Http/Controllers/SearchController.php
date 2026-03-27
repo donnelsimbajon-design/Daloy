@@ -16,7 +16,7 @@ class SearchController extends Controller
         $user = Auth::user();
 
         // Base: always exclude self
-        $baseQuery = User::select(['id', 'name', 'username', 'profile_picture', 'bio', 'location', 'privacy_setting'])
+        $baseQuery = User::select(['id', 'name', 'username', 'profile_picture', 'bio', 'location', 'privacy_setting', 'background_picture'])
             ->where('id', '!=', $user->id);
         if ($query !== '') {
             $baseQuery->where(function ($q) use ($query) {
@@ -32,6 +32,9 @@ class SearchController extends Controller
         } elseif ($type === 'following') {
             $followingIds = $user->following()->pluck('users.id');
             $baseQuery->whereIn('id', $followingIds);
+        } elseif ($type === 'suggested') {
+            $friendIds = $user->friends()->pluck('users.id');
+            $baseQuery->whereNotIn('id', $friendIds);
         }
 
         $results = $baseQuery->paginate(20);

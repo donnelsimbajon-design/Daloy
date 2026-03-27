@@ -29,7 +29,7 @@ function SearchBar({ value, onChange, placeholder }) {
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full pl-9 pr-3 py-2.5 bg-ocean-card/40 border border-ocean-divider-subtle rounded-[14px] text-xs text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:border-biolum/40 focus:ring-1 focus:ring-biolum/15 focus:bg-ocean-card transition-all shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+                className="w-full pl-9 pr-3 py-2.5 bg-ocean-surface/40 border border-ocean-border rounded-xl text-xs text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:border-biolum/40 focus:ring-1 focus:ring-biolum/15 focus:bg-ocean-card transition-all"
             />
         </div>
     );
@@ -46,7 +46,7 @@ function TrendingPanel() {
     );
 
     return (
-        <div className="space-y-0 animate-[fadeIn_0.25s_ease-out]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 animate-[fadeIn_0.25s_ease-out]">
             {/* Section 1: Header & Search */}
             <div className="pb-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -73,7 +73,7 @@ function TrendingPanel() {
                     {filtered.length > 0 ? filtered.map((tag) => (
                         <button
                             key={tag}
-                            className="px-3.5 py-1.5 rounded-full text-xs font-bold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-white hover:border-biolum transition-all duration-300 active:scale-95 shadow-[0_1px_3px_rgba(25,25,112,0.05)] hover:shadow-[0_2px_8px_rgba(25,25,112,0.15)]"
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-ocean-deep hover:border-biolum transition-colors"
                         >
                             {tag}
                         </button>
@@ -88,7 +88,7 @@ function TrendingPanel() {
 
             {/* Section 3: Popular Today */}
             <div className="pt-4">
-                <h4 className="text-[10px] font-bold text-ocean-text-dim/60 uppercase tracking-[0.12em] mb-3">Popular Today</h4>
+                <h4 className="text-xs font-semibold text-ocean-text-dim mb-3">Popular Today</h4>
                 <div className="space-y-3">
                     {['#OceanicTech', '#LiquidMotion', '#Biolum'].map((tag, i) => (
                         <div key={tag} className="flex items-center justify-between p-2.5 rounded-[12px] hover:bg-ocean-card/50 transition-all">
@@ -121,7 +121,7 @@ function GroupsPanel() {
     );
 
     return (
-        <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
                     <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -148,7 +148,7 @@ function GroupsPanel() {
                                 <p className="text-[11px] text-ocean-text-dim/60">{group.members} members · {group.active} active</p>
                             </div>
                         </div>
-                        <button className="px-3.5 py-1.5 rounded-full text-xs font-bold text-white bg-biolum hover:bg-biolum-bright transition-colors uppercase tracking-wide shadow-[0_1px_3px_rgba(25,25,112,0.2)]">
+                        <button className="px-4 py-1.5 rounded-xl text-xs font-semibold text-ocean-deep bg-biolum hover:bg-biolum-bright transition-colors">
                             Join
                         </button>
                     </div>
@@ -159,7 +159,7 @@ function GroupsPanel() {
 
             {/* Browse all */}
             <div className="pt-3">
-                <button className="w-full py-2.5 text-sm font-semibold text-biolum bg-biolum/10 rounded-[14px] hover:bg-biolum/20 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <button className="w-full py-2.5 text-sm font-semibold text-biolum bg-biolum/10 rounded-xl hover:bg-biolum/20 transition-all">
                     Browse All Groups
                 </button>
             </div>
@@ -329,7 +329,7 @@ function MessagesPanel() {
     }
 
     return (
-        <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
                     <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -439,7 +439,7 @@ function NotificationsPanel() {
     };
 
     return (
-        <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
                     <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -551,7 +551,7 @@ function LanguagePanel() {
     };
 
     return (
-        <div className="space-y-4 animate-[fadeIn_0.25s_ease-out]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
             <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
                     <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">

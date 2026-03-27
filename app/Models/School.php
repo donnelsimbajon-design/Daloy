@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class School extends Model
 {
-    protected $fillable = ['name', 'description', 'privacy', 'cover_image', 'created_by'];
+    protected $fillable = ['name', 'description', 'privacy', 'cover_image', 'profile_image', 'created_by'];
 
     public function creator()
     {
@@ -18,6 +18,11 @@ class School extends Model
         return $this->belongsToMany(User::class, 'school_members')
             ->withPivot('role')
             ->withTimestamps();
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
     }
 
     public function scopePublic($query)

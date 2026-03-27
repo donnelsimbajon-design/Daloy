@@ -93,6 +93,13 @@ class UserProfileController extends Controller
             ->limit(9)
             ->get();
 
+        // Groups/Schools joined
+        $schools = $user->schools()
+            ->withCount('members')
+            ->withPivot('role')
+            ->limit(6)
+            ->get();
+
         return Inertia::render('UserProfile', [
             'profileUser' => array_merge($user->only([
                 'id', 'name', 'username', 'bio', 'about', 'profile_picture',
@@ -116,6 +123,7 @@ class UserProfileController extends Controller
             'isBlockedBy'      => false,
             'posts'            => $posts,
             'friends'          => $friends,
+            'schools'          => $schools,
         ]);
     }
 
