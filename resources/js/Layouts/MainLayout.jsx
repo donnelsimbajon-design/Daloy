@@ -47,7 +47,7 @@ export default function MainLayout({ children }) {
             <TopNav />
 
             {/* Main Content Area */}
-            <main className="pt-20 pb-16 max-w-[1536px] mx-auto px-4 sm:px-6 lg:px-8">
+            <main className="pt-20 pb-16 max-w-[1536px] mx-auto px-0 sm:px-6 lg:px-8 w-full overflow-x-hidden relative">
                 {children}
             </main>
 

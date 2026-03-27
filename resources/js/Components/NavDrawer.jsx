@@ -2,48 +2,39 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useLanguage } from '@/Contexts/LanguageContext';
 
-// Wavy burger icon — three animated wave lines
+// Minimalist animated burger icon
 function WavyBurgerIcon({ isOpen }) {
     return (
         <svg
             width="24"
-            height="20"
-            viewBox="0 0 24 20"
+            height="24"
+            viewBox="0 0 24 24"
             fill="none"
-            className="text-biolum transition-all duration-300"
+            className="text-ocean-text transition-all duration-300"
         >
-            {/* Top wave */}
+            {/* Top line */}
             <path
-                d={isOpen
-                    ? "M4 10L20 10"
-                    : "M1 3C3 1 5 5 7 3C9 1 11 5 13 3C15 1 17 5 19 3C21 1 23 3 23 3"
-                }
+                d="M4 6H20"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                className={`transition-all duration-300 origin-center ${isOpen ? 'translate-y-0 rotate-45' : ''}`}
+                className={`transition-all duration-300 origin-center ${isOpen ? 'translate-y-[6px] rotate-45' : ''}`}
             />
-            {/* Middle wave */}
+            {/* Middle line */}
             <path
-                d={isOpen
-                    ? "M4 10L20 10"
-                    : "M1 10C3 8 5 12 7 10C9 8 11 12 13 10C15 8 17 12 19 10C21 8 23 10 23 10"
-                }
+                d="M4 12H20"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                className={`transition-all duration-300 ${isOpen ? 'opacity-0 scale-0' : 'opacity-100'}`}
+                className={`transition-all duration-300 ${isOpen ? 'opacity-0 scale-x-0' : 'opacity-100 scale-x-100'}`}
             />
-            {/* Bottom wave */}
+            {/* Bottom line */}
             <path
-                d={isOpen
-                    ? "M4 10L20 10"
-                    : "M1 17C3 15 5 19 7 17C9 15 11 19 13 17C15 15 17 19 19 17C21 15 23 17 23 17"
-                }
+                d="M4 18H20"
                 stroke="currentColor"
-                strokeWidth="2"
+                strokeWidth="2.5"
                 strokeLinecap="round"
-                className={`transition-all duration-300 origin-center ${isOpen ? 'translate-y-0 -rotate-45' : ''}`}
+                className={`transition-all duration-300 origin-center ${isOpen ? '-translate-y-[6px] -rotate-45' : ''}`}
             />
         </svg>
     );

@@ -195,7 +195,7 @@ export default function UserProfile() {
                         {loading === 'follow' ? '...' : 'Pending'}
                     </button>
                 ) : (
-                    <button onClick={handleFollow} disabled={loading === 'follow'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-biolum text-ocean-deep text-sm font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-50">
+                    <button onClick={handleFollow} disabled={loading === 'follow'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-biolum text-white text-sm font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-50">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                         {loading === 'follow' ? '...' : 'Follow'}
                     </button>
@@ -211,7 +211,7 @@ export default function UserProfile() {
                         {loading === 'friend' ? '...' : 'Request Sent'}
                     </button>
                 ) : friendshipStatus === 'received' ? (
-                    <button onClick={acceptFriendRequest} disabled={loading === 'friend'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-biolum text-ocean-deep text-sm font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-50">
+                    <button onClick={acceptFriendRequest} disabled={loading === 'friend'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-biolum text-white text-sm font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-50">
                         {loading === 'friend' ? '...' : 'Accept Request'}
                     </button>
                 ) : (

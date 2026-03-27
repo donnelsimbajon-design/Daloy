@@ -73,7 +73,7 @@ function TrendingPanel() {
                     {filtered.length > 0 ? filtered.map((tag) => (
                         <button
                             key={tag}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-ocean-deep hover:border-biolum transition-colors"
+                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-white hover:border-biolum transition-colors"
                         >
                             {tag}
                         </button>
@@ -148,7 +148,7 @@ function GroupsPanel() {
                                 <p className="text-[11px] text-ocean-text-dim/60">{group.members} members · {group.active} active</p>
                             </div>
                         </div>
-                        <button className="px-4 py-1.5 rounded-xl text-xs font-semibold text-ocean-deep bg-biolum hover:bg-biolum-bright transition-colors">
+                        <button className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-biolum hover:bg-biolum-bright transition-colors">
                             Join
                         </button>
                     </div>

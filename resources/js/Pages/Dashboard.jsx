@@ -10,9 +10,9 @@ const DraggableMobileActionMenu = ({
     switchPanel
 }) => {
     // Start with a safe default at the top-right
-    const [position, setPosition] = useState({ 
-        x: typeof window !== 'undefined' ? window.innerWidth - 72 : 0, 
-        y: 80 
+    const [position, setPosition] = useState({
+        x: typeof window !== 'undefined' ? window.innerWidth - 72 : 0,
+        y: 80
     });
     const isDragging = useRef(false);
     const hasMoved = useRef(false);
@@ -36,7 +36,7 @@ const DraggableMobileActionMenu = ({
             }
         };
 
-        handleResize(); 
+        handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, [setMobileMenuExpanded]);
@@ -54,10 +54,10 @@ const DraggableMobileActionMenu = ({
         if (!isDragging.current) return;
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        
+
         const dx = clientX - dragOffset.current.x;
         const dy = clientY - dragOffset.current.y;
-        
+
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
             hasMoved.current = true;
             if (e.cancelable) e.preventDefault(); // Prevent page scroll while dragging menu
@@ -65,7 +65,7 @@ const DraggableMobileActionMenu = ({
 
         let nextX = posStart.current.x + dx;
         let nextY = posStart.current.y + dy;
-        
+
         // Prevent it from going entirely offscreen
         nextX = Math.max(10, Math.min(window.innerWidth - 66, nextX));
         nextY = Math.max(10, Math.min(window.innerHeight - 66, nextY));
@@ -101,12 +101,12 @@ const DraggableMobileActionMenu = ({
     if (activePanel) return null;
 
     return (
-        <div 
+        <div
             className="lg:hidden fixed z-[100] flex flex-col items-center"
-            style={{ 
-                left: `${position.x}px`, 
+            style={{
+                left: `${position.x}px`,
                 top: `${position.y}px`,
-                touchAction: 'none' 
+                touchAction: 'none'
             }}
         >
             {/* Overlay */}
@@ -131,7 +131,7 @@ const DraggableMobileActionMenu = ({
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
                     )}
                 </svg>
-                
+
                 {/* Main FAB Badge */}
                 {!mobileMenuExpanded && (unreadMessages + totalNotifications) > 0 && (
                     <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose-500 rounded-full animate-pulse border-2 border-ocean-deep"></span>
@@ -185,19 +185,16 @@ export default function Dashboard({ posts }) {
     const RailButton = ({ panel, title, icon, badge }) => (
         <button
             onClick={() => switchPanel(panel)}
-            className={`w-11 h-11 rounded-[14px] flex items-center justify-center transition-all duration-300 group relative ${activePanel === panel
-                ? 'bg-biolum/15 border border-biolum/30 shadow-[0_1px_4px_rgba(25,25,112,0.12)]'
-                : 'bg-ocean-card/70 border border-ocean-divider-subtle hover:border-biolum/25 hover:bg-ocean-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors group relative ${activePanel === panel
+                ? 'bg-biolum text-ocean-card'
+                : 'bg-ocean-card text-ocean-text-dim hover:bg-ocean-surface hover:text-ocean-text'
                 }`}
             title={title}
         >
-            <svg className={`w-5 h-5 transition-colors duration-200 ${activePanel === panel ? 'text-biolum' : 'text-ocean-text-dim group-hover:text-biolum'}`}
+            <svg className="w-5 h-5 transition-colors"
                 fill="none" viewBox="0 0 24 24" strokeWidth={icon.strokeWidth || 2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d={icon.path} />
             </svg>
-            {activePanel === panel && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-1 h-5 bg-biolum rounded-full" />
-            )}
             {badge > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 bg-biolum text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none animate-pulse">
                     {badge > 99 ? '99+' : badge}

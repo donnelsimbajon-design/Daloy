@@ -140,7 +140,7 @@ export default function Conversations() {
     return (
         <MainLayout>
             <Head title="Conversations" />
-            
+
             <div className="flex h-[calc(100vh-9rem)] w-[100vw] relative left-1/2 -translate-x-1/2 -mt-2 border-y border-ocean-border bg-ocean-card overflow-hidden">
                 {/* 1. List */}
                 <div className={`w-full md:w-[320px] lg:w-[340px] flex flex-col shrink-0 border-r border-ocean-border bg-ocean-card ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
@@ -256,7 +256,7 @@ export default function Conversations() {
                                         </div>
                                         <h3 className="font-bold text-lg text-ocean-text">{otherUser.name}</h3>
                                         <p className="text-xs font-semibold text-ocean-text-dim mb-5">@{otherUser.username || 'user'}</p>
-                                        
+
                                         <Link href={`/users/${otherUser.id}`} className="w-full text-center px-5 py-2 rounded-xl bg-ocean-surface border border-ocean-border text-ocean-text text-xs font-semibold hover:bg-ocean-card hover:border-biolum/30 transition-colors">
                                             View Profile
                                         </Link>
@@ -288,7 +288,7 @@ export default function Conversations() {
                                             <span className="text-[10px] font-bold text-biolum cursor-pointer uppercase hover:opacity-80">View All</span>
                                         </div>
                                         <div className="grid grid-cols-3 gap-2">
-                                            {[1,2,3,4,5,6].map(i => (
+                                            {[1, 2, 3, 4, 5, 6].map(i => (
                                                 <div key={i} className="aspect-square bg-ocean-card border border-ocean-border rounded-xl overflow-hidden relative group cursor-pointer hover:border-biolum/50 transition-all shadow-sm">
                                                     <img src={`https://picsum.photos/seed/${otherUser.id + i}/150`} className="w-full h-full object-cover mix-blend-luminosity opacity-80 group-hover:opacity-100 group-hover:mix-blend-normal transition-all" />
                                                 </div>
