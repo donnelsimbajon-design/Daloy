@@ -103,4 +103,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/share/send', [App\Http\Controllers\ShareController::class, 'sendToUser']);
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    // ─── Admin Panel Routes ───
+    Route::prefix('admin')->group(function () {
+        Route::get('/', function () { return redirect('/admin/dashboard'); });
+        Route::get('/dashboard', function () { return Inertia::render('Admin/Dashboard'); })->name('admin.dashboard');
+        Route::get('/users', function () { return Inertia::render('Admin/Users'); })->name('admin.users');
+        Route::get('/moderation', function () { return Inertia::render('Admin/Moderation'); })->name('admin.moderation');
+        Route::get('/reports', function () { return Inertia::render('Admin/Reports'); })->name('admin.reports');
+        Route::get('/groups', function () { return Inertia::render('Admin/Groups'); })->name('admin.groups');
+        Route::get('/messages', function () { return Inertia::render('Admin/Messages'); })->name('admin.messages');
+        Route::get('/analytics', function () { return Inertia::render('Admin/Analytics'); })->name('admin.analytics');
+        Route::get('/settings', function () { return Inertia::render('Admin/Settings'); })->name('admin.settings');
+        Route::get('/logs', function () { return Inertia::render('Admin/Logs'); })->name('admin.logs');
+    });
 });
