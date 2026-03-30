@@ -12,11 +12,39 @@ class FollowController extends Controller
     public function follow(Request $request)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
-        $targetUser = User::find($request->user_id);
+        $targetUser  = User::find($request->user_id);
         $currentUser = Auth::user();
 
         if ($currentUser->id === $targetUser->id) {
             return response()->json(['message' => 'Cannot follow yourself.'], 400);
+        }
+
+        // Block check: neither party can follow the other if blocked
+        $isBlockedByTarget = $targetUser->blockedUsers()
+            ->where('blocked_user_id', $currentUser->id)->exists();
+        $hasBlockedTarget  = $currentUser->blockedUsers()
+            ->where('blocked_user_id', $targetUser->id)->exists();
+
+        if ($isBlockedByTarget || $hasBlockedTarget) {
+            return response()->json(['message' => 'You cannot follow this user.'], 403);
+        }
+
+        // 48h cooldown after unblocking
+        $recentUnblock = \Illuminate\Support\Facades\DB::table('blocked_users')
+            ->where(function ($q) use ($currentUser, $targetUser) {
+                $q->where('user_id', $currentUser->id)->where('blocked_user_id', $targetUser->id);
+            })
+            ->orWhere(function ($q) use ($currentUser, $targetUser) {
+                $q->where('user_id', $targetUser->id)->where('blocked_user_id', $currentUser->id);
+            })
+            ->whereNotNull('unblocked_at')
+            ->where('unblocked_at', '>=', now()->subHours(48))
+            ->exists();
+
+        if ($recentUnblock) {
+            return response()->json([
+                'message' => 'You cannot follow this person yet. Please wait 48 hours after unblocking.',
+            ], 403);
         }
 
         if ($currentUser->isFollowing($targetUser)) {
@@ -35,9 +63,9 @@ class FollowController extends Controller
             }
 
             FollowRequest::create([
-                'follower_id' => $currentUser->id,
+                'follower_id'  => $currentUser->id,
                 'following_id' => $targetUser->id,
-                'status' => 'pending'
+                'status'       => 'pending'
             ]);
 
             return response()->json(['message' => 'Follow request sent.']);

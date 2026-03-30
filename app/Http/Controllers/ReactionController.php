@@ -14,7 +14,20 @@ class ReactionController extends Controller
      */
     public function toggle(Request $request, Post $post): JsonResponse
     {
-        $user = Auth::user();
+        $user      = Auth::user();
+        $postOwner = $post->user;
+
+        // Block check: no reactions across blocked parties
+        if ($postOwner && $postOwner->id !== $user->id) {
+            $isBlockedByOwner = $postOwner->blockedUsers()
+                ->where('blocked_user_id', $user->id)->exists();
+            $hasBlockedOwner  = $user->blockedUsers()
+                ->where('blocked_user_id', $postOwner->id)->exists();
+
+            if ($isBlockedByOwner || $hasBlockedOwner) {
+                return response()->json(['message' => 'You cannot react to this post.'], 403);
+            }
+        }
 
         $existing = $post->reactions()
             ->where('user_id', $user->id)
@@ -27,7 +40,7 @@ class ReactionController extends Controller
         } else {
             $post->reactions()->create([
                 'user_id' => $user->id,
-                'type' => 'like',
+                'type'    => 'like',
             ]);
             $liked = true;
         }
@@ -35,8 +48,8 @@ class ReactionController extends Controller
         $count = $post->reactions()->where('type', 'like')->count();
 
         return response()->json([
-            'liked'  => $liked,
-            'count'  => $count,
+            'liked' => $liked,
+            'count' => $count,
         ]);
     }
 }

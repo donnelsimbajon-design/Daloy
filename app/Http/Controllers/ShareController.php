@@ -21,7 +21,15 @@ class ShareController extends Controller
             return response()->json([]);
         }
 
+        $authUser = Auth::user();
+
+        // Exclude blocked/blocking users
+        $blockedByMeIds = $authUser->blockedUsers()->pluck('users.id')->toArray();
+        $blockedMeIds   = $authUser->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds  = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
         $users = User::where('id', '!=', Auth::id())
+            ->whereNotIn('id', $allBlockedIds)
             ->where(function($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
                   ->orWhere('username', 'like', "%{$query}%");
@@ -39,12 +47,23 @@ class ShareController extends Controller
     {
         $validated = $request->validate([
             'recipient_id' => 'required|exists:users,id',
-            'post_url' => 'required|url',
-            'message' => 'nullable|string|max:500',
+            'post_url'     => 'required|url',
+            'message'      => 'nullable|string|max:500',
         ]);
 
         $recipientId = $validated['recipient_id'];
-        $authId = Auth::id();
+        $authId      = Auth::id();
+        $authUser    = Auth::user();
+        $recipient   = User::find($recipientId);
+
+        // Block check
+        if ($recipient) {
+            $isBlockedByRecipient = $recipient->blockedUsers()->where('blocked_user_id', $authId)->exists();
+            $hasBlockedRecipient  = $authUser->blockedUsers()->where('blocked_user_id', $recipientId)->exists();
+            if ($isBlockedByRecipient || $hasBlockedRecipient) {
+                return response()->json(['message' => 'Cannot share with this user.'], 403);
+            }
+        }
 
         // 1. Find or create conversation
         // This is a simple 1-on-1 implementation

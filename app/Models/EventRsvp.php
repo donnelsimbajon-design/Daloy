@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class EventRsvp extends Model
 {
     protected $table = 'event_rsvps';
+
     protected $fillable = ['event_id', 'user_id', 'status'];
 
     public function event()

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, usePage, Link } from '@inertiajs/react';
+import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import axios from 'axios';
 
@@ -11,6 +11,7 @@ export default function Conversations() {
     const [newMessage, setNewMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false); // true when a block is active for this conversation
     const messagesEndRef = useRef(null);
 
     const queryParams = new URLSearchParams(window.location.search);
@@ -28,6 +29,7 @@ export default function Conversations() {
 
     useEffect(() => {
         if (selectedConversation) {
+            setIsBlocked(false); // reset block state when switching conversations
             loadMessages(selectedConversation.id);
             const interval = setInterval(() => {
                 loadMessages(selectedConversation.id, true);
@@ -82,7 +84,7 @@ export default function Conversations() {
 
     const sendMessage = async (e) => {
         e.preventDefault();
-        if (!newMessage.trim() || sending) return;
+        if (!newMessage.trim() || sending || isBlocked) return;
 
         const tempId = Date.now();
         const optimisticMessage = {
@@ -105,10 +107,25 @@ export default function Conversations() {
             });
             setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
         } catch (error) {
-            console.error(error);
             setMessages(prev => prev.filter(m => m.id !== tempId));
+            if (error.response?.status === 403) {
+                // Block detected — silently mark as blocked
+                setIsBlocked(true);
+            }
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleBlockUser = async (userId) => {
+        if (!userId) return;
+        try {
+            await axios.post(`/api/users/${userId}/block`);
+            // Remove this conversation from the list
+            setConversations(prev => prev.filter(c => c.id !== selectedConversation?.id));
+            setSelectedConversation(null);
+        } catch (err) {
+            console.error(err);
         }
     };
 
@@ -193,7 +210,8 @@ export default function Conversations() {
                                         </button>
                                         <h3 className="font-extrabold text-ocean-text text-base flex items-center gap-2">
                                             {otherUser ? otherUser.name : getParticipantName(selectedConversation)}
-                                            {otherUser?.is_online && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                                            {/* Never show online dot if conversation is blocked */}
+                                            {!isBlocked && otherUser?.is_online && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
                                         </h3>
                                     </div>
                                     <button className="p-2 text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface rounded-full transition-colors hidden lg:block">
@@ -217,15 +235,22 @@ export default function Conversations() {
                                     <div ref={messagesEndRef} className="h-2" />
                                 </div>
                                 <div className="p-4 border-t border-ocean-border bg-ocean-card shrink-0 z-10">
-                                    <form onSubmit={sendMessage} className="flex items-end gap-2 bg-ocean-surface border border-ocean-border rounded-[24px] px-2 py-1.5 focus-within:border-biolum/50 focus-within:ring-1 focus-within:ring-biolum/20 transition-all">
-                                        <button type="button" className="p-2 text-ocean-text-dim hover:text-ocean-text self-center shrink-0">
-                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                        </button>
-                                        <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }} placeholder="Type a message..." className="flex-1 bg-transparent border-none py-2.5 px-1 text-sm text-ocean-text focus:outline-none focus:ring-0 placeholder-ocean-text-dim resize-none max-h-32 min-h-[40px] custom-scrollbar self-center" rows="1" />
-                                        <button type="submit" disabled={!newMessage.trim() || sending} className="w-10 h-10 rounded-full bg-biolum text-white flex items-center justify-center disabled:opacity-50 transition-all shrink-0 self-center hover:bg-biolum-bright">
-                                            <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
-                                        </button>
-                                    </form>
+                                    {isBlocked ? (
+                                        <div className="flex items-center gap-3 px-4 py-3 bg-ocean-surface border border-ocean-border/50 rounded-[20px] text-sm text-ocean-text-dim">
+                                            <svg className="w-4 h-4 shrink-0 text-ocean-text-dim/60" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                            <span>You are unable to send a message to this person.</span>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={sendMessage} className="flex items-end gap-2 bg-ocean-surface border border-ocean-border rounded-[24px] px-2 py-1.5 focus-within:border-biolum/50 focus-within:ring-1 focus-within:ring-biolum/20 transition-all">
+                                            <button type="button" className="p-2 text-ocean-text-dim hover:text-ocean-text self-center shrink-0">
+                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                            </button>
+                                            <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }} placeholder="Type a message..." className="flex-1 bg-transparent border-none py-2.5 px-1 text-sm text-ocean-text focus:outline-none focus:ring-0 placeholder-ocean-text-dim resize-none max-h-32 min-h-[40px] custom-scrollbar self-center" rows="1" />
+                                            <button type="submit" disabled={!newMessage.trim() || sending} className="w-10 h-10 rounded-full bg-biolum text-white flex items-center justify-center disabled:opacity-50 transition-all shrink-0 self-center hover:bg-biolum-bright">
+                                                <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                                            </button>
+                                        </form>
+                                    )}
                                 </div>
                             </>
                         );
@@ -317,7 +342,10 @@ export default function Conversations() {
 
                                 {/* BOTTOM SECTION: Settings / Security */}
                                 <div className="p-6 mt-4">
-                                    <button className="w-full flex items-center justify-between p-4 bg-ocean-surface border border-ocean-border rounded-xl hover:bg-ocean-card hover:border-red-500/50 group transition-colors">
+                                    <button
+                                        onClick={() => handleBlockUser(otherUser?.id)}
+                                        className="w-full flex items-center justify-between p-4 bg-ocean-surface border border-ocean-border rounded-xl hover:bg-ocean-card hover:border-red-500/50 group transition-colors"
+                                    >
                                         <div className="flex items-center gap-3">
                                             <svg className="w-5 h-5 text-ocean-text-dim group-hover:text-red-500 transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />

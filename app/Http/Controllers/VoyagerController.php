@@ -15,9 +15,15 @@ class VoyagerController extends Controller
         $user = Auth::user();
         $tab = $request->query('tab', 'suggested');
 
-        // Pending friend requests received
+        // Build block exclusion list (users I blocked OR who blocked me)
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id')->toArray();
+        $blockedMeIds   = $user->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds  = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
+        // Pending friend requests received — HIDE senders who are blocked
         $pendingRequests = FriendRequest::where('receiver_id', $user->id)
             ->where('status', 'pending')
+            ->whereNotIn('sender_id', $allBlockedIds)
             ->with('sender:id,name,username,profile_picture,bio,location')
             ->latest()
             ->get()
@@ -28,19 +34,20 @@ class VoyagerController extends Controller
                 return $sender;
             });
 
-        // All friends
+        // All friends (exclude blocked — shouldn't exist but belt+suspenders)
         $friends = $user->friends()
             ->select('users.id', 'users.name', 'users.username', 'users.profile_picture', 'users.bio', 'users.location')
+            ->whereNotIn('users.id', $allBlockedIds)
             ->get()
             ->map(function ($friend) {
                 $friend->friendship_status = 'friends';
                 return $friend;
             });
 
-        // Suggested (non-friends, non-self)
+        // Suggested: non-friends, non-self, NOT blocked by or blocking me
         $friendIds = $user->friends()->pluck('users.id')->toArray();
-        $sentIds = $user->sentFriendRequests()->where('status', 'pending')->pluck('receiver_id')->toArray();
-        $excludeIds = array_unique(array_merge([$user->id], $friendIds));
+        $sentIds   = $user->sentFriendRequests()->where('status', 'pending')->pluck('receiver_id')->toArray();
+        $excludeIds = array_unique(array_merge([$user->id], $friendIds, $allBlockedIds));
 
         $suggested = User::whereNotIn('id', $excludeIds)
             ->select('id', 'name', 'username', 'profile_picture', 'bio', 'location')
@@ -53,12 +60,12 @@ class VoyagerController extends Controller
             });
 
         return Inertia::render('Voyagers', [
-            'tab' => $tab,
+            'tab'            => $tab,
             'pendingRequests' => $pendingRequests,
-            'allFriends' => $friends,
+            'allFriends'     => $friends,
             'suggestedUsers' => $suggested,
-            'pendingCount' => $pendingRequests->count(),
-            'friendCount' => $friends->count(),
+            'pendingCount'   => $pendingRequests->count(),
+            'friendCount'    => $friends->count(),
         ]);
     }
 }

@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 
 const navItems = [
     { id: 'dashboard', label: 'Dashboard', page: 'Admin/Dashboard', route: '/admin/dashboard', icon: 'grid' },
@@ -70,6 +70,15 @@ const icons = {
 };
 
 export default function Sidebar({ currentPage, isOpen, onNavClick }) {
+    const { auth } = usePage().props;
+    const user = auth?.user;
+    const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'SA';
+
+    const handleLogout = (e) => {
+        e.preventDefault();
+        router.post('/admin/logout');
+    };
+
     return (
         <aside className={`adm-sidebar ${isOpen ? 'open' : ''}`}>
             <div className="adm-sidebar-brand">
@@ -94,13 +103,38 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
 
             <div className="adm-sidebar-footer">
                 <div className="adm-admin-profile">
-                    <div className="adm-admin-avatar">SA</div>
+                    <div className="adm-admin-avatar">
+                        {user?.profile_picture ? (
+                            <img src={user.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : initials}
+                    </div>
                     <div className="adm-admin-info">
-                        <span className="adm-admin-name">Admin User</span>
-                        <span className="adm-admin-role">Root Access</span>
+                        <span className="adm-admin-name">{user?.name || 'Admin'}</span>
+                        <span className="adm-admin-role">Super Admin</span>
                     </div>
                 </div>
+                <button
+                    onClick={handleLogout}
+                    style={{
+                        background: 'none',
+                        border: '1px solid #333',
+                        borderRadius: '6px',
+                        color: '#888',
+                        cursor: 'pointer',
+                        padding: '6px 12px',
+                        fontSize: '11px',
+                        marginTop: '8px',
+                        width: '100%',
+                        transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.borderColor = '#555'; }}
+                    onMouseLeave={e => { e.target.style.color = '#888'; e.target.style.borderColor = '#333'; }}
+                >
+                    Sign Out
+                </button>
             </div>
         </aside>
     );
 }
+
+

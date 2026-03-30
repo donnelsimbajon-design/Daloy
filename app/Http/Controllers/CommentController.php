@@ -32,13 +32,28 @@ class CommentController extends Controller
      */
     public function store(Request $request, Post $post): JsonResponse
     {
+        $authUser = Auth::user();
+        $postOwner = $post->user;
+
+        // Block check: neither party can comment on the other's posts
+        if ($postOwner && $postOwner->id !== $authUser->id) {
+            $isBlockedByOwner = $postOwner->blockedUsers()
+                ->where('blocked_user_id', $authUser->id)->exists();
+            $hasBlockedOwner  = $authUser->blockedUsers()
+                ->where('blocked_user_id', $postOwner->id)->exists();
+
+            if ($isBlockedByOwner || $hasBlockedOwner) {
+                return response()->json(['message' => 'You cannot comment on this post.'], 403);
+            }
+        }
+
         $validated = $request->validate([
             'content'   => 'required|string|max:1000',
             'parent_id' => 'nullable|integer|exists:comments,id',
         ]);
 
         $comment = $post->comments()->create([
-            'user_id'   => Auth::id(),
+            'user_id'   => $authUser->id,
             'content'   => $validated['content'],
             'parent_id' => $validated['parent_id'] ?? null,
         ]);

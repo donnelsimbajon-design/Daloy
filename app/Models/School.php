@@ -25,6 +25,11 @@ class School extends Model
         return $this->hasMany(Post::class);
     }
 
+    public function events()
+    {
+        return $this->hasMany(Event::class);
+    }
+
     public function scopePublic($query)
     {
         return $query->where('privacy', 'public');

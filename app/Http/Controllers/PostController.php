@@ -21,15 +21,24 @@ class PostController extends Controller
         $user = $request->user();
 
         // Collect IDs for the feed
-        $friendIds = $user->friends()->pluck('users.id')->toArray();
+        $friendIds    = $user->friends()->pluck('users.id')->toArray();
         $followingIds = $user->following()->pluck('users.id')->toArray();
         $joinedSchoolIds = $user->schools()->pluck('schools.id')->toArray();
 
-        // Merge unique user IDs: self + friends + following
+        // --- Block filter: exclude any user in a blocking relationship ---
+        // Users I blocked
+        $blockedByMeIds   = $user->blockedUsers()->pluck('users.id')->toArray();
+        // Users who blocked me
+        $blockedMeIds     = $user->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds    = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
+        // Merge unique user IDs: self + friends + following (minus blocked)
         $feedUserIds = array_unique(array_merge([$user->id], $friendIds, $followingIds));
+        // Remove blocked users from the feed source
+        $feedUserIds = array_values(array_diff($feedUserIds, $allBlockedIds));
 
         $posts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name,cover_image,profile_image'])
-            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds) {
+            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds, $user) {
                 // Posts from feed users (public + followers visibility)
                 $query->where(function ($q) use ($feedUserIds) {
                     $q->whereIn('user_id', $feedUserIds)
@@ -42,8 +51,10 @@ class PostController extends Controller
                 }
 
                 // Always include own posts regardless of visibility
-                $query->orWhere('user_id', $feedUserIds[0]);
+                $query->orWhere('user_id', $user->id);
             })
+            // Hard exclude any post authored by a blocked/blocking user
+            ->whereNotIn('user_id', $allBlockedIds)
             ->withCount(['comments', 'reactions'])
             ->withExists(['reactions as liked_by_user' => function ($q) {
                 $q->where('user_id', Auth::id())

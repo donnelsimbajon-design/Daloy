@@ -10,14 +10,20 @@ class StoryController extends Controller
     {
         $user = \Illuminate\Support\Facades\Auth::user();
         
-        $friendIds = $user->friends()->pluck('users.id');
+        $friendIds    = $user->friends()->pluck('users.id');
         $followingIds = $user->following()->pluck('users.id');
         
         $eligibleUserIds = $friendIds->merge($followingIds)->push($user->id)->unique();
 
+        // Block filter: exclude stories from blocked/blocking users
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id');
+        $blockedMeIds   = $user->blockedBy()->pluck('users.id');
+        $allBlockedIds  = $blockedByMeIds->merge($blockedMeIds)->unique();
+
         $stories = \App\Models\Story::with('user:id,name,username,profile_picture')
             ->where('expires_at', '>', now())
             ->whereIn('user_id', $eligibleUserIds)
+            ->whereNotIn('user_id', $allBlockedIds)
             ->where(function ($query) use ($user, $friendIds) {
                 // Own stories
                 $query->where('user_id', $user->id)

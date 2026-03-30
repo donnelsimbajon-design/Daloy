@@ -1,131 +1,190 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import DataTable from '../../Components/Admin/DataTable';
 import StatusBadge from '../../Components/Admin/StatusBadge';
 import Modal from '../../Components/Admin/Modal';
+import { router, Link } from '@inertiajs/react';
 
-const mockUsers = [
-    { id: 1, name: 'Alice Rivera', email: 'alice@example.com', status: 'active', verified: true, joined: '2025-10-15', posts: 342 },
-    { id: 2, name: 'Bob Chen', email: 'bob@example.com', status: 'active', verified: true, joined: '2025-09-22', posts: 189 },
-    { id: 3, name: 'Carla Diaz', email: 'carla@example.com', status: 'suspended', verified: false, joined: '2025-11-03', posts: 78 },
-    { id: 4, name: 'David Kim', email: 'david@example.com', status: 'active', verified: true, joined: '2025-08-10', posts: 567 },
-    { id: 5, name: 'Eva Santos', email: 'eva@example.com', status: 'banned', verified: false, joined: '2025-12-01', posts: 12 },
-    { id: 6, name: 'Frank Moore', email: 'frank@example.com', status: 'active', verified: false, joined: '2026-01-14', posts: 94 },
-    { id: 7, name: 'Grace Lee', email: 'grace@example.com', status: 'active', verified: true, joined: '2025-07-19', posts: 421 },
-    { id: 8, name: 'Henry Tran', email: 'henry@example.com', status: 'suspended', verified: false, joined: '2026-02-05', posts: 33 },
-    { id: 9, name: 'Iris Johnson', email: 'iris@example.com', status: 'active', verified: true, joined: '2025-06-28', posts: 715 },
-    { id: 10, name: 'Jake Wilson', email: 'jake@example.com', status: 'active', verified: false, joined: '2026-03-01', posts: 56 },
-    { id: 11, name: 'Karen Park', email: 'karen@example.com', status: 'active', verified: true, joined: '2025-05-12', posts: 298 },
-    { id: 12, name: 'Leo Nguyen', email: 'leo@example.com', status: 'banned', verified: false, joined: '2026-01-20', posts: 5 },
-];
-
-const activityHistory = [
-    { action: 'Posted in Tech Group', time: '2 hours ago' },
-    { action: 'Commented on @alice post', time: '4 hours ago' },
-    { action: 'Changed profile picture', time: '1 day ago' },
-    { action: 'Joined "Photography Club" group', time: '2 days ago' },
-    { action: 'Reported post #4521', time: '3 days ago' },
-];
-
-export default function Users() {
-    const [search, setSearch] = useState('');
-    const [filterStatus, setFilterStatus] = useState('all');
+export default function Users({ users = { data: [] }, totalUsers = 0, activeConnections = 0, filters = {} }) {
+    const [search, setSearch] = useState(filters.search || '');
     const [selectedUser, setSelectedUser] = useState(null);
     const [modalType, setModalType] = useState(null);
     const [actionMenuId, setActionMenuId] = useState(null);
+    const [actionReason, setActionReason] = useState('');
 
-    const filtered = mockUsers.filter(u => {
-        const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
-        const matchStatus = filterStatus === 'all' || u.status === filterStatus;
-        return matchSearch && matchStatus;
-    });
+    const handleSearch = (val) => {
+        setSearch(val);
+        router.get('/admin/users', { search: val, status: filters.status }, { preserveState: true, replace: true });
+    };
+
+    const handleFilter = (status) => {
+        router.get('/admin/users', { search, status: status === 'all' ? '' : status }, { preserveState: true, replace: true });
+    };
+
+    const handleAction = (user, action) => {
+        router.post(`/admin/users/${user.id}/action`, {
+            action: action,
+            reason: actionReason,
+        }, {
+            preserveState: true,
+            onSuccess: () => { setModalType(null); setSelectedUser(null); setActionReason(''); },
+        });
+    };
 
     const openModal = (user, type) => {
         setSelectedUser(user);
         setModalType(type);
         setActionMenuId(null);
+        setActionReason('');
     };
 
-    const closeModal = () => {
-        setSelectedUser(null);
-        setModalType(null);
-    };
+    const closeModal = () => { setSelectedUser(null); setModalType(null); setActionReason(''); };
 
-    const columns = [
-        {
-            key: 'name', label: 'User',
-            render: (val, row) => (
-                <div className="adm-table-cell-user">
-                    <div className="adm-table-cell-user-avatar">{val.charAt(0)}</div>
-                    <div>
-                        <div style={{ fontWeight: 600 }}>{val}</div>
-                        <div style={{ fontSize: '12px', color: '#888' }}>{row.email}</div>
-                    </div>
-                </div>
-            )
-        },
-        {
-            key: 'status', label: 'Status',
-            render: (val) => <StatusBadge status={val} />
-        },
-        {
-            key: 'verified', label: 'Verified',
-            render: (val) => val
-                ? <span style={{ color: '#111', fontWeight: 600 }}>✓ Verified</span>
-                : <span style={{ color: '#aaa' }}>—</span>
-        },
-        { key: 'joined', label: 'Joined' },
-        { key: 'posts', label: 'Posts', render: (val) => val.toLocaleString() },
-        {
-            key: 'id', label: 'Actions', width: '80px',
-            render: (val, row) => (
-                <div className="adm-actions-menu">
-                    <button className="adm-actions-trigger" onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === val ? null : val); }}>
-                        ⋯
-                    </button>
-                    {actionMenuId === val && (
-                        <div className="adm-actions-dropdown open">
-                            <button onClick={() => openModal(row, 'view')}>👁 View Profile</button>
-                            {row.status === 'active' && <button onClick={() => openModal(row, 'suspend')}>⏸ Suspend</button>}
-                            {row.status === 'active' && <button className="danger" onClick={() => openModal(row, 'ban')}>🚫 Ban User</button>}
-                            {(row.status === 'suspended' || row.status === 'banned') && <button onClick={() => openModal(row, 'activate')}>✅ Activate</button>}
-                            <button onClick={() => openModal(row, 'reset')}>🔑 Reset Password</button>
-                            {!row.verified && <button onClick={() => openModal(row, 'verify')}>✓ Verify</button>}
-                            {row.verified && <button onClick={() => openModal(row, 'revoke')}>✗ Revoke Verification</button>}
-                        </div>
-                    )}
-                </div>
-            )
-        },
-    ];
+    const userList = users.data || [];
 
     return (
         <>
+            {/* Stat Cards - matching reference Image 1 */}
+            <div className="adm-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                <div className="adm-stat-card">
+                    <div className="adm-stat-card-label">TOTAL ACCOUNTS</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+                        <div className="adm-stat-card-value">{totalUsers.toLocaleString()}</div>
+                    </div>
+                </div>
+                <div className="adm-stat-card">
+                    <div className="adm-stat-card-label">ACTIVE CONNECTIONS</div>
+                    <div className="adm-stat-card-value">{activeConnections.toLocaleString()}</div>
+                </div>
+                <div className="adm-stat-card" style={{ background: '#111', color: '#fff' }}>
+                    <div className="adm-stat-card-label" style={{ color: '#aaa' }}>SERVER STATUS</div>
+                    <div className="adm-stat-card-value" style={{ color: '#fff' }}>STABLE 99.9%</div>
+                </div>
+            </div>
+
+            {/* Users Table Card */}
             <div className="adm-card">
                 {/* Toolbar */}
                 <div className="adm-toolbar">
                     <div className="adm-toolbar-left">
+                        <div>
+                            <span style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#888' }}>FILTER BY STATUS</span>
+                            <select className="adm-filter-select" value={filters.status || 'all'} onChange={e => handleFilter(e.target.value)} style={{ display: 'block', marginTop: '4px' }}>
+                                <option value="all">All Users</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="banned">Banned</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="adm-toolbar-right" style={{ gap: '8px' }}>
                         <input
                             type="text"
                             className="adm-filter-input"
-                            placeholder="Search by name or email..."
+                            placeholder="Search parameters..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={e => handleSearch(e.target.value)}
+                            style={{ minWidth: '200px' }}
                         />
-                        <select className="adm-filter-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                            <option value="all">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="suspended">Suspended</option>
-                            <option value="banned">Banned</option>
-                        </select>
-                    </div>
-                    <div className="adm-toolbar-right">
-                        <span style={{ fontSize: '13px', color: '#888' }}>{filtered.length} users</span>
                     </div>
                 </div>
 
-                {/* Table */}
-                <DataTable columns={columns} data={filtered} />
+                {/* Table Header */}
+                <div className="adm-table-wrapper">
+                    <table className="adm-table">
+                        <thead>
+                            <tr>
+                                <th>USER IDENTITY</th>
+                                <th>CONTACT EMAIL</th>
+                                <th>SYSTEM STATUS</th>
+                                <th>REGISTERED</th>
+                                <th>ADMINISTRATIVE ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {userList.length === 0 ? (
+                                <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>No users found</td></tr>
+                            ) : (
+                                userList.map(user => (
+                                    <tr key={user.id}>
+                                        <td>
+                                            <div className="adm-table-cell-user">
+                                                <div className="adm-table-cell-user-avatar">
+                                                    {user.profile_picture ? (
+                                                        <img src={user.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                                    ) : (
+                                                        user.name?.charAt(0)?.toUpperCase() || '?'
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div style={{ fontWeight: 700
+                                                    }}>{user.name}</div>
+                                                    <div style={{ fontSize: '11px', color: '#888' }}>ID: DAL-{String(user.id).padStart(5, '0')}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{user.email}</td>
+                                        <td>
+                                            <StatusBadge status={user.status} />
+                                        </td>
+                                        <td>{user.joined}</td>
+                                        <td>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <button
+                                                    className="adm-btn adm-btn-sm adm-btn-outline"
+                                                    onClick={() => openModal(user, 'view')}
+                                                    style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}
+                                                >
+                                                    VIEW PROFILE
+                                                </button>
+                                                <div className="adm-actions-menu">
+                                                    <button
+                                                        className="adm-actions-trigger"
+                                                        onClick={e => { e.stopPropagation(); setActionMenuId(actionMenuId === user.id ? null : user.id); }}
+                                                        style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600, color: '#888' }}
+                                                    >
+                                                        ACTIONS
+                                                    </button>
+                                                    {actionMenuId === user.id && (
+                                                        <div className="adm-actions-dropdown open">
+                                                            <button onClick={() => openModal(user, 'view')}>→ View Profile Details</button>
+                                                            {user.status === 'active' && (
+                                                                <button className="danger" onClick={() => openModal(user, 'suspend')}>⊘ Suspend Access</button>
+                                                            )}
+                                                            {user.status !== 'active' && (
+                                                                <button onClick={() => openModal(user, 'activate')}>✓ Activate</button>
+                                                            )}
+                                                            <button onClick={() => openModal(user, 'reset_password')}>↻ Reset Password</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Pagination */}
+                {users.links && users.links.length > 3 && (
+                    <div className="adm-pagination">
+                        <span style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            SHOWING {users.from || 0} TO {users.to || 0} OF {users.total || 0} RECORDS
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            {users.links.map((link, i) => (
+                                <Link
+                                    key={i}
+                                    href={link.url || '#'}
+                                    className={`adm-pagination-btn ${link.active ? 'active' : ''}`}
+                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                    preserveState
+                                />
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* View Profile Modal */}
@@ -134,7 +193,7 @@ export default function Users() {
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #eee' }}>
                             <div className="adm-admin-avatar" style={{ width: '56px', height: '56px', fontSize: '20px' }}>
-                                {selectedUser.name.charAt(0)}
+                                {selectedUser.name?.charAt(0)}
                             </div>
                             <div>
                                 <h4 style={{ fontSize: '16px', fontWeight: 700 }}>{selectedUser.name}</h4>
@@ -142,39 +201,38 @@ export default function Users() {
                                 <div style={{ marginTop: '4px' }}><StatusBadge status={selectedUser.status} /></div>
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>User ID</strong><p>DAL-{String(selectedUser.id).padStart(5, '0')}</p></div>
                             <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Joined</strong><p>{selectedUser.joined}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Posts</strong><p>{selectedUser.posts}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified</strong><p>{selectedUser.verified ? 'Yes' : 'No'}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</strong><p>{selectedUser.status}</p></div>
+                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Posts</strong><p>{selectedUser.posts_count}</p></div>
+                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Comments</strong><p>{selectedUser.comments_count}</p></div>
+                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified</strong><p>{selectedUser.verified ? '✓ Yes' : '✗ No'}</p></div>
+                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Username</strong><p>@{selectedUser.username || 'N/A'}</p></div>
                         </div>
-                        <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '12px' }}>Activity History</h4>
-                        {activityHistory.map((a, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: '13px' }}>
-                                <span>{a.action}</span>
-                                <span style={{ color: '#888', fontSize: '12px' }}>{a.time}</span>
-                            </div>
-                        ))}
                     </div>
                 )}
             </Modal>
 
             {/* Action Modals */}
             <Modal
-                isOpen={['suspend', 'ban', 'activate', 'reset', 'verify', 'revoke'].includes(modalType)}
+                isOpen={['suspend', 'ban', 'activate', 'reset_password', 'verify', 'revoke_verify'].includes(modalType)}
                 onClose={closeModal}
-                title={modalType === 'suspend' ? 'Suspend User' : modalType === 'ban' ? 'Ban User' : modalType === 'activate' ? 'Activate User' : modalType === 'reset' ? 'Reset Password' : modalType === 'verify' ? 'Verify User' : 'Revoke Verification'}
+                title={
+                    modalType === 'suspend' ? 'Suspend Access' :
+                    modalType === 'ban' ? 'Ban User' :
+                    modalType === 'activate' ? 'Activate User' :
+                    modalType === 'reset_password' ? 'Reset Password' :
+                    modalType === 'verify' ? 'Verify User' : 'Revoke Verification'
+                }
                 size="sm"
                 footer={
                     <>
                         <button className="adm-btn adm-btn-outline" onClick={closeModal}>Cancel</button>
-                        <button className={`adm-btn ${modalType === 'ban' ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={closeModal}>
-                            {modalType === 'suspend' && 'Confirm Suspend'}
-                            {modalType === 'ban' && 'Confirm Ban'}
-                            {modalType === 'activate' && 'Activate'}
-                            {modalType === 'reset' && 'Send Reset Link'}
-                            {modalType === 'verify' && 'Verify User'}
-                            {modalType === 'revoke' && 'Revoke'}
+                        <button
+                            className={`adm-btn ${modalType === 'ban' ? 'adm-btn-danger' : 'adm-btn-primary'}`}
+                            onClick={() => handleAction(selectedUser, modalType)}
+                        >
+                            Confirm
                         </button>
                     </>
                 }
@@ -185,16 +243,19 @@ export default function Users() {
                             {modalType === 'suspend' && `Are you sure you want to suspend ${selectedUser.name}? They will be unable to access their account.`}
                             {modalType === 'ban' && `This will permanently ban ${selectedUser.name}. This action should be reserved for serious violations.`}
                             {modalType === 'activate' && `Reactivate ${selectedUser.name}'s account? They will regain full access.`}
-                            {modalType === 'reset' && `Send a password reset link to ${selectedUser.email}?`}
-                            {modalType === 'verify' && `Mark ${selectedUser.name} as a verified user?`}
-                            {modalType === 'revoke' && `Remove verification badge from ${selectedUser.name}?`}
+                            {modalType === 'reset_password' && `Send a password reset link to ${selectedUser.email}?`}
+                            {modalType === 'verify' && `Mark ${selectedUser.name} as verified?`}
+                            {modalType === 'revoke_verify' && `Revoke verification from ${selectedUser.name}?`}
                         </p>
                         {(modalType === 'suspend' || modalType === 'ban') && (
                             <div className="adm-form-group">
                                 <label className="adm-form-label">Reason (required)</label>
-                                <textarea className="adm-form-textarea" placeholder="Enter reason for this action..." />
+                                <textarea className="adm-form-textarea" value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="Enter reason for this action..." />
                             </div>
                         )}
+                        <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f7f7f8', borderRadius: '6px', fontSize: '11px', color: '#888' }}>
+                            Changes made here are logged in the system audit and cannot be reversed without supervisor approval.
+                        </div>
                     </div>
                 )}
             </Modal>

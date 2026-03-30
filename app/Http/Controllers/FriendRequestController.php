@@ -27,13 +27,45 @@ class FriendRequestController extends Controller
         $request->validate(['receiver_id' => 'required|exists:users,id']);
 
         $receiverId = $request->receiver_id;
-        $sender = Auth::user();
+        $sender     = Auth::user();
+        $receiver   = User::find($receiverId);
 
         if ($sender->id == $receiverId) {
             return response()->json(['message' => 'Cannot send friend request to yourself.'], 400);
         }
 
-        if ($sender->isFriend(User::find($receiverId))) {
+        // Block check: can't send friend request if either party is blocked
+        $isBlockedByReceiver = $receiver->blockedUsers()
+            ->where('blocked_user_id', $sender->id)->exists();
+        $hasBlockedReceiver  = $sender->blockedUsers()
+            ->where('blocked_user_id', $receiverId)->exists();
+
+        if ($isBlockedByReceiver || $hasBlockedReceiver) {
+            return response()->json(['message' => 'You cannot send a friend request to this user.'], 403);
+        }
+
+        // 48h cooldown: check if either party recently unblocked the other
+        $cooldownHours = 48;
+        $recentUnblock = DB::table('blocked_users')
+            ->where(function ($q) use ($sender, $receiverId) {
+                // Sender recently unblocked receiver
+                $q->where('user_id', $sender->id)->where('blocked_user_id', $receiverId);
+            })
+            ->orWhere(function ($q) use ($sender, $receiverId) {
+                // Receiver recently unblocked sender
+                $q->where('user_id', $receiverId)->where('blocked_user_id', $sender->id);
+            })
+            ->whereNotNull('unblocked_at')
+            ->where('unblocked_at', '>=', now()->subHours($cooldownHours))
+            ->exists();
+
+        if ($recentUnblock) {
+            return response()->json([
+                'message' => 'You cannot add this person yet. Please wait 48 hours after unblocking before reconnecting.',
+            ], 403);
+        }
+
+        if ($sender->isFriend($receiver)) {
             return response()->json(['message' => 'You are already friends.'], 400);
         }
 
@@ -64,9 +96,9 @@ class FriendRequestController extends Controller
         }
 
         $friendRequest = FriendRequest::create([
-            'sender_id' => $sender->id,
+            'sender_id'   => $sender->id,
             'receiver_id' => $receiverId,
-            'status' => 'pending'
+            'status'      => 'pending'
         ]);
 
         return response()->json(['message' => 'Friend request sent successfully.', 'request' => $friendRequest]);

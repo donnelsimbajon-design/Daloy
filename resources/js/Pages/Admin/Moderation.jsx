@@ -1,151 +1,173 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import DataTable from '../../Components/Admin/DataTable';
 import StatusBadge from '../../Components/Admin/StatusBadge';
 import Modal from '../../Components/Admin/Modal';
+import { router } from '@inertiajs/react';
 
-const mockContent = {
-    posts: [
-        { id: 1, type: 'Post', author: 'Bob Chen', content: 'Check out this amazing view from the top of...', status: 'published', flagged: false, date: '2026-03-29' },
-        { id: 2, type: 'Post', author: 'Carla Diaz', content: '[AI FLAGGED] Potentially harmful content detected...', status: 'pending', flagged: true, date: '2026-03-29' },
-        { id: 3, type: 'Post', author: 'Eva Santos', content: 'Buy cheap followers at www.spamsite.com...', status: 'hidden', flagged: true, date: '2026-03-28' },
-        { id: 4, type: 'Post', author: 'Frank Moore', content: 'Great meetup yesterday! Thanks everyone who...', status: 'published', flagged: false, date: '2026-03-28' },
-        { id: 5, type: 'Post', author: 'Henry Tran', content: '[AI FLAGGED] Graphic violence imagery detected...', status: 'pending', flagged: true, date: '2026-03-27' },
-    ],
-    comments: [
-        { id: 101, type: 'Comment', author: 'Jake Wilson', content: 'This is offensive and inappropriate...', status: 'pending', flagged: true, date: '2026-03-29' },
-        { id: 102, type: 'Comment', author: 'Karen Park', content: 'Great article! Very informative', status: 'published', flagged: false, date: '2026-03-29' },
-        { id: 103, type: 'Comment', author: 'Leo Nguyen', content: '[AI FLAGGED] Harassment / targeted abuse...', status: 'pending', flagged: true, date: '2026-03-28' },
-    ],
-    media: [
-        { id: 201, type: 'Media', author: 'Alice Rivera', content: 'image_sunset_2026.jpg (2.4MB)', status: 'published', flagged: false, date: '2026-03-29' },
-        { id: 202, type: 'Media', author: 'David Kim', content: '[AI FLAGGED] Potentially explicit image', status: 'pending', flagged: true, date: '2026-03-28' },
-    ],
-    groups: [
-        { id: 301, type: 'Group Content', author: 'Photography Club', content: 'Post in group about selling equipment...', status: 'published', flagged: false, date: '2026-03-29' },
-        { id: 302, type: 'Group Content', author: 'Tech Forum', content: '[AI FLAGGED] Misinformation about...', status: 'pending', flagged: true, date: '2026-03-27' },
-    ],
-};
-
-const modLogs = [
-    { admin: 'Admin_Sarah', action: 'Deleted post #4521', target: 'Bob Chen', time: '15 mins ago' },
-    { admin: 'Admin_Mark', action: 'Hidden comment #102', target: 'Karen Park', time: '1 hour ago' },
-    { admin: 'System_AI', action: 'Auto-flagged post #2', target: 'Carla Diaz', time: '2 hours ago' },
-    { admin: 'Admin_Sarah', action: 'Approved media #201', target: 'Alice Rivera', time: '3 hours ago' },
-];
-
-export default function Moderation() {
-    const [activeTab, setActiveTab] = useState('posts');
+export default function Moderation({ posts = { data: [] }, comments = { data: [] }, modLogs = [], todayStats = {}, tab = 'posts' }) {
+    const [activeTab, setActiveTab] = useState(tab);
     const [modalType, setModalType] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
-    const [actionMenuId, setActionMenuId] = useState(null);
+    const [actionReason, setActionReason] = useState('');
+
+    const allPosts = posts.data || [];
+    const allComments = comments.data || [];
+    const flaggedItems = [...allPosts.filter(p => p.flagged), ...allComments.filter(c => c.flagged)];
+
+    const contentData = activeTab === 'flagged' ? flaggedItems :
+                        activeTab === 'comments' ? allComments : allPosts;
 
     const tabs = [
-        { key: 'posts', label: 'Posts', count: mockContent.posts.length },
-        { key: 'comments', label: 'Comments', count: mockContent.comments.length },
-        { key: 'media', label: 'Media', count: mockContent.media.length },
-        { key: 'groups', label: 'Groups', count: mockContent.groups.length },
-        { key: 'ai', label: 'AI Queue', count: Object.values(mockContent).flat().filter(i => i.flagged).length },
+        { key: 'posts', label: 'ALL ITEMS', count: allPosts.length + allComments.length },
+        { key: 'flagged', label: 'FLAGGED', count: flaggedItems.length },
+        { key: 'comments', label: 'COMMENTS', count: allComments.length },
     ];
 
-    let contentData = activeTab === 'ai'
-        ? Object.values(mockContent).flat().filter(i => i.flagged)
-        : mockContent[activeTab] || [];
-
-    const columns = [
-        {
-            key: 'author', label: 'Author',
-            render: (val) => (
-                <div className="adm-table-cell-user">
-                    <div className="adm-table-cell-user-avatar">{val.charAt(0)}</div>
-                    <span style={{ fontWeight: 600 }}>{val}</span>
-                </div>
-            )
-        },
-        {
-            key: 'content', label: 'Content Preview',
-            render: (val, row) => (
-                <div>
-                    {row.flagged && <span style={{ fontSize: '10px', fontWeight: 700, color: '#dc2626', marginRight: '6px', textTransform: 'uppercase' }}>⚑ Flagged</span>}
-                    <span style={{ color: row.flagged ? '#dc2626' : 'inherit' }}>{val.length > 60 ? val.substring(0, 60) + '...' : val}</span>
-                </div>
-            )
-        },
-        { key: 'type', label: 'Type' },
-        { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val === 'published' ? 'active' : val} /> },
-        { key: 'date', label: 'Date' },
-        {
-            key: 'id', label: 'Actions', width: '80px',
-            render: (val, row) => (
-                <div className="adm-actions-menu">
-                    <button className="adm-actions-trigger" onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === val ? null : val); }}>⋯</button>
-                    {actionMenuId === val && (
-                        <div className="adm-actions-dropdown open">
-                            <button onClick={() => { setSelectedItem(row); setModalType('view'); setActionMenuId(null); }}>👁 Preview</button>
-                            <button onClick={() => { setSelectedItem(row); setModalType('hide'); setActionMenuId(null); }}>🙈 Hide Content</button>
-                            <button onClick={() => { setSelectedItem(row); setModalType('flag'); setActionMenuId(null); }}>⚑ Flag</button>
-                            <button className="danger" onClick={() => { setSelectedItem(row); setModalType('delete'); setActionMenuId(null); }}>🗑 Delete</button>
-                        </div>
-                    )}
-                </div>
-            )
-        }
-    ];
+    const handleModAction = (action) => {
+        if (!selectedItem) return;
+        router.post('/admin/moderation/action', {
+            content_type: selectedItem.type === 'Post' ? 'post' : 'comment',
+            content_id: selectedItem.id,
+            action: action,
+            reason: actionReason,
+        }, {
+            preserveState: true,
+            onSuccess: () => { setModalType(null); setSelectedItem(null); setActionReason(''); },
+        });
+    };
 
     return (
         <>
-            <div className="adm-card" style={{ marginBottom: '24px' }}>
-                <div className="adm-tabs">
-                    {tabs.map(tab => (
-                        <button key={tab.key} className={`adm-tab ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setActiveTab(tab.key)}>
-                            {tab.label}
-                            <span className="adm-tab-badge">{tab.count}</span>
-                        </button>
-                    ))}
-                </div>
-                <DataTable columns={columns} data={contentData} />
-            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
+                {/* Main Content */}
+                <div>
+                    {/* Tabs */}
+                    <div className="adm-tabs" style={{ background: 'white', borderRadius: '8px 8px 0 0', border: '1px solid #e5e5e5', borderBottom: 'none' }}>
+                        {tabs.map(t => (
+                            <button key={t.key} className={`adm-tab ${activeTab === t.key ? 'active' : ''}`} onClick={() => setActiveTab(t.key)}>
+                                {t.label}
+                                <span className="adm-tab-badge">({t.count})</span>
+                            </button>
+                        ))}
+                    </div>
 
-            {/* Moderation Logs */}
-            <div className="adm-card">
-                <div className="adm-card-header">
-                    <h3>Moderation Logs</h3>
+                    {/* Content Feed */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0', borderLeft: '1px solid #e5e5e5', borderRight: '1px solid #e5e5e5' }}>
+                        {contentData.length === 0 ? (
+                            <div style={{ padding: '60px 20px', textAlign: 'center', color: '#aaa', background: '#fff' }}>
+                                No content to moderate
+                            </div>
+                        ) : (
+                            contentData.map(item => (
+                                <div key={`${item.type}-${item.id}`} style={{
+                                    padding: '20px 24px', background: '#fff', borderBottom: '1px solid #e5e5e5',
+                                }}>
+                                    {/* Author Row */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                            <div className="adm-table-cell-user-avatar" style={{ width: '40px', height: '40px', fontSize: '16px' }}>
+                                                {item.author?.charAt(0)?.toUpperCase() || '?'}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontWeight: 700, fontSize: '14px' }}>{item.username || item.author}</div>
+                                                <div style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                    {item.type} ID: #{item.type === 'Post' ? 'P' : 'C'}{String(item.id).padStart(4, '0')}-{String.fromCharCode(65 + (item.id % 26))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {item.flagged && (
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fef2f2', border: '1px solid #fecaca', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                ⚡ AI FLAG: {item.reports_count || 0} REPORTS
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Content */}
+                                    <div style={{ padding: '12px 0', fontSize: '14px', lineHeight: '1.6', color: '#333' }}>
+                                        {item.content}
+                                    </div>
+
+                                    {/* Media Preview */}
+                                    {item.media_urls && item.media_urls.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                            {item.media_urls.slice(0, 3).map((url, i) => (
+                                                <div key={i} style={{ width: '120px', height: '80px', background: '#111', borderRadius: '4px', overflow: 'hidden' }}>
+                                                    <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                </div>
+                                            ))}
+                                            {item.media_urls.length > 3 && (
+                                                <div style={{ width: '120px', height: '80px', background: '#f0f0f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '12px' }}>
+                                                    +{item.media_urls.length - 3} More
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* Footer Row */}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px' }}>
+                                        <div style={{ fontSize: '12px', color: '#888' }}>
+                                            {item.date} {item.location && `· ${item.location}`}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('hide'); }}>HIDE</button>
+                                            <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('flag'); }}>FLAG</button>
+                                            <button className="adm-btn adm-btn-sm adm-btn-primary" style={{ background: '#111' }} onClick={() => { setSelectedItem(item); setModalType('delete'); }}>DELETE</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
-                <div className="adm-card-body-flush">
-                    <div className="adm-table-wrapper">
-                        <table className="adm-table">
-                            <thead><tr><th>Admin</th><th>Action</th><th>Target</th><th>Time</th></tr></thead>
-                            <tbody>
-                                {modLogs.map((log, i) => (
-                                    <tr key={i}>
-                                        <td style={{ fontWeight: 600 }}>{log.admin}</td>
-                                        <td>{log.action}</td>
-                                        <td>{log.target}</td>
-                                        <td style={{ color: '#888' }}>{log.time}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+
+                {/* Right Sidebar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Moderation Logs */}
+                    <div className="adm-card">
+                        <div className="adm-card-header" style={{ padding: '12px 16px' }}>
+                            <h3 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>MODERATION LOGS</h3>
+                        </div>
+                        <div style={{ padding: '0' }}>
+                            {modLogs.length === 0 ? (
+                                <div style={{ padding: '20px 16px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>No logs yet</div>
+                            ) : (
+                                modLogs.map((log, i) => (
+                                    <div key={i} style={{ padding: '10px 16px', borderBottom: '1px solid #f0f0f0' }}>
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                            <div style={{ width: '6px', height: '6px', background: '#111', borderRadius: '1px', marginTop: '6px', flexShrink: 0 }}></div>
+                                            <div>
+                                                <div style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{log.action}</div>
+                                                <div style={{ fontSize: '11px', color: '#666', lineHeight: '1.4', marginTop: '2px' }}>{log.target}</div>
+                                                {log.reason && <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>Reason: {log.reason}</div>}
+                                                <div style={{ fontSize: '10px', color: '#aaa', marginTop: '4px' }}>{log.time}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Today's Stats */}
+                    <div className="adm-card">
+                        <div className="adm-card-header" style={{ padding: '12px 16px' }}>
+                            <h3 style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>TODAY'S STATS</h3>
+                        </div>
+                        <div style={{ padding: '0 16px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                            <div style={{ border: '1px solid #e5e5e5', borderRadius: '6px', padding: '12px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '20px', fontWeight: 700 }}>{todayStats.scanned?.toLocaleString() || 0}</div>
+                                <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SCANNED</div>
+                            </div>
+                            <div style={{ border: '1px solid #e5e5e5', borderRadius: '6px', padding: '12px', textAlign: 'center' }}>
+                                <div style={{ fontSize: '20px', fontWeight: 700 }}>{todayStats.removed || 0}</div>
+                                <div style={{ fontSize: '10px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>REMOVED</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Action Modals */}
-            <Modal isOpen={modalType === 'view'} onClose={() => setModalType(null)} title="Content Preview" size="lg">
-                {selectedItem && (
-                    <div>
-                        <div style={{ marginBottom: '16px' }}>
-                            <strong>Author:</strong> {selectedItem.author}<br/>
-                            <strong>Type:</strong> {selectedItem.type}<br/>
-                            <strong>Date:</strong> {selectedItem.date}
-                        </div>
-                        <div style={{ padding: '16px', background: '#f7f7f8', borderRadius: '8px', fontSize: '14px', lineHeight: '1.6' }}>
-                            {selectedItem.content}
-                        </div>
-                    </div>
-                )}
-            </Modal>
-
             <Modal
                 isOpen={['delete', 'hide', 'flag'].includes(modalType)}
                 onClose={() => setModalType(null)}
@@ -154,8 +176,8 @@ export default function Moderation() {
                 footer={
                     <>
                         <button className="adm-btn adm-btn-outline" onClick={() => setModalType(null)}>Cancel</button>
-                        <button className={`adm-btn ${modalType === 'delete' ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => setModalType(null)}>
-                            {modalType === 'delete' ? 'Delete' : modalType === 'hide' ? 'Hide' : 'Flag'}
+                        <button className={`adm-btn ${modalType === 'delete' ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => handleModAction(modalType)}>
+                            {modalType === 'delete' ? 'DELETE' : modalType === 'hide' ? 'HIDE' : 'FLAG'}
                         </button>
                     </>
                 }
@@ -163,13 +185,13 @@ export default function Moderation() {
                 {selectedItem && (
                     <div>
                         <p style={{ marginBottom: '12px', fontSize: '13px' }}>
-                            {modalType === 'delete' && `Permanently delete this ${selectedItem.type.toLowerCase()} by ${selectedItem.author}?`}
-                            {modalType === 'hide' && `Hide this ${selectedItem.type.toLowerCase()} from public view?`}
-                            {modalType === 'flag' && `Flag this ${selectedItem.type.toLowerCase()} as inappropriate?`}
+                            {modalType === 'delete' && `Permanently delete this ${selectedItem.type?.toLowerCase()} by ${selectedItem.author}?`}
+                            {modalType === 'hide' && `Hide this ${selectedItem.type?.toLowerCase()} from public view?`}
+                            {modalType === 'flag' && `Flag this ${selectedItem.type?.toLowerCase()} for review?`}
                         </p>
                         <div className="adm-form-group">
                             <label className="adm-form-label">Admin Note</label>
-                            <textarea className="adm-form-textarea" placeholder="Add a note for this action..." />
+                            <textarea className="adm-form-textarea" value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="Document reason..." />
                         </div>
                     </div>
                 )}

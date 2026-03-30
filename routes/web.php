@@ -9,6 +9,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\ReactionController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SchoolController;
+use App\Http\Controllers\EventController;
 use App\Http\Controllers\VoyagerController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -44,7 +45,7 @@ Route::middleware('auth')->group(function () {
 
     // Navigation Pages
     Route::get('/explore', function () { return Inertia::render('Explore'); });
-    Route::get('/events', function () { return Inertia::render('Events'); });
+    Route::get('/events', [EventController::class, 'globalIndex'])->name('events.global');
     Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
     Route::get('/ripples', function () { return Inertia::render('Ripples'); });
     Route::get('/conversations', function () { return Inertia::render('Conversations'); });
@@ -59,6 +60,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/schools/{school}/cover-image', [SchoolController::class, 'updateCoverImage'])->name('schools.cover');
     Route::post('/schools/{school}/profile-image', [SchoolController::class, 'updateProfileImage'])->name('schools.profile');
     Route::put('/schools/{school}/details', [SchoolController::class, 'updateDetails'])->name('schools.details');
+
+    // Events (inside Groups)
+    Route::get('/schools/{school}/events', [EventController::class, 'index'])->name('schools.events');
+    Route::post('/schools/{school}/events', [EventController::class, 'store'])->name('events.store');
+    Route::get('/events/{event}', [EventController::class, 'show'])->name('events.show');
+    Route::post('/events/{event}/rsvp', [EventController::class, 'rsvp'])->name('events.rsvp');
+    Route::delete('/events/{event}/rsvp', [EventController::class, 'cancelRsvp'])->name('events.rsvp.cancel');
+    Route::post('/events/{event}/posts', [EventController::class, 'storePost'])->name('events.posts.store');
+    Route::delete('/events/{event}', [EventController::class, 'destroy'])->name('events.destroy');
 
     // Voyagers / Friends (Dynamic)
     Route::get('/voyagers', [VoyagerController::class, 'index'])->name('voyagers.index');
@@ -103,18 +113,57 @@ Route::middleware('auth')->group(function () {
     Route::post('/share/send', [App\Http\Controllers\ShareController::class, 'sendToUser']);
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
-
-    // ─── Admin Panel Routes ───
-    Route::prefix('admin')->group(function () {
-        Route::get('/', function () { return redirect('/admin/dashboard'); });
-        Route::get('/dashboard', function () { return Inertia::render('Admin/Dashboard'); })->name('admin.dashboard');
-        Route::get('/users', function () { return Inertia::render('Admin/Users'); })->name('admin.users');
-        Route::get('/moderation', function () { return Inertia::render('Admin/Moderation'); })->name('admin.moderation');
-        Route::get('/reports', function () { return Inertia::render('Admin/Reports'); })->name('admin.reports');
-        Route::get('/groups', function () { return Inertia::render('Admin/Groups'); })->name('admin.groups');
-        Route::get('/messages', function () { return Inertia::render('Admin/Messages'); })->name('admin.messages');
-        Route::get('/analytics', function () { return Inertia::render('Admin/Analytics'); })->name('admin.analytics');
-        Route::get('/settings', function () { return Inertia::render('Admin/Settings'); })->name('admin.settings');
-        Route::get('/logs', function () { return Inertia::render('Admin/Logs'); })->name('admin.logs');
-    });
 });
+
+/*
+|--------------------------------------------------------------------------
+| Admin Panel Routes
+|--------------------------------------------------------------------------
+| Admin login is accessible to guests. All dashboard routes are protected
+| by auth + admin middleware (returns 404 for non-admin users).
+*/
+use App\Http\Controllers\Auth\AdminAuthController;
+use App\Http\Controllers\AdminController;
+
+// Admin login (no auth required)
+Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('admin.login');
+Route::post('/admin/login', [AdminAuthController::class, 'store']);
+
+// Admin panel (requires auth + admin middleware)
+Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
+    Route::get('/', function () { return redirect()->route('admin.dashboard'); });
+    Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('admin.logout');
+
+    // Dashboard
+    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
+
+    // Users
+    Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
+    Route::post('/users/{user}/action', [AdminController::class, 'userAction'])->name('admin.users.action');
+
+    // Moderation
+    Route::get('/moderation', [AdminController::class, 'moderation'])->name('admin.moderation');
+    Route::post('/moderation/action', [AdminController::class, 'moderateContent'])->name('admin.moderation.action');
+
+    // Reports
+    Route::get('/reports', [AdminController::class, 'reports'])->name('admin.reports');
+    Route::post('/reports/{report}/action', [AdminController::class, 'reportAction'])->name('admin.reports.action');
+
+    // Groups
+    Route::get('/groups', [AdminController::class, 'groups'])->name('admin.groups');
+    Route::post('/groups/{school}/action', [AdminController::class, 'groupAction'])->name('admin.groups.action');
+
+    // Messages
+    Route::get('/messages', [AdminController::class, 'messages'])->name('admin.messages');
+
+    // Analytics
+    Route::get('/analytics', [AdminController::class, 'analytics'])->name('admin.analytics');
+
+    // Settings
+    Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
+    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
+
+    // Audit Logs
+    Route::get('/logs', [AdminController::class, 'logs'])->name('admin.logs');
+});
+

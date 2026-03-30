@@ -12,6 +12,7 @@ class Post extends Model
     protected $fillable = [
         'user_id',
         'school_id',
+        'event_id',
         'content',
         'media_urls',
         'flow_velocity',
@@ -36,6 +37,11 @@ class Post extends Model
     public function school()
     {
         return $this->belongsTo(School::class);
+    }
+
+    public function event()
+    {
+        return $this->belongsTo(Event::class);
     }
 
     public function media()

@@ -16,6 +16,10 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\HandleInertiaRequests::class,
         ]);
 
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+        ]);
+
         // Allow /api routes to use session-based auth (needed for Inertia first-party SPA).
         // The api middleware group doesn't include StartSession by default, so we prepend
         // the core session/cookie middleware so auth()->user() resolves via the web session.

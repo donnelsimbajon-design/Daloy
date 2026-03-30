@@ -13,16 +13,28 @@ class MessagingController extends Controller
 {
     public function index()
     {
-        // Get conversations for authenticated user
-        $conversations = Auth::user()->conversations()
+        $user = Auth::user();
+
+        // Collect all blocked/blocking user IDs so we can hide their conversations
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id');
+        $blockedMeIds   = $user->blockedBy()->pluck('users.id');
+        $allBlockedIds  = $blockedByMeIds->merge($blockedMeIds)->unique()->toArray();
+
+        // Get conversations, excluding any that involve a blocked/blocking participant
+        $conversations = $user->conversations()
             ->with(['participants:id,name,username,profile_picture', 'latestMessage'])
+            // Exclude conversations where any other participant is blocked
+            ->whereDoesntHave('participants', function ($q) use ($user, $allBlockedIds) {
+                $q->where('user_id', '!=', $user->id)
+                  ->whereIn('user_id', $allBlockedIds);
+            })
             ->orderByDesc(
                 Message::select('created_at')
                     ->whereColumn('conversation_id', 'conversations.id')
                     ->latest()
                     ->take(1)
             )
-            ->get(); // Optimized ordering by latest message
+            ->get();
 
         return response()->json($conversations);
     }
@@ -31,7 +43,18 @@ class MessagingController extends Controller
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
         $targetUserId = $request->user_id;
-        $currentUser = Auth::user();
+        $currentUser  = Auth::user();
+        $targetUser   = User::find($targetUserId);
+
+        // Block check: cannot start conversations with blocked/blocking users
+        if ($targetUser) {
+            $isBlockedByTarget = $targetUser->blockedUsers()->where('blocked_user_id', $currentUser->id)->exists();
+            $hasBlockedTarget  = $currentUser->blockedUsers()->where('blocked_user_id', $targetUserId)->exists();
+
+            if ($isBlockedByTarget || $hasBlockedTarget) {
+                return response()->json(['message' => 'You cannot message this user.'], 403);
+            }
+        }
 
         // Check if conversation already exists between these two users (direct)
         $conversation = Conversation::where('type', 'direct')
@@ -80,12 +103,10 @@ class MessagingController extends Controller
         // For direct message, find the other participant
         $otherParticipant = $conversation->participants()->where('user_id', '!=', $user->id)->first();
         if ($otherParticipant) {
-             // Check blocked status
-             if ($otherParticipant->blockedUsers()->where('blocked_user_id', $user->id)->exists()) {
-                 return response()->json(['message' => 'You cannot message this user.'], 403);
-             }
-             if ($user->blockedUsers()->where('blocked_user_id', $otherParticipant->id)->exists()) {
-                 return response()->json(['message' => 'You have blocked this user.'], 403);
+             // Check blocked status — neutral message, no information leakage
+             if ($otherParticipant->blockedUsers()->where('blocked_user_id', $user->id)->exists() ||
+                 $user->blockedUsers()->where('blocked_user_id', $otherParticipant->id)->exists()) {
+                 return response()->json(['message' => 'You are unable to send a message to this person.'], 403);
              }
 
              // Check permissions

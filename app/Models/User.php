@@ -174,6 +174,16 @@ class User extends Authenticatable
         return $this->friends()->where('friend_id', $user->id)->exists();
     }
 
+    /**
+     * Returns true if $this has blocked $user OR $user has blocked $this.
+     * Use this for any mutual block check.
+     */
+    public function isBlockedWith(User $user): bool
+    {
+        return $this->blockedUsers()->where('blocked_user_id', $user->id)->exists()
+            || $user->blockedUsers()->where('blocked_user_id', $this->id)->exists();
+    }
+
     public function isAdmin(): bool
     {
         return $this->admin !== null;

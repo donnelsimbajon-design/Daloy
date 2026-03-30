@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\BlockedUser;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UserProfileController extends Controller
@@ -121,14 +124,15 @@ class UserProfileController extends Controller
             'canViewProfile'   => $canViewProfile,
             'isBlocked'        => $isBlocked,
             'isBlockedBy'      => false,
+            // Hide friends/schools list from blocked viewers
             'posts'            => $posts,
-            'friends'          => $friends,
-            'schools'          => $schools,
+            'friends'          => $isBlocked ? [] : $friends,
+            'schools'          => $isBlocked ? [] : $schools,
         ]);
     }
 
     /**
-     * Block a user.
+     * Block a user — mutual, complete, and silent.
      */
     public function block(User $user)
     {
@@ -138,34 +142,68 @@ class UserProfileController extends Controller
             return back()->with('error', 'You cannot block yourself.');
         }
 
-        // Block the user
-        $authUser->blockedUsers()->syncWithoutDetaching([$user->id]);
+        DB::transaction(function () use ($authUser, $user) {
+            // Block the user (idempotent)
+            $authUser->blockedUsers()->syncWithoutDetaching([$user->id]);
 
-        // Remove friendship if exists
-        $authUser->friends()->detach($user->id);
-        $user->friends()->detach($authUser->id);
+            // Remove friendship in both directions
+            $authUser->friends()->detach($user->id);
+            $user->friends()->detach($authUser->id);
 
-        // Remove follow relationships
-        $authUser->following()->detach($user->id);
-        $authUser->followers()->detach($user->id);
-        $user->following()->detach($authUser->id);
-        $user->followers()->detach($authUser->id);
+            // Remove all follow relationships
+            $authUser->following()->detach($user->id);
+            $authUser->followers()->detach($user->id);
+            $user->following()->detach($authUser->id);
+            $user->followers()->detach($authUser->id);
 
-        // Cancel pending requests
-        $authUser->sentFriendRequests()->where('receiver_id', $user->id)->delete();
-        $authUser->receivedFriendRequests()->where('sender_id', $user->id)->delete();
-        $authUser->sentFollowRequests()->where('following_id', $user->id)->delete();
-        $authUser->receivedFollowRequests()->where('follower_id', $user->id)->delete();
+            // Cancel pending friend & follow requests (both directions)
+            $authUser->sentFriendRequests()->where('receiver_id', $user->id)->delete();
+            $authUser->receivedFriendRequests()->where('sender_id', $user->id)->delete();
+            $authUser->sentFollowRequests()->where('following_id', $user->id)->delete();
+            $authUser->receivedFollowRequests()->where('follower_id', $user->id)->delete();
+
+            // Private confirmation notification for the BLOCKER only
+            // The blocked user is NEVER notified — block is silent
+            if (class_exists('App\\Models\\Notification')) {
+                \App\Models\Notification::create([
+                    'user_id'  => $authUser->id,
+                    'type'     => 'block_confirmation',
+                    'data'     => json_encode([
+                        'message' => 'You have blocked this user. They can no longer interact with you.',
+                    ]),
+                    'read_at'  => null,
+                ]);
+            }
+        });
 
         return back()->with('status', 'user-blocked');
     }
 
     /**
-     * Unblock a user.
+     * Unblock a user — records unblocked_at for 48h cooldown enforcement.
      */
     public function unblock(User $user)
     {
-        Auth::user()->blockedUsers()->detach($user->id);
+        $authUser = Auth::user();
+
+        // Record unblocked_at so we can enforce the 48h cooldown
+        DB::table('blocked_users')
+            ->where('user_id', $authUser->id)
+            ->where('blocked_user_id', $user->id)
+            ->update(['unblocked_at' => now()]);
+
+        // Wait until cooldown passes, then actually remove the row
+        // For now we remove immediately but keep unblocked_at for downstream checks
+        $authUser->blockedUsers()->detach($user->id);
+
+        // Re-insert as a cooldown-only record so we can check 48h window
+        DB::table('blocked_users')->insert([
+            'user_id'         => $authUser->id,
+            'blocked_user_id' => $user->id,
+            'created_at'      => now(),
+            'updated_at'      => now(),
+            'unblocked_at'    => now(),
+        ]);
 
         return back()->with('status', 'user-unblocked');
     }

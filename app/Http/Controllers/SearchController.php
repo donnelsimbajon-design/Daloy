@@ -15,9 +15,16 @@ class SearchController extends Controller
 
         $user = Auth::user();
 
-        // Base: always exclude self
+        // Block filter: exclude users in any blocking relationship
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id')->toArray();
+        $blockedMeIds   = $user->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds  = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
+        // Base: always exclude self and blocked/blocking users
         $baseQuery = User::select(['id', 'name', 'username', 'profile_picture', 'bio', 'location', 'privacy_setting', 'background_picture'])
-            ->where('id', '!=', $user->id);
+            ->where('id', '!=', $user->id)
+            ->whereNotIn('id', $allBlockedIds);
+
         if ($query !== '') {
             $baseQuery->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")

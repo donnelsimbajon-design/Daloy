@@ -4,6 +4,21 @@ import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/PostCard';
 import axios from 'axios';
 
+/* ── Event helpers ───────────────────────────────────────────────────── */
+const formatEventDate = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+const formatEventTime = (dateStr) => {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+};
+const statusColors = {
+    live: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    upcoming: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    ended: 'bg-zinc-200/60 text-zinc-500 border-zinc-300/40',
+};
+
 /* ── Icon helpers ────────────────────────────────────────────────────────── */
 const CameraIcon = ({ className = "w-4 h-4" }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -26,10 +41,11 @@ const SpinnerIcon = () => (
 );
 
 export default function SchoolProfile() {
-    const { school: initialSchool, posts: initialPosts, members: initialMembers, auth } = usePage().props;
+    const { school: initialSchool, posts: initialPosts, members: initialMembers, events: initialEvents, auth } = usePage().props;
     const [school, setSchool] = useState(initialSchool);
     const [posts] = useState(initialPosts?.data || []);
     const [members] = useState(initialMembers?.data || []);
+    const [events, setEvents] = useState(initialEvents || []);
     const [activeTab, setActiveTab] = useState('posts');
 
     // Post composer state
@@ -55,6 +71,17 @@ export default function SchoolProfile() {
         privacy: school.privacy,
     });
     const [saving, setSaving] = useState(false);
+
+    // Create event state
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [eventForm, setEventForm] = useState({
+        title: '', description: '', location: '', meeting_link: '',
+        starts_at: '', ends_at: '', privacy: 'public',
+    });
+    const [eventCoverFile, setEventCoverFile] = useState(null);
+    const [eventCoverPreview, setEventCoverPreview] = useState(null);
+    const [creatingEvent, setCreatingEvent] = useState(false);
+    const eventCoverRef = useRef(null);
 
     const isAdmin = school.is_admin || school.is_creator;
     const initials = school.name?.substring(0, 2).toUpperCase();
@@ -158,9 +185,50 @@ export default function SchoolProfile() {
         });
     };
 
+    // ── Event handlers ────────────────────────────────────────────────────
+    const handleEventCoverSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setEventCoverFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => setEventCoverPreview(ev.target.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleCreateEvent = (e) => {
+        e.preventDefault();
+        if (!eventForm.title.trim() || !eventForm.starts_at) return;
+        setCreatingEvent(true);
+
+        const fd = new FormData();
+        Object.entries(eventForm).forEach(([k, v]) => { if (v) fd.append(k, v); });
+        if (eventCoverFile) fd.append('cover_image', eventCoverFile);
+
+        router.post(`/schools/${school.id}/events`, fd, {
+            forceFormData: true,
+            onSuccess: () => {
+                setShowEventModal(false);
+                setEventForm({ title: '', description: '', location: '', meeting_link: '', starts_at: '', ends_at: '', privacy: 'public' });
+                setEventCoverFile(null);
+                setEventCoverPreview(null);
+            },
+            onFinish: () => setCreatingEvent(false),
+        });
+    };
+
+    const handleRsvp = async (eventId, status) => {
+        try {
+            const res = await axios.post(`/events/${eventId}/rsvp`, { status });
+            setEvents(prev => prev.map(ev =>
+                ev.id === eventId ? { ...ev, user_rsvp: res.data.status, going_count: res.data.going_count, interested_count: res.data.interested_count } : ev
+            ));
+        } catch (err) { console.error(err); }
+    };
+
     // ── Tab config ───────────────────────────────────────────────────────
     const tabs = [
         { key: 'posts',   label: 'Posts',   count: school.posts_count,   icon: 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z' },
+        { key: 'events',  label: 'Events',  count: school.events_count,  icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
         { key: 'members', label: 'Members', count: school.members_count, icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
         { key: 'about',   label: 'About',                                 icon: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' },
     ];
@@ -506,6 +574,123 @@ export default function SchoolProfile() {
                     </div>
                 )}
 
+                {/* ── EVENTS TAB ── */}
+                {activeTab === 'events' && (
+                    <div className="space-y-5">
+                        {/* Header with Create button */}
+                        {isAdmin && school.is_member && (
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-lg font-black text-ocean-text tracking-tight">Group Events</h3>
+                                <button
+                                    onClick={() => setShowEventModal(true)}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-biolum text-biolum-foreground text-sm font-semibold rounded-xl hover:bg-biolum-bright transition-colors"
+                                >
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                    Create Event
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Event Cards */}
+                        {events.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {events.map(event => (
+                                    <div key={event.id} className="bg-ocean-card border border-ocean-border rounded-[20px] overflow-hidden hover:shadow-lg hover:border-biolum/20 transition-all group">
+                                        {/* Cover */}
+                                        <Link href={`/events/${event.id}`} className="block">
+                                            <div className="h-36 bg-ocean-surface relative overflow-hidden">
+                                                {event.cover_image ? (
+                                                    <img src={event.cover_image} alt={event.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-gradient-to-br from-biolum/5 to-ocean-surface flex items-center justify-center">
+                                                        <svg className="w-10 h-10 text-ocean-border" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                                                    </div>
+                                                )}
+                                                {/* Status badge */}
+                                                <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border ${statusColors[event.status] || statusColors.upcoming}`}>
+                                                    {event.status === 'live' && <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />}
+                                                    {event.status}
+                                                </span>
+                                            </div>
+                                        </Link>
+
+                                        {/* Content */}
+                                        <div className="p-4">
+                                            <Link href={`/events/${event.id}`} className="block">
+                                                <h4 className="text-base font-bold text-ocean-text group-hover:text-biolum transition-colors truncate">{event.title}</h4>
+                                            </Link>
+                                            <div className="flex items-center gap-3 mt-2 text-xs text-ocean-text-dim">
+                                                <span className="flex items-center gap-1">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                    {formatEventDate(event.starts_at)} • {formatEventTime(event.starts_at)}
+                                                </span>
+                                            </div>
+                                            {event.location && (
+                                                <span className="flex items-center gap-1 mt-1.5 text-xs text-ocean-text-dim">
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                                                    {event.location}
+                                                </span>
+                                            )}
+
+                                            {/* Attendee row */}
+                                            <div className="flex items-center justify-between mt-4 pt-3 border-t border-ocean-border">
+                                                <div className="flex items-center gap-2">
+                                                    {/* Stacked avatars */}
+                                                    <div className="flex -space-x-2">
+                                                        {(event.going_avatars || []).slice(0, 4).map((a, i) => (
+                                                            <div key={a.id} className="w-6 h-6 rounded-full bg-ocean-surface border-2 border-ocean-card overflow-hidden" style={{ zIndex: 5 - i }}>
+                                                                {a.profile_picture
+                                                                    ? <img src={a.profile_picture} className="w-full h-full object-cover" />
+                                                                    : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-biolum bg-biolum/10">{a.name?.charAt(0)}</div>}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-[10px] font-semibold text-ocean-text-dim">
+                                                        {event.going_count || 0} going · {event.interested_count || 0} interested
+                                                    </span>
+                                                </div>
+
+                                                {/* RSVP button */}
+                                                {school.is_member && event.status !== 'ended' && (
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => handleRsvp(event.id, 'going')}
+                                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                                                                event.user_rsvp === 'going'
+                                                                    ? 'bg-biolum text-biolum-foreground border-biolum'
+                                                                    : 'bg-ocean-surface text-ocean-text-dim border-ocean-border hover:border-biolum/40'
+                                                            }`}
+                                                        >Going</button>
+                                                        <button
+                                                            onClick={() => handleRsvp(event.id, 'interested')}
+                                                            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all border ${
+                                                                event.user_rsvp === 'interested'
+                                                                    ? 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+                                                                    : 'bg-ocean-surface text-ocean-text-dim border-ocean-border hover:border-amber-500/40'
+                                                            }`}
+                                                        >Interested</button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-20 bg-ocean-card border border-ocean-border rounded-[20px] text-center">
+                                <div className="w-16 h-16 rounded-2xl bg-ocean-surface flex items-center justify-center mb-4">
+                                    <svg className="w-8 h-8 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-ocean-text mb-1">No events yet</h3>
+                                <p className="text-sm text-ocean-text-dim mb-4">{isAdmin ? 'Create the first event for this group!' : 'Check back later for upcoming events.'}</p>
+                                {isAdmin && school.is_member && (
+                                    <button onClick={() => setShowEventModal(true)} className="px-6 py-2.5 bg-biolum text-biolum-foreground font-bold text-sm rounded-full hover:bg-biolum-bright transition-all">Create Event</button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 {/* ── ABOUT TAB ── */}
                 {activeTab === 'about' && (
                     <div className="max-w-2xl mx-auto space-y-5">
@@ -637,6 +822,141 @@ export default function SchoolProfile() {
                                 {saving ? 'Saving...' : 'Save Changes'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════ CREATE EVENT MODAL ═══════ */}
+            {showEventModal && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowEventModal(false)} />
+                    <div className="relative bg-ocean-card border border-ocean-border w-full max-w-lg rounded-[24px] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+                        <div className="p-6 pb-4 flex items-center justify-between border-b border-ocean-border shrink-0">
+                            <h2 className="text-xl font-black text-ocean-text tracking-tight">Create Event</h2>
+                            <button onClick={() => setShowEventModal(false)} className="w-9 h-9 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim hover:text-ocean-text transition-all">
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleCreateEvent} className="overflow-y-auto flex-1">
+                            <div className="p-6 space-y-5">
+                                {/* Cover image */}
+                                <div>
+                                    <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Cover Image</label>
+                                    <input ref={eventCoverRef} type="file" accept="image/*" className="hidden" onChange={handleEventCoverSelect} />
+                                    <div
+                                        onClick={() => eventCoverRef.current?.click()}
+                                        className="w-full h-32 rounded-2xl bg-ocean-surface border-2 border-dashed border-ocean-border hover:border-biolum/30 flex items-center justify-center cursor-pointer transition-all overflow-hidden"
+                                    >
+                                        {eventCoverPreview ? (
+                                            <img src={eventCoverPreview} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="text-center">
+                                                <svg className="w-8 h-8 text-ocean-text-dim mx-auto mb-1" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                                                <span className="text-[10px] font-semibold text-ocean-text-dim">Click to add cover</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Title */}
+                                <div>
+                                    <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Event Title *</label>
+                                    <input
+                                        type="text" required maxLength={150}
+                                        value={eventForm.title}
+                                        onChange={e => setEventForm({ ...eventForm, title: e.target.value })}
+                                        placeholder="Give your event a name"
+                                        className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 placeholder-ocean-text-dim transition-all"
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                    <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Description</label>
+                                    <textarea
+                                        value={eventForm.description}
+                                        onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
+                                        placeholder="What's this event about?"
+                                        className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 resize-none min-h-[80px] placeholder-ocean-text-dim transition-all"
+                                        rows="3"
+                                    />
+                                </div>
+
+                                {/* Date/Time row */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Starts At *</label>
+                                        <input
+                                            type="datetime-local" required
+                                            value={eventForm.starts_at}
+                                            onChange={e => setEventForm({ ...eventForm, starts_at: e.target.value })}
+                                            className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 transition-all"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Ends At</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={eventForm.ends_at}
+                                            onChange={e => setEventForm({ ...eventForm, ends_at: e.target.value })}
+                                            className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 transition-all"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Location */}
+                                <div>
+                                    <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Location</label>
+                                    <input
+                                        type="text"
+                                        value={eventForm.location}
+                                        onChange={e => setEventForm({ ...eventForm, location: e.target.value })}
+                                        placeholder="Physical address or 'Online'"
+                                        className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 placeholder-ocean-text-dim transition-all"
+                                    />
+                                </div>
+
+                                {/* Meeting link */}
+                                <div>
+                                    <label className="text-xs font-semibold text-ocean-text-dim block mb-2">Meeting Link</label>
+                                    <input
+                                        type="url"
+                                        value={eventForm.meeting_link}
+                                        onChange={e => setEventForm({ ...eventForm, meeting_link: e.target.value })}
+                                        placeholder="https://meet.google.com/... (optional)"
+                                        className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-3 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 placeholder-ocean-text-dim transition-all"
+                                    />
+                                </div>
+
+                                {/* Privacy */}
+                                <div>
+                                    <label className="text-[10px] font-black text-ocean-text-dim uppercase tracking-widest block mb-2">Privacy</label>
+                                    <div className="flex gap-3">
+                                        {[{ v: 'public', l: '🌍 Public' }, { v: 'members_only', l: '🔒 Members Only' }].map(opt => (
+                                            <button
+                                                key={opt.v} type="button"
+                                                onClick={() => setEventForm({ ...eventForm, privacy: opt.v })}
+                                                className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${
+                                                    eventForm.privacy === opt.v
+                                                        ? 'bg-biolum/10 border-biolum/30 text-biolum'
+                                                        : 'bg-ocean-surface border-ocean-border text-ocean-text-dim hover:border-ocean-hover'
+                                                }`}
+                                            >{opt.l}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="px-6 pb-6 flex items-center justify-end gap-3 shrink-0">
+                                <button type="button" onClick={() => setShowEventModal(false)} className="px-5 py-2.5 rounded-xl border border-ocean-border text-ocean-text text-sm font-semibold hover:bg-ocean-surface transition-colors">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={creatingEvent || !eventForm.title.trim() || !eventForm.starts_at} className="px-6 py-2.5 rounded-xl bg-biolum text-biolum-foreground text-sm font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-50">
+                                    {creatingEvent ? 'Creating...' : 'Create Event'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

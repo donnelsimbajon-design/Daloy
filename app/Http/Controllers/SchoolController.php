@@ -54,7 +54,12 @@ class SchoolController extends Controller
     {
         $user = Auth::user();
 
-        $school->loadCount('members', 'posts');
+        // Block list for this user
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id')->toArray();
+        $blockedMeIds   = $user->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds  = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
+        $school->loadCount('members', 'posts', 'events');
         $school->load('creator:id,name,username,profile_picture');
 
         $isMember = $school->members()->where('user_id', $user->id)->exists();
@@ -62,9 +67,10 @@ class SchoolController extends Controller
         $isCreator = $school->created_by === $user->id;
         $isAdmin = $memberRole === 'admin' || $isCreator;
 
-        // Get posts for this school
+        // Posts: exclude posts from blocked/blocking users
         $posts = $school->posts()
-            ->with(['user:id,name,username,profile_picture', 'media', 'school:id,name,profile_image'])
+            ->whereNotIn('user_id', $allBlockedIds)
+            ->with(['user:id,name,username,profile_picture', 'media', 'school:id,name,profile_image', 'event:id,title'])
             ->withCount(['comments', 'reactions'])
             ->withExists(['reactions as liked_by_user' => function ($q) {
                 $q->where('user_id', Auth::id())
@@ -73,22 +79,58 @@ class SchoolController extends Controller
             ->latest()
             ->paginate(15);
 
-        // Get members
+        // Members: anonymize blocked users as 'Hidden Member'
         $members = $school->members()
             ->select('users.id', 'users.name', 'users.username', 'users.profile_picture', 'users.bio')
             ->withPivot('role')
             ->orderByRaw("CASE WHEN school_members.role = 'admin' THEN 0 WHEN school_members.role = 'moderator' THEN 1 ELSE 2 END")
             ->paginate(20);
 
+        // Anonymize blocked users in the members list
+        $members->getCollection()->transform(function ($member) use ($allBlockedIds) {
+            if (in_array($member->id, $allBlockedIds)) {
+                $member->name            = 'Hidden Member';
+                $member->username        = null;
+                $member->profile_picture = null;
+                $member->bio             = null;
+                $member->id              = null; // prevent profile link
+            }
+            return $member;
+        });
+
+        // Events
+        $events = $school->events()
+            ->with('creator:id,name,username,profile_picture')
+            ->withCount([
+                'rsvps as going_count'      => fn($q) => $q->where('status', 'going'),
+                'rsvps as interested_count' => fn($q) => $q->where('status', 'interested'),
+            ])
+            ->orderByRaw("CASE WHEN status = 'live' THEN 0 WHEN status = 'upcoming' THEN 1 ELSE 2 END")
+            ->orderBy('starts_at', 'asc')
+            ->get()
+            ->map(function ($event) use ($user) {
+                $event->syncStatus();
+                $event->user_rsvp = \App\Models\EventRsvp::where('event_id', $event->id)
+                    ->where('user_id', $user->id)
+                    ->value('status');
+                $event->going_avatars = $event->attendees()
+                    ->wherePivot('status', 'going')
+                    ->select('users.id', 'users.name', 'users.profile_picture')
+                    ->limit(5)
+                    ->get();
+                return $event;
+            });
+
         return Inertia::render('SchoolProfile', [
             'school' => array_merge($school->toArray(), [
-                'is_member' => $isMember,
-                'is_creator' => $isCreator,
-                'is_admin'  => $isAdmin,
+                'is_member'   => $isMember,
+                'is_creator'  => $isCreator,
+                'is_admin'    => $isAdmin,
                 'member_role' => $memberRole,
             ]),
-            'posts' => $posts,
+            'posts'   => $posts,
             'members' => $members,
+            'events'  => $events,
         ]);
     }
 
