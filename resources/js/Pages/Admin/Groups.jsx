@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import DataTable from '../../Components/Admin/DataTable';
-import StatusBadge from '../../Components/Admin/StatusBadge';
-import Modal from '../../Components/Admin/Modal';
+import DataTable from '../../Components/Admin/Features/DataTable';
+import StatusBadge from '../../Components/Admin/UI/StatusBadge';
+import Modal from '../../Components/Admin/UI/Modal';
 import { router, Link } from '@inertiajs/react';
 
 export default function Groups({ groups = { data: [] } }) {

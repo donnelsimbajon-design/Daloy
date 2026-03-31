@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
-import TopNav from '@/Components/TopNav';
-import StatusBar from '@/Components/StatusBar';
-import FloatingActionButton from '@/Components/FloatingActionButton';
+import TopNav from '@/Components/UI/Navigation/TopNav';
+import StatusBar from '@/Components/UI/Badges/StatusBar';
+import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 
 export default function MainLayout({ children }) {
     const { auth } = usePage().props;

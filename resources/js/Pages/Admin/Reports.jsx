@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import StatusBadge from '../../Components/Admin/StatusBadge';
-import Modal from '../../Components/Admin/Modal';
+import StatusBadge from '../../Components/Admin/UI/StatusBadge';
+import Modal from '../../Components/Admin/UI/Modal';
 import { router, Link } from '@inertiajs/react';
 
 export default function Reports({ reports = { data: [] }, counts = {}, currentStatus = 'all' }) {

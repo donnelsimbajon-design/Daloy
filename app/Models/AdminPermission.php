@@ -6,10 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class AdminPermission extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['key', 'label', 'description', 'category'];
 
     public function roles()
     {
-        return $this->belongsToMany(AdminRole::class, 'role_permissions', 'permission_id', 'role_id');
+        return $this->belongsToMany(
+            AdminRole::class,
+            'admin_role_permissions',
+            'permission_id',
+            'role_id'
+        );
     }
 }

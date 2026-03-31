@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\FollowRequest;
 use App\Models\User;
+use App\Traits\LogsUserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class FollowController extends Controller
 {
+    use LogsUserActivity;
     public function follow(Request $request)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
@@ -72,6 +74,7 @@ class FollowController extends Controller
         } else {
             // Public account, follow immediately
             $currentUser->following()->attach($targetUser->id);
+            $this->logActivity('followed', 'social', 'User', $targetUser->id);
             return response()->json(['message' => 'Followed successfully.']);
         }
     }
@@ -80,6 +83,7 @@ class FollowController extends Controller
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
         Auth::user()->following()->detach($request->user_id);
+        $this->logActivity('unfollowed', 'social', 'User', $request->user_id);
         
         // Also remove pending request if any
         FollowRequest::where('follower_id', Auth::id())

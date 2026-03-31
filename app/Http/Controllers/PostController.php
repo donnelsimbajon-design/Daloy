@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Media;
 use App\Models\Post;
+use App\Traits\LogsUserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,7 @@ use Inertia\Inertia;
 
 class PostController extends Controller
 {
+    use LogsUserActivity;
     /**
      * Display the feed / dashboard with paginated posts.
      * Feed includes: own posts, friends' posts, followed users' posts, and joined school posts.

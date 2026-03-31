@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\Post;
+use App\Traits\LogsUserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
 class ReactionController extends Controller
 {
+    use LogsUserActivity;
     /**
      * Toggle like on a post. Returns updated liked state + count.
      */
@@ -37,12 +39,14 @@ class ReactionController extends Controller
         if ($existing) {
             $existing->delete();
             $liked = false;
+            $this->logActivity('unliked', 'reaction', 'Post', $post->id);
         } else {
             $post->reactions()->create([
                 'user_id' => $user->id,
                 'type'    => 'like',
             ]);
             $liked = true;
+            $this->logActivity('liked', 'reaction', 'Post', $post->id);
         }
 
         $count = $post->reactions()->where('type', 'like')->count();

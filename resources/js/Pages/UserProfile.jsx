@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
-import PostCard from '@/Components/PostCard';
-import CreatePostModal from '@/Components/CreatePostModal';
+import PostCard from '@/Components/UI/Cards/PostCard';
+import CreatePostModal from '@/Components/Features/Posts/CreatePostModal';
 import axios from 'axios';
 
 /* ── Stat Pill ──────────────────────────────────────────────────────────── */

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import DataTable from '../../Components/Admin/DataTable';
+import DataTable from '../../Components/Admin/Features/DataTable';
 import { router, Link } from '@inertiajs/react';
 
 export default function Logs({ logs = { data: [] }, admins = [], filters = {} }) {

@@ -1607,3 +1607,637 @@
         display: none;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   ACTIVITY TRACKER · LIVE MONITOR · ROLES · ANNOUNCEMENTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Live Pulse Dot ── */
+.adm-live-dot {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--adm-success);
+    animation: adm-pulse 2s ease-in-out infinite;
+}
+
+.adm-live-dot--static {
+    position: static;
+}
+
+@keyframes adm-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+.adm-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--adm-success);
+    letter-spacing: 0.5px;
+}
+
+/* ── Live Activity Feed ── */
+.adm-live-feed {
+    max-height: 460px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+.adm-live-feed-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--adm-border-light);
+    font-size: 13px;
+    transition: background var(--adm-transition);
+    animation: adm-slide-in 0.3s ease-out;
+}
+
+@keyframes adm-slide-in {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.adm-live-feed-item:hover {
+    background: var(--adm-bg-alt);
+}
+
+.adm-live-feed-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.adm-live-feed-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--adm-bg-alt);
+    border: 1px solid var(--adm-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--adm-text-muted);
+    flex-shrink: 0;
+}
+
+.adm-live-feed-content {
+    flex: 1;
+    color: var(--adm-text);
+    line-height: 1.4;
+}
+
+.adm-live-feed-time {
+    font-size: 11px;
+    color: var(--adm-text-dim);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Health Panel ── */
+.adm-health-panel {
+    background: var(--adm-black);
+    border-radius: var(--adm-radius);
+    color: #ffffff;
+    overflow: hidden;
+}
+
+.adm-health-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.adm-health-header-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.adm-health-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.adm-health-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.adm-health-status-dot.operational {
+    background: var(--adm-success);
+    box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+.adm-health-status-dot.degraded {
+    background: var(--adm-warning);
+    box-shadow: 0 0 4px rgba(245, 158, 11, 0.5);
+}
+
+.adm-health-metrics {
+    padding: 0;
+}
+
+.adm-health-metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.adm-health-metric:last-child {
+    border-bottom: none;
+}
+
+.adm-health-metric-label {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.adm-health-metric-value {
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+/* ── Health Gauge Bar ── */
+.adm-health-gauge {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.adm-health-gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease, background 0.3s ease;
+}
+
+/* ── Emergency Controls ── */
+.adm-emergency-controls {
+    background: var(--adm-white);
+    border: 1px solid #fecaca;
+    border-radius: var(--adm-radius);
+    padding: 16px 20px;
+    margin-top: 4px;
+}
+
+.adm-emergency-controls-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--adm-danger);
+}
+
+.adm-emergency-controls-sub {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+}
+
+/* ── Alert Banner ── */
+.adm-alert-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: var(--adm-radius-sm);
+    margin-bottom: 16px;
+}
+
+.adm-alert-banner--danger {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--adm-danger);
+}
+
+/* ── Card Body Flush (no inner padding) ── */
+.adm-card-body-flush {
+    padding: 0;
+}
+
+/* ── Dashboard 2-Column Layout ── */
+.adm-dashboard-2col {
+    display: grid;
+    grid-template-columns: 3fr 2fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 960px) {
+    .adm-dashboard-2col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Category Badge (Activity Tracker) ── */
+.adm-category-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+/* ── Type Badge (Announcements) ── */
+.adm-type-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Open Rate Bar ── */
+.adm-open-rate-bar {
+    width: 60px;
+    height: 5px;
+    background: var(--adm-border);
+    border-radius: 3px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.adm-open-rate-fill {
+    height: 100%;
+    background: var(--adm-black);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+}
+
+/* ── Preview Box ── */
+.adm-preview-box {
+    border: 1px dashed var(--adm-border);
+    border-radius: var(--adm-radius);
+    padding: 14px 16px;
+    background: var(--adm-bg-alt);
+}
+
+/* ── Permission Matrix (Roles) ── */
+.adm-permission-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--adm-bg-alt);
+    border-radius: var(--adm-radius-sm);
+    border: 1px solid var(--adm-border-light);
+}
+
+.adm-permission-row-label {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.adm-permission-row-key {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.adm-permission-category-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--adm-text-muted);
+    margin-bottom: 10px;
+}
+
+/* ── Role List Item ── */
+.adm-role-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--adm-border-light);
+    cursor: pointer;
+    transition: background var(--adm-transition);
+    border-left: 3px solid transparent;
+}
+
+.adm-role-item:hover {
+    background: var(--adm-bg-alt);
+}
+
+.adm-role-item.active {
+    background: var(--adm-bg-alt);
+}
+
+.adm-role-item-actions {
+    display: flex;
+    gap: 8px;
+    padding: 6px 16px 10px;
+    background: var(--adm-bg-alt);
+    border-bottom: 1px solid var(--adm-border-light);
+}
+
+/* ── Stats Mini Grid (secondary stats) ── */
+.adm-stats-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+    .adm-stats-mini-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ── Location List ── */
+.adm-location-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--adm-border-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.adm-location-item:last-child {
+    border-bottom: none;
+}
+
+/* ── User Profile Header (UserActivity page) ── */
+.adm-user-profile-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+}
+
+.adm-user-profile-header .adm-table-cell-user-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.adm-user-profile-stat {
+    margin-left: auto;
+    text-align: right;
+}
+
+.adm-user-profile-stat-value {
+    font-size: 28px;
+    font-weight: 800;
+}
+
+.adm-user-profile-stat-label {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ── Breakdowns Grid ── */
+.adm-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+/* ── Confirm Warning Box ── */
+.adm-confirm-warning {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: #fef2f2;
+    border-radius: var(--adm-radius-sm);
+    font-size: 11px;
+    color: var(--adm-danger);
+}
+
+/* ── Color Picker Row ── */
+.adm-color-picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.adm-color-picker-row input[type="color"] {
+    width: 40px;
+    height: 36px;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--adm-radius-xs);
+    padding: 0;
+}
+
+.adm-color-picker-row .adm-color-hex {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    color: var(--adm-text-secondary);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SHARED UTILITY CLASSES (added for new admin modules)
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Badge ── */
+.adm-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--adm-bg-alt);
+    border: 1px solid var(--adm-border);
+    color: var(--adm-text-secondary);
+}
+
+.adm-badge-sm {
+    padding: 1px 6px;
+    font-size: 9px;
+}
+
+/* ── Toggle Switch ── */
+.adm-toggle {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 22px;
+    flex-shrink: 0;
+}
+
+.adm-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.adm-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--adm-border);
+    border-radius: 22px;
+    transition: all var(--adm-transition);
+}
+
+.adm-toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--adm-white);
+    border-radius: 50%;
+    transition: all var(--adm-transition);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.adm-toggle input:checked + .adm-toggle-slider {
+    background: var(--adm-black);
+}
+
+.adm-toggle input:checked + .adm-toggle-slider::before {
+    transform: translateX(16px);
+}
+
+.adm-toggle input:disabled + .adm-toggle-slider {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ── Toast Notification ── */
+.adm-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--adm-black);
+    color: var(--adm-white);
+    padding: 10px 20px;
+    border-radius: var(--adm-radius);
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: var(--adm-shadow-lg);
+    z-index: 9999;
+    animation: adm-toast-in 0.3s ease-out;
+}
+
+@keyframes adm-toast-in {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Empty State ── */
+.adm-empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--adm-text-dim);
+    font-size: 13px;
+}
+
+/* ── Stat Sub Text ── */
+.adm-stat-sub {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+    margin-top: 4px;
+}
+
+/* ── Card Body (padded content area) ── */
+.adm-card-body {
+    padding: 20px;
+}
+
+/* ── Pagination Helpers ── */
+.adm-pagination-info {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.adm-pagination-links {
+    display: flex;
+    gap: 4px;
+}
+
+/* ── Table Cell Helpers ── */
+.adm-table-cell-sub {
+    font-size: 11px;
+    color: var(--adm-text-muted);
+}
+
+.adm-table-cell-bold {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* ── Icon Button (borderless) ── */
+.adm-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--adm-radius-xs);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--adm-text-muted);
+    font-size: 14px;
+    transition: all var(--adm-transition);
+}
+
+.adm-btn-icon:hover {
+    background: var(--adm-bg-hover);
+    color: var(--adm-text);
+}
+
+/* ── Text Dim Utility ── */
+.adm-text-dim {
+    color: var(--adm-text-dim);
+}
+
+/* ── Table Cell: User Row Layout ── */
+.adm-table-cell-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.adm-table-cell-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--adm-bg-alt);
+    border: 1px solid var(--adm-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--adm-text-muted);
+    flex-shrink: 0;
+    overflow: hidden;
+}

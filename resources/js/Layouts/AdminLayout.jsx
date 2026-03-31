@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react';
 import '../../css/admin.css';
-import Sidebar from '../Components/Admin/Sidebar';
-import Topbar from '../Components/Admin/Topbar';
+import Sidebar from '../Components/Admin/UI/Sidebar';
+import Topbar from '../Components/Admin/UI/Topbar';
 
 const pageTitles = {
-    'Admin/Dashboard': 'Dashboard Overview',
-    'Admin/Users': 'Users & Profiles',
-    'Admin/Moderation': 'Content Moderation',
-    'Admin/Reports': 'Reports Management',
-    'Admin/Groups': 'Groups & Events',
-    'Admin/Messages': 'Messages Monitoring',
-    'Admin/Analytics': 'Analytics & Insights',
-    'Admin/Settings': 'System Settings',
-    'Admin/Logs': 'Audit Logs',
+    'Admin/Dashboard':     'Dashboard Overview',
+    'Admin/Users':         'Users & Profiles',
+    'Admin/Moderation':    'Content Moderation',
+    'Admin/Reports':       'Reports Management',
+    'Admin/Groups':        'Groups & Events',
+    'Admin/Messages':      'Messages Monitoring',
+    'Admin/Analytics':     'Analytics & Insights',
+    'Admin/Activity':      'Voyager Activity',
+    'Admin/LiveMonitor':   'Live Monitor',
+    'Admin/Announcements': 'Announcements',
+    'Admin/Roles':         'Roles & Permissions',
+    'Admin/Settings':      'System Settings',
+    'Admin/Logs':          'Audit Logs',
+    'Admin/UserActivity':  'User Activity Timeline',
 };
 
 export default function AdminLayout({ children, currentPage }) {

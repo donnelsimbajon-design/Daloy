@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import StatCard from '../../Components/Admin/StatCard';
-import BarChart from '../../Components/Admin/BarChart';
+import StatCard from '../../Components/Admin/UI/StatCard';
+import BarChart from '../../Components/Admin/Features/BarChart';
 import { Link } from '@inertiajs/react';
 
 export default function Dashboard({ stats = {}, engagementData = [], recentActions = [], alerts = [] }) {

@@ -162,9 +162,9 @@ const DraggableMobileActionMenu = ({
     );
 };
 import MainLayout from '@/Layouts/MainLayout';
-import Feed from '@/Components/Feed';
-import ReefPanel from '@/Components/ReefPanel';
-import StoryRail from '@/Components/StoryRail';
+import Feed from '@/Components/UI/Misc/Feed';
+import ReefPanel from '@/Components/UI/Panels/ReefPanel';
+import StoryRail from '@/Components/Features/Stories/StoryRail';
 
 export default function Dashboard({ posts }) {
     const postItems = posts?.data || [];

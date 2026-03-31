@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
-import BarChart from '../../Components/Admin/BarChart';
+import BarChart from '../../Components/Admin/Features/BarChart';
 
 export default function Analytics({ metrics = {}, userGrowth = [], reportTrends = [] }) {
     const [activeTab, setActiveTab] = useState('overview');

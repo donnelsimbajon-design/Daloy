@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Head, usePage, Link } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
-import UserCard from '@/Components/UserCard';
-import FriendRequestButton from '@/Components/FriendRequestButton';
+import UserCard from '@/Components/UI/Cards/UserCard';
+import FriendRequestButton from '@/Components/Features/Social/FriendRequestButton';
 import axios from 'axios';
 
 export default function Voyagers() {

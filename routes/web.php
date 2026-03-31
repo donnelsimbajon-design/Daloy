@@ -124,6 +124,10 @@ Route::middleware('auth')->group(function () {
 */
 use App\Http\Controllers\Auth\AdminAuthController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\LiveMonitorController;
+use App\Http\Controllers\RolesController;
+use App\Http\Controllers\AnnouncementController;
 
 // Admin login (no auth required)
 Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('admin.login');
@@ -165,5 +169,34 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 
     // Audit Logs
     Route::get('/logs', [AdminController::class, 'logs'])->name('admin.logs');
+
+    // ── Voyager Activity Tracker ──────────────────────────────
+    Route::get('/activity/export', [ActivityController::class, 'exportCsv'])->name('admin.activity.export');
+    Route::get('/activity/{user}', [ActivityController::class, 'userActivity'])->name('admin.activity.user');
+    Route::get('/activity', [ActivityController::class, 'index'])->name('admin.activity');
+
+    // ── Live Monitor ─────────────────────────────────────────
+    Route::get('/live', [LiveMonitorController::class, 'index'])->name('admin.live');
+    Route::get('/live/stream', [LiveMonitorController::class, 'stream'])->name('admin.live.stream');
+    Route::post('/live/maintenance', [LiveMonitorController::class, 'toggleMaintenance'])->name('admin.live.maintenance');
+    Route::post('/live/clear-cache', [LiveMonitorController::class, 'clearCache'])->name('admin.live.cache');
+
+    // ── Roles & Permissions ──────────────────────────────────
+    Route::get('/roles', [RolesController::class, 'index'])->name('admin.roles');
+    Route::post('/roles', [RolesController::class, 'store'])->name('admin.roles.store');
+    Route::put('/roles/{role}', [RolesController::class, 'update'])->name('admin.roles.update');
+    Route::delete('/roles/{role}', [RolesController::class, 'destroy'])->name('admin.roles.destroy');
+    Route::post('/roles/{role}/permissions', [RolesController::class, 'updatePermissions'])->name('admin.roles.permissions');
+    Route::post('/admins/{user}/promote', [RolesController::class, 'promoteUser'])->name('admin.admins.promote');
+    Route::delete('/admins/{admin}/remove', [RolesController::class, 'removeAdmin'])->name('admin.admins.remove');
+    Route::patch('/admins/{admin}/role', [RolesController::class, 'changeRole'])->name('admin.admins.role');
+
+    // ── Announcements ────────────────────────────────────────
+    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
+    Route::post('/announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
+    Route::post('/announcements/{announcement}/broadcast', [AnnouncementController::class, 'broadcast'])->name('admin.announcements.broadcast');
+    Route::get('/announcements/{announcement}/stats', [AnnouncementController::class, 'stats'])->name('admin.announcements.stats');
 });
 
