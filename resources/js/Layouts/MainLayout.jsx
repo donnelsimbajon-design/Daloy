@@ -3,6 +3,7 @@ import { usePage } from '@inertiajs/react';
 import TopNav from '@/Components/UI/Navigation/TopNav';
 import StatusBar from '@/Components/UI/Badges/StatusBar';
 import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
+import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
 
 export default function MainLayout({ children }) {
     const { auth } = usePage().props;
@@ -47,8 +48,12 @@ export default function MainLayout({ children }) {
             <TopNav />
 
             {/* Main Content Area */}
-            <main className="pt-20 pb-16 max-w-[1536px] mx-auto px-0 sm:px-6 lg:px-8 w-full overflow-x-hidden relative">
-                {children}
+            <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative">
+                <GlobalRightRailWrapper>
+                    <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300">
+                        {children}
+                    </div>
+                </GlobalRightRailWrapper>
             </main>
 
             <StatusBar />

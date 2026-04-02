@@ -4,48 +4,77 @@ namespace App\Http\Controllers;
 
 use App\Models\Media;
 use App\Models\Post;
+use App\Models\Poll;
+use App\Models\PollOption;
+use App\Models\Mention;
+use App\Models\Hashtag;
+use App\Models\Ripple;
+use App\Models\User;
 use App\Traits\LogsUserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PostController extends Controller
 {
     use LogsUserActivity;
+
     /**
      * Display the feed / dashboard with paginated posts.
-     * Feed includes: own posts, friends' posts, followed users' posts, and joined school posts.
      */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Collect IDs for the feed
         $friendIds    = $user->friends()->pluck('users.id')->toArray();
         $followingIds = $user->following()->pluck('users.id')->toArray();
         $joinedSchoolIds = $user->schools()->pluck('schools.id')->toArray();
 
-        // --- Block filter: exclude any user in a blocking relationship ---
-        // Users I blocked
+        // Block & restrict filter
         $blockedByMeIds   = $user->blockedUsers()->pluck('users.id')->toArray();
-        // Users who blocked me
         $blockedMeIds     = $user->blockedBy()->pluck('users.id')->toArray();
         $allBlockedIds    = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
 
-        // Merge unique user IDs: self + friends + following (minus blocked)
-        $feedUserIds = array_unique(array_merge([$user->id], $friendIds, $followingIds));
-        // Remove blocked users from the feed source
-        $feedUserIds = array_values(array_diff($feedUserIds, $allBlockedIds));
+        // Restricted users - exclude their posts from my feed
+        $restrictedIds = $user->restrictedUsers()->pluck('users.id')->toArray();
+        $excludeFromFeed = array_unique(array_merge($allBlockedIds, $restrictedIds));
 
-        $posts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name,cover_image,profile_image'])
-            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds, $user) {
+        // Muted keywords
+        $mutedKeywords = $user->mutedKeywords()->pluck('keyword')->toArray();
+
+        // Close friends who include me
+        $closeFriendOfIds = $user->closeFriendOf()->pluck('users.id')->toArray();
+
+        // Merge unique user IDs: self + friends + following (minus excluded)
+        $feedUserIds = array_unique(array_merge([$user->id], $friendIds, $followingIds));
+        $feedUserIds = array_values(array_diff($feedUserIds, $excludeFromFeed));
+
+        $posts = Post::with([
+            'user:id,name,username,profile_picture',
+            'media',
+            'school:id,name,cover_image,profile_image',
+            'poll.options',
+            'repostOf.user:id,name,username,profile_picture',
+            'repostOf.media',
+        ])
+            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds, $user, $friendIds, $closeFriendOfIds) {
                 // Posts from feed users (public + followers visibility)
                 $query->where(function ($q) use ($feedUserIds) {
                     $q->whereIn('user_id', $feedUserIds)
                       ->whereIn('visibility', ['public', 'followers']);
                 });
+
+                // Close friends visibility: only if I'm in their close friends
+                if (!empty($closeFriendOfIds)) {
+                    $query->orWhere(function ($q) use ($closeFriendOfIds) {
+                        $q->whereIn('user_id', $closeFriendOfIds)
+                          ->where('visibility', 'close_friends');
+                    });
+                }
 
                 // Posts from joined schools
                 if (!empty($joinedSchoolIds)) {
@@ -55,15 +84,45 @@ class PostController extends Controller
                 // Always include own posts regardless of visibility
                 $query->orWhere('user_id', $user->id);
             })
-            // Hard exclude any post authored by a blocked/blocking user
-            ->whereNotIn('user_id', $allBlockedIds)
-            ->withCount(['comments', 'reactions'])
-            ->withExists(['reactions as liked_by_user' => function ($q) {
-                $q->where('user_id', Auth::id())
-                  ->where('type', 'like');
+            ->whereNotIn('user_id', $excludeFromFeed)
+            // Filter muted keywords
+            ->when(!empty($mutedKeywords), function ($q) use ($mutedKeywords) {
+                foreach ($mutedKeywords as $keyword) {
+                    $q->where('content', 'NOT LIKE', "%{$keyword}%");
+                }
+            })
+            ->withCount(['comments', 'reactions', 'bookmarks'])
+            ->withExists(['bookmarks as is_bookmarked' => function ($q) {
+                $q->where('user_id', Auth::id());
             }])
             ->latest()
             ->paginate(15);
+
+        // Add user's reaction type and reaction counts for each post
+        $posts->getCollection()->transform(function ($post) {
+            $userId = Auth::id();
+            $userReaction = $post->reactions()->where('user_id', $userId)->first();
+            $post->user_reaction = $userReaction ? $userReaction->type : null;
+            $post->liked_by_user = $userReaction !== null;
+
+            // Reaction counts grouped by type
+            $post->reaction_counts = $this->getReactionCounts($post);
+
+            // Poll vote status
+            if ($post->poll) {
+                $vote = $post->poll->votes()->where('user_id', $userId)->first();
+                $post->poll->user_voted = $vote !== null;
+                $post->poll->user_voted_option_id = $vote?->option_id;
+                $totalVotes = $post->poll->options->sum('votes_count');
+                $post->poll->total_votes = $totalVotes;
+                $post->poll->options->transform(function ($opt) use ($totalVotes) {
+                    $opt->percentage = $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0;
+                    return $opt;
+                });
+            }
+
+            return $post;
+        });
 
         return Inertia::render('Dashboard', [
             'posts' => $posts,
@@ -77,15 +136,31 @@ class PostController extends Controller
     {
         $validated = $request->validate([
             'content' => 'nullable|string|max:2000',
-            'visibility' => 'required|in:public,followers,private',
+            'visibility' => 'required|in:public,followers,private,close_friends',
             'location_tag' => 'nullable|string|max:100',
             'flow_velocity' => 'nullable|in:high,steady,low',
             'media' => 'nullable|array|max:4',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
+            // Repost
+            'repost_of_id' => 'nullable|integer|exists:posts,id',
+            // Poll
+            'poll_question' => 'nullable|string|max:500',
+            'poll_options' => 'nullable|array|min:2|max:4',
+            'poll_options.*' => 'string|max:200',
+            'poll_expires_at' => 'nullable|date|after:now',
+            // Content Warning
+            'has_content_warning' => 'nullable|boolean',
+            'content_warning_label' => 'nullable|string|max:100',
+            // Comment permission
+            'comment_permission' => 'nullable|in:everyone,friends,nobody',
+            // Announcement
+            'is_announcement' => 'nullable|boolean',
+            'school_id' => 'nullable|integer|exists:schools,id',
         ]);
 
-        // Require at least content or media
-        if (empty($validated['content']) && empty($request->file('media'))) {
+        // Require at least content, media, poll, or repost
+        if (empty($validated['content']) && empty($request->file('media'))
+            && empty($validated['poll_question']) && empty($validated['repost_of_id'])) {
             return back()->withErrors(['content' => 'Please write something or attach media.']);
         }
 
@@ -95,6 +170,12 @@ class PostController extends Controller
             'visibility' => $validated['visibility'],
             'location_tag' => $validated['location_tag'] ?? null,
             'flow_velocity' => $validated['flow_velocity'] ?? 'steady',
+            'repost_of_id' => $validated['repost_of_id'] ?? null,
+            'has_content_warning' => $validated['has_content_warning'] ?? false,
+            'content_warning_label' => $validated['content_warning_label'] ?? null,
+            'comment_permission' => $validated['comment_permission'] ?? 'everyone',
+            'is_announcement' => $validated['is_announcement'] ?? false,
+            'school_id' => $validated['school_id'] ?? null,
         ]);
 
         // Handle file uploads
@@ -116,9 +197,82 @@ class PostController extends Controller
 
                 $mediaUrls[] = $url;
             }
-
-            // Also store in the json column for quick access
             $post->update(['media_urls' => $mediaUrls]);
+        }
+
+        // Create poll if provided
+        if (!empty($validated['poll_question']) && !empty($validated['poll_options'])) {
+            $poll = Poll::create([
+                'post_id' => $post->id,
+                'question' => $validated['poll_question'],
+                'expires_at' => $validated['poll_expires_at'] ?? null,
+            ]);
+
+            foreach ($validated['poll_options'] as $label) {
+                if (trim($label) !== '') {
+                    PollOption::create([
+                        'poll_id' => $poll->id,
+                        'label' => trim($label),
+                    ]);
+                }
+            }
+        }
+
+        // Parse and store hashtags
+        if (!empty($validated['content'])) {
+            preg_match_all('/#(\w+)/', $validated['content'], $matches);
+            if (!empty($matches[1])) {
+                foreach ($matches[1] as $tag) {
+                    $hashtag = Hashtag::firstOrCreate(['name' => strtolower($tag)]);
+                    $post->hashtags()->syncWithoutDetaching([$hashtag->id]);
+                }
+            }
+
+            // Parse and store mentions
+            preg_match_all('/@(\w+)/', $validated['content'], $mentionMatches);
+            if (!empty($mentionMatches[1])) {
+                foreach ($mentionMatches[1] as $username) {
+                    $mentionedUser = User::where('username', $username)->first();
+                    if ($mentionedUser && $mentionedUser->id !== Auth::id()) {
+                        Mention::create([
+                            'post_id' => $post->id,
+                            'mentioned_user_id' => $mentionedUser->id,
+                        ]);
+
+                        // Send ripple notification for mention
+                        Ripple::create([
+                            'user_id' => $mentionedUser->id,
+                            'sender_id' => Auth::id(),
+                            'type' => 'mention',
+                            'notifiable_type' => 'App\\Models\\Post',
+                            'notifiable_id' => $post->id,
+                            'data' => [
+                                'post_id' => $post->id,
+                                'message' => Auth::user()->name . " mentioned you in a post",
+                            ],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // Repost notification
+        if (!empty($validated['repost_of_id'])) {
+            $originalPost = Post::find($validated['repost_of_id']);
+            if ($originalPost && $originalPost->user_id !== Auth::id()) {
+                Ripple::create([
+                    'user_id' => $originalPost->user_id,
+                    'sender_id' => Auth::id(),
+                    'type' => 'repost',
+                    'notifiable_type' => 'App\\Models\\Post',
+                    'notifiable_id' => $post->id,
+                    'data' => [
+                        'post_id' => $post->id,
+                        'original_post_id' => $originalPost->id,
+                        'message' => Auth::user()->name . " reposted your post",
+                    ],
+                ]);
+            }
         }
 
         return back()->with('status', 'post-created');
@@ -129,14 +283,13 @@ class PostController extends Controller
      */
     public function update(Request $request, Post $post): RedirectResponse
     {
-        // Authorization: only the owner can edit
         if ($post->user_id !== Auth::id()) {
             abort(403);
         }
 
         $validated = $request->validate([
             'content' => 'nullable|string|max:2000',
-            'visibility' => 'required|in:public,followers,private',
+            'visibility' => 'required|in:public,followers,private,close_friends',
             'location_tag' => 'nullable|string|max:100',
             'flow_velocity' => 'nullable|in:high,steady,low',
         ]);
@@ -147,16 +300,40 @@ class PostController extends Controller
     }
 
     /**
-     * Delete a post (soft delete).
+     * Pin/unpin a post.
      */
-    public function destroy(Post $post): RedirectResponse
+    public function pin(Post $post): JsonResponse
     {
-        // Authorization: only the owner can delete
         if ($post->user_id !== Auth::id()) {
             abort(403);
         }
 
-        // Delete media files from storage
+        // If already pinned, unpin it
+        if ($post->is_pinned) {
+            $post->update(['is_pinned' => false]);
+            return response()->json(['pinned' => false]);
+        }
+
+        // Unpin any currently pinned post by this user
+        Post::where('user_id', Auth::id())
+            ->where('is_pinned', true)
+            ->update(['is_pinned' => false]);
+
+        // Pin this post
+        $post->update(['is_pinned' => true]);
+
+        return response()->json(['pinned' => true]);
+    }
+
+    /**
+     * Delete a post (soft delete).
+     */
+    public function destroy(Post $post): RedirectResponse
+    {
+        if ($post->user_id !== Auth::id()) {
+            abort(403);
+        }
+
         foreach ($post->media as $media) {
             $storagePath = str_replace('/storage/', '', $media->url);
             Storage::disk('public')->delete($storagePath);
@@ -165,5 +342,30 @@ class PostController extends Controller
         $post->delete();
 
         return back()->with('status', 'post-deleted');
+    }
+    private function getReactionCounts(Post $post): array
+    {
+        $counts = $post->reactions()
+            ->selectRaw('type, COUNT(*) as count')
+            ->groupBy('type')
+            ->pluck('count', 'type')
+            ->toArray();
+
+        // Handle legacy 'like' type mapping
+        if (isset($counts['like'])) {
+            $counts['wave'] = ($counts['wave'] ?? 0) + $counts['like'];
+            unset($counts['like']);
+        }
+
+        $total = array_sum($counts);
+
+        return [
+            'wave' => $counts['wave'] ?? 0,
+            'fire' => $counts['fire'] ?? 0,
+            'haha' => $counts['haha'] ?? 0,
+            'sad' => $counts['sad'] ?? 0,
+            'wow' => $counts['wow'] ?? 0,
+            'total' => $total,
+        ];
     }
 }

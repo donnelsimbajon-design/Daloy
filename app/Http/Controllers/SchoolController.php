@@ -305,6 +305,142 @@ class SchoolController extends Controller
     }
 
     /**
+     * Update school rules.
+     */
+    public function updateRules(Request $request, School $school)
+    {
+        $this->authorizeAdmin($school);
+
+        $request->validate([
+            'rules' => 'nullable|string|max:5000',
+        ]);
+
+        $school->update(['rules' => $request->rules]);
+
+        return back()->with('status', 'rules-updated');
+    }
+
+    /**
+     * Generate invite token.
+     */
+    public function generateInviteToken(School $school)
+    {
+        $this->authorizeAdmin($school);
+
+        $token = bin2hex(random_bytes(16)); // 32 char hex token
+        $school->update(['invite_token' => $token]);
+
+        return response()->json(['invite_token' => $token]);
+    }
+
+    /**
+     * Revoke invite token.
+     */
+    public function revokeInviteToken(School $school)
+    {
+        $this->authorizeAdmin($school);
+
+        $school->update(['invite_token' => null]);
+
+        return response()->json(['revoked' => true]);
+    }
+
+    /**
+     * Join via invite token.
+     */
+    public function joinViaToken(string $token)
+    {
+        $school = School::where('invite_token', $token)->firstOrFail();
+        $user = Auth::user();
+
+        if ($school->members()->where('user_id', $user->id)->exists()) {
+            return redirect()->route('schools.show', $school)->with('status', 'already-member');
+        }
+
+        if ($school->privacy === 'private') {
+            // For private schools, could send a join request - for now, auto-join via invite
+        }
+
+        $school->members()->attach($user->id, ['role' => 'member']);
+
+        return redirect()->route('schools.show', $school)->with('status', 'joined-via-invite');
+    }
+
+    /**
+     * School leaderboard — top 10 contributors.
+     */
+    public function leaderboard(School $school)
+    {
+        $members = $school->members()
+            ->select('users.id', 'users.name', 'users.username', 'users.profile_picture')
+            ->withPivot('role')
+            ->get();
+
+        $leaderboard = $members->map(function ($member) use ($school) {
+            $score = 0;
+
+            // Posts in school (3pts each)
+            $postCount = Post::where('user_id', $member->id)
+                ->where('school_id', $school->id)
+                ->count();
+            $score += $postCount * 3;
+
+            // Reactions received on school posts (1pt each)
+            $reactionsReceived = \App\Models\Reaction::whereHasMorph('reactable', [Post::class], function ($q) use ($member, $school) {
+                $q->where('user_id', $member->id)->where('school_id', $school->id);
+            })->count();
+            $score += $reactionsReceived;
+
+            // Comments on school posts (1pt each)
+            $commentsReceived = \App\Models\Comment::whereHas('post', function ($q) use ($member, $school) {
+                $q->where('user_id', $member->id)->where('school_id', $school->id);
+            })->count();
+            $score += $commentsReceived;
+
+            return [
+                'user' => $member,
+                'role' => $member->pivot->role,
+                'score' => $score,
+            ];
+        })
+        ->sortByDesc('score')
+        ->take(10)
+        ->values();
+
+        return response()->json($leaderboard);
+    }
+
+    /**
+     * Change member role.
+     */
+    public function changeMemberRole(Request $request, School $school, \App\Models\User $user)
+    {
+        $this->authorizeAdmin($school);
+
+        $request->validate(['role' => 'required|in:admin,moderator,member']);
+
+        $school->members()->updateExistingPivot($user->id, ['role' => $request->role]);
+
+        return response()->json(['updated' => true]);
+    }
+
+    /**
+     * Remove member from school.
+     */
+    public function removeMember(School $school, \App\Models\User $user)
+    {
+        $this->authorizeAdmin($school);
+
+        if ($school->created_by === $user->id) {
+            return response()->json(['message' => 'Cannot remove the creator.'], 422);
+        }
+
+        $school->members()->detach($user->id);
+
+        return response()->json(['removed' => true]);
+    }
+
+    /**
      * Ensure the current user is an admin of the school.
      */
     private function authorizeAdmin(School $school): void

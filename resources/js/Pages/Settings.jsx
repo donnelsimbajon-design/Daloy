@@ -72,7 +72,7 @@ function SaveBtn({ processing, label = 'Save changes' }) {
 }
 
 /* ─── Main ────────────────────────────────────────────────────────────── */
-export default function Settings({ user, blocked_users = [] }) {
+export default function Settings({ user, blocked_users = [], muted_keywords = [], interest_tags = [], user_interest_ids = [], login_activities = [] }) {
     const [activeTab, setActiveTab] = useState('profile');
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [uploadingProfile, setUploadingProfile] = useState(false);
@@ -93,11 +93,19 @@ export default function Settings({ user, blocked_users = [] }) {
     const profilePicRef = useRef(null);
     const backgroundPicRef = useRef(null);
 
-    const profileForm = useForm({ name: user.name || '', username: user.username || '', email: user.email || '', bio: user.bio || '', about: user.about || '', phone: user.phone || '', location: user.location || '' });
+    const profileForm = useForm({ name: user.name || '', username: user.username || '', email: user.email || '', bio: user.bio || '', about: user.about || '', phone: user.phone || '', location: user.location || '', pronouns: user.pronouns || '' });
     const passwordForm = useForm({ current_password: '', password: '', password_confirmation: '' });
-    const privacyForm = useForm({ privacy_setting: user.privacy_setting || 'public' });
+    const privacyForm = useForm({ privacy_setting: user.privacy_setting || 'public', show_activity_status: user.show_activity_status ?? true });
     const deleteForm = useForm({ password: '' });
     const accessibilityForm = useForm({ font_size: user.font_size || 'medium', reduce_motion: user.reduce_motion || false, high_contrast: user.high_contrast || false, dark_mode: user.dark_mode || false });
+
+    // New state
+    const [selectedInterests, setSelectedInterests] = useState(user_interest_ids || []);
+    const [savingInterests, setSavingInterests] = useState(false);
+    const [mutedKws, setMutedKws] = useState(muted_keywords || []);
+    const [newKeyword, setNewKeyword] = useState('');
+    const [profileAccent, setProfileAccent] = useState(user.profile_accent || 'deep-blue');
+    const [savingAccent, setSavingAccent] = useState(false);
 
     const submitProfile = (e) => { e.preventDefault(); profileForm.patch('/settings/profile'); };
     const submitPassword = (e) => { e.preventDefault(); passwordForm.put('/settings/password', { onSuccess: () => passwordForm.reset() }); };
@@ -105,6 +113,30 @@ export default function Settings({ user, blocked_users = [] }) {
     const submitDelete = (e) => { e.preventDefault(); deleteForm.delete('/settings/account'); };
     const submitAccessibility = (e) => { e.preventDefault(); accessibilityForm.patch('/settings/accessibility'); };
     const handleUnblock = (userId) => { if (confirm('Unblock this user?')) router.delete(`/settings/unblock/${userId}`, { preserveScroll: true }); };
+
+    const saveInterests = async () => {
+        setSavingInterests(true);
+        router.post('/settings/interests', { tag_ids: selectedInterests }, { preserveScroll: true, preserveState: true, onFinish: () => setSavingInterests(false) });
+    };
+    const toggleInterest = (id) => {
+        setSelectedInterests(prev => prev.includes(id) ? prev.filter(i => i !== id) : prev.length < 10 ? [...prev, id] : prev);
+    };
+    const addMutedKeyword = async () => {
+        if (!newKeyword.trim()) return;
+        router.post('/settings/muted-keywords', { keyword: newKeyword }, { preserveScroll: true, preserveState: true, onSuccess: () => { setNewKeyword(''); router.reload({ only: ['muted_keywords'] }); } });
+    };
+    const removeMutedKeyword = (id) => {
+        router.delete(`/settings/muted-keywords/${id}`, { preserveScroll: true, preserveState: true });
+        setMutedKws(prev => prev.filter(k => k.id !== id));
+    };
+    const saveAccent = () => {
+        setSavingAccent(true);
+        router.patch('/settings/accent', { profile_accent: profileAccent }, { preserveScroll: true, preserveState: true, onFinish: () => setSavingAccent(false) });
+    };
+    const logoutOtherSessions = async () => {
+        if (!confirm('Log out all other sessions?')) return;
+        try { await axios.post('/settings/logout-other-sessions'); alert('Done! All other sessions have been logged out.'); } catch {} 
+    };
 
     const handlePicUpload = async (file, endpoint, setUploading, setPreview, fieldName) => {
         if (!file) return;
@@ -126,6 +158,8 @@ export default function Settings({ user, blocked_users = [] }) {
         'privacy-updated': 'Privacy saved!', 'profile-picture-updated': 'Photo updated!',
         'background-updated': 'Cover updated!', 'notifications-updated': 'Notifications saved!',
         'accessibility-updated': 'Accessibility saved!', 'user-unblocked': 'User unblocked!',
+        'interests-updated': 'Interests saved!', 'accent-updated': 'Accent updated!',
+        'keyword-muted': 'Keyword muted!', 'keyword-unmuted': 'Keyword removed!',
     };
     const currentStatus = usePage().props.status;
 
@@ -135,6 +169,7 @@ export default function Settings({ user, blocked_users = [] }) {
         { id: 'notifications', label: 'Notifications', icon: 'M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0' },
         { id: 'privacy', label: 'Privacy', icon: 'M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z' },
         { id: 'accessibility', label: 'Accessibility', icon: 'M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802' },
+        { id: 'personalize', label: 'Personalize', icon: 'M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42' },
         { id: 'blocked', label: 'Blocked', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
         { id: 'help', label: 'Help', icon: 'M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z' },
     ];
@@ -241,6 +276,7 @@ export default function Settings({ user, blocked_users = [] }) {
                                         <Input label="Phone" value={profileForm.data.phone} onChange={e => profileForm.setData('phone', e.target.value)} error={profileForm.errors.phone} hint="Optional" placeholder="+63 9XX XXX XXXX" />
                                     </div>
                                     <Input label="Location" value={profileForm.data.location} onChange={e => profileForm.setData('location', e.target.value)} error={profileForm.errors.location} placeholder="Manila, Philippines" hint="Optional" />
+                                    <Input label="Pronouns" value={profileForm.data.pronouns} onChange={e => profileForm.setData('pronouns', e.target.value)} error={profileForm.errors.pronouns} placeholder="e.g. he/him, she/her, they/them" hint="Optional · displayed on your profile" />
                                 </div>
                             </Card>
 
@@ -453,6 +489,14 @@ export default function Settings({ user, blocked_users = [] }) {
                                     </label>
                                 ))}
                             </div>
+                            {/* Activity Status Toggle */}
+                            <div className="flex items-center justify-between py-4 border-t border-ocean-border mt-4">
+                                <div>
+                                    <p className="text-sm font-medium text-ocean-text">Show activity status</p>
+                                    <p className="text-[12px] text-ocean-text-dim">Let others see when you're active</p>
+                                </div>
+                                <Toggle on={privacyForm.data.show_activity_status} onChange={() => privacyForm.setData('show_activity_status', !privacyForm.data.show_activity_status)} />
+                            </div>
                             <div className="flex justify-end mt-6 pt-4 border-t border-ocean-border">
                                 <SaveBtn processing={privacyForm.processing} label="Save privacy" />
                             </div>
@@ -552,6 +596,116 @@ export default function Settings({ user, blocked_users = [] }) {
                         </Card>
                     </div>
                 </form>
+            )}
+
+            {/* ══════════════════════ PERSONALIZE TAB ══════════════════════ */}
+            {activeTab === 'personalize' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Interest Tags */}
+                    <Card>
+                        <CardTitle title="Interest Tags" desc={`Select up to 10 topics you're interested in (${selectedInterests.length}/10).`}
+                            right={savingInterests && <span className="text-[11px] text-biolum animate-pulse font-medium">Saving…</span>} />
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {interest_tags.map(tag => (
+                                <button key={tag.id} type="button" onClick={() => toggleInterest(tag.id)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
+                                        selectedInterests.includes(tag.id)
+                                            ? 'bg-biolum/20 text-biolum border border-biolum/30'
+                                            : 'bg-ocean-surface/60 text-ocean-text-dim border border-ocean-divider hover:bg-ocean-surface hover:text-ocean-text'
+                                    }`}>
+                                    {tag.icon && <span className="mr-1">{tag.icon}</span>}{tag.name}
+                                </button>
+                            ))}
+                        </div>
+                        <button type="button" onClick={saveInterests} disabled={savingInterests}
+                            className="h-9 px-5 bg-biolum text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50">
+                            {savingInterests ? 'Saving…' : 'Save Interests'}
+                        </button>
+                    </Card>
+
+                    {/* Profile Accent */}
+                    <Card>
+                        <CardTitle title="Profile Accent Color" desc="Choose your profile's accent color." />
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            {[
+                                { id: 'deep-blue', label: 'Deep Blue', color: 'bg-blue-600' },
+                                { id: 'coral', label: 'Coral', color: 'bg-rose-500' },
+                                { id: 'bioluminescent-green', label: 'Bio Green', color: 'bg-emerald-400' },
+                                { id: 'abyssal-purple', label: 'Abyssal', color: 'bg-violet-600' },
+                                { id: 'seafoam', label: 'Seafoam', color: 'bg-teal-400' },
+                                { id: 'sunset-orange', label: 'Sunset', color: 'bg-orange-500' },
+                            ].map(accent => (
+                                <button key={accent.id} type="button" onClick={() => setProfileAccent(accent.id)}
+                                    className={`flex items-center gap-2 p-3 rounded-xl border transition-all ${
+                                        profileAccent === accent.id ? 'border-biolum/40 ring-1 ring-biolum/10 bg-biolum/5' : 'border-ocean-border hover:bg-ocean-surface/60'
+                                    }`}>
+                                    <div className={`w-6 h-6 rounded-full ${accent.color} shrink-0`} />
+                                    <span className="text-xs font-medium text-ocean-text">{accent.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <button type="button" onClick={saveAccent} disabled={savingAccent}
+                            className="h-9 px-5 bg-biolum text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50">
+                            {savingAccent ? 'Saving…' : 'Save Accent'}
+                        </button>
+                    </Card>
+
+                    {/* Muted Keywords */}
+                    <Card>
+                        <CardTitle title="Muted Keywords" desc="Posts containing these words will be hidden from your feed." />
+                        <div className="flex gap-2 mb-4">
+                            <input type="text" value={newKeyword} onChange={e => setNewKeyword(e.target.value)}
+                                placeholder="Add a keyword…" maxLength={100}
+                                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addMutedKeyword())}
+                                className="flex-1 h-10 px-4 bg-ocean-surface border border-ocean-border rounded-xl text-ocean-text text-sm placeholder:text-ocean-text-dim/50 focus:outline-none focus:ring-2 focus:ring-biolum/30" />
+                            <button type="button" onClick={addMutedKeyword}
+                                className="h-10 px-4 bg-biolum text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-all">Add</button>
+                        </div>
+                        {mutedKws.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {mutedKws.map(kw => (
+                                    <div key={kw.id} className="flex items-center gap-1.5 px-3 py-1.5 bg-ocean-surface/60 border border-ocean-divider rounded-full">
+                                        <span className="text-xs text-ocean-text">{kw.keyword}</span>
+                                        <button onClick={() => removeMutedKeyword(kw.id)} className="text-ocean-text-dim/50 hover:text-rose-400 transition-colors">
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-ocean-text-dim">No muted keywords. Posts with muted keywords won't appear in your feed.</p>
+                        )}
+                    </Card>
+
+                    {/* Login Activity */}
+                    <Card>
+                        <CardTitle title="Login Activity" desc="Recent login sessions for your account." />
+                        {login_activities.length > 0 ? (
+                            <div className="space-y-2">
+                                {login_activities.map((activity, i) => (
+                                    <div key={activity.id || i} className="flex items-center justify-between p-3 rounded-xl bg-ocean-surface/50 border border-ocean-border">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-lg bg-biolum/8 flex items-center justify-center">
+                                                <Ic d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" className="w-4 h-4 text-biolum" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-medium text-ocean-text">{activity.ip_address || 'Unknown'}</p>
+                                                <p className="text-[10px] text-ocean-text-dim">{activity.user_agent?.substring(0, 50) || 'Unknown device'}</p>
+                                            </div>
+                                        </div>
+                                        <span className="text-[10px] text-ocean-text-dim">{activity.logged_in_at ? new Date(activity.logged_in_at).toLocaleDateString() : ''}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-xs text-ocean-text-dim">No login activity recorded.</p>
+                        )}
+                        <button type="button" onClick={logoutOtherSessions}
+                            className="mt-4 h-9 px-4 text-xs font-semibold text-rose-500 border border-rose-200 rounded-xl hover:bg-rose-50 transition-colors">
+                            Log out all other sessions
+                        </button>
+                    </Card>
+                </div>
             )}
 
             {/* ══════════════════════ BLOCKED TAB ══════════════════════ */}

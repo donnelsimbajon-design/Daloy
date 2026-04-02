@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class School extends Model
 {
-    protected $fillable = ['name', 'description', 'privacy', 'cover_image', 'profile_image', 'created_by'];
+    protected $fillable = ['name', 'description', 'rules', 'privacy', 'cover_image', 'profile_image', 'created_by', 'invite_token'];
 
     public function creator()
     {

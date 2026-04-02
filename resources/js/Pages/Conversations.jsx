@@ -158,7 +158,7 @@ export default function Conversations() {
         <MainLayout>
             <Head title="Conversations" />
 
-            <div className="flex h-[calc(100vh-9rem)] w-[100vw] relative left-1/2 -translate-x-1/2 -mt-2 border-y border-ocean-border bg-ocean-card overflow-hidden">
+            <div className="flex h-[calc(100vh-9rem)] w-full rounded-2xl border border-ocean-border bg-ocean-card overflow-hidden shadow-sm mt-4">
                 {/* 1. List */}
                 <div className={`w-full md:w-[320px] lg:w-[340px] flex flex-col shrink-0 border-r border-ocean-border bg-ocean-card ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
                     <div className="h-[72px] px-5 flex items-center justify-between border-b border-ocean-border bg-ocean-card shrink-0">

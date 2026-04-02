@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InterestTag;
+use App\Models\LoginActivity;
+use App\Models\MutedKeyword;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,11 +22,11 @@ class SettingsController extends Controller
     {
         $user = $request->user();
 
-        // Default notification preferences
         $defaultNotifPrefs = [
             'push_likes' => true, 'push_comments' => true, 'push_follows' => true,
             'push_messages' => true, 'push_mentions' => true,
             'email_digest' => false, 'email_security' => true, 'email_updates' => false,
+            'email_digest_frequency' => 'never',
         ];
 
         $blockedUsers = $user->blockedUsers()
@@ -29,12 +34,32 @@ class SettingsController extends Controller
             ->withPivot('created_at')
             ->get();
 
+        $mutedKeywords = $user->mutedKeywords()->orderByDesc('created_at')->get();
+        $interestTags = InterestTag::all();
+        $userInterestIds = $user->interestTags()->pluck('interest_tags.id')->toArray();
+
+        // Login activity
+        $loginActivities = $user->loginActivities()
+            ->orderByDesc('logged_in_at')
+            ->limit(10)
+            ->get();
+
+        // Current session token for marking active
+        $currentSessionToken = session()->getId();
+
+        // User's filed reports
+        $myReports = $user->reports()
+            ->with('reportable')
+            ->orderByDesc('created_at')
+            ->paginate(10);
+
         return Inertia::render('Settings', [
             'user' => array_merge(
                 $user->only([
                     'id', 'name', 'username', 'email', 'bio', 'about', 'phone',
                     'location', 'profile_picture', 'background_picture', 'privacy_setting',
                     'font_size', 'reduce_motion', 'high_contrast', 'dark_mode',
+                    'pronouns', 'show_activity_status', 'profile_accent',
                 ]),
                 [
                     'notification_preferences' => $user->notification_preferences ?? $defaultNotifPrefs,
@@ -44,6 +69,12 @@ class SettingsController extends Controller
                 ]
             ),
             'blocked_users' => $blockedUsers,
+            'muted_keywords' => $mutedKeywords,
+            'interest_tags' => $interestTags,
+            'user_interest_ids' => $userInterestIds,
+            'login_activities' => $loginActivities,
+            'current_session_token' => $currentSessionToken,
+            'my_reports' => $myReports,
         ]);
     }
 
@@ -57,6 +88,7 @@ class SettingsController extends Controller
             'about' => 'nullable|string|max:2000',
             'phone' => 'nullable|string|max:20',
             'location' => 'nullable|string|max:255',
+            'pronouns' => 'nullable|string|max:30',
         ]);
 
         $request->user()->fill($validated);
@@ -126,6 +158,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'privacy_setting' => 'required|in:public,followers,private',
+            'show_activity_status' => 'nullable|boolean',
         ]);
 
         $request->user()->update($validated);
@@ -133,9 +166,6 @@ class SettingsController extends Controller
         return back()->with('status', 'privacy-updated');
     }
 
-    /**
-     * Update notification preferences.
-     */
     public function updateNotifications(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -147,9 +177,6 @@ class SettingsController extends Controller
         return back()->with('status', 'notifications-updated');
     }
 
-    /**
-     * Update accessibility preferences.
-     */
     public function updateAccessibility(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -162,6 +189,117 @@ class SettingsController extends Controller
         $request->user()->update($validated);
 
         return back()->with('status', 'accessibility-updated');
+    }
+
+    /**
+     * Update interest tags.
+     */
+    public function updateInterests(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'tag_ids' => 'required|array|max:10',
+            'tag_ids.*' => 'exists:interest_tags,id',
+        ]);
+
+        $request->user()->interestTags()->sync($request->tag_ids);
+
+        return back()->with('status', 'interests-updated');
+    }
+
+    /**
+     * Update profile accent color.
+     */
+    public function updateAccent(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'profile_accent' => 'required|string|in:deep-blue,coral,bioluminescent-green,abyssal-purple,seafoam,sunset-orange',
+        ]);
+
+        $request->user()->update(['profile_accent' => $request->profile_accent]);
+
+        return back()->with('status', 'accent-updated');
+    }
+
+    /**
+     * Set featured post.
+     */
+    public function updateFeaturedPost(Request $request): JsonResponse
+    {
+        $request->validate([
+            'post_id' => 'nullable|exists:posts,id',
+        ]);
+
+        $user = $request->user();
+
+        // Verify the post belongs to the user
+        if ($request->post_id) {
+            $post = \App\Models\Post::find($request->post_id);
+            if (!$post || $post->user_id !== $user->id) {
+                return response()->json(['message' => 'You can only feature your own posts.'], 403);
+            }
+        }
+
+        $user->update(['featured_post_id' => $request->post_id]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Add muted keyword.
+     */
+    public function addMutedKeyword(Request $request): RedirectResponse
+    {
+        $request->validate(['keyword' => 'required|string|max:100']);
+
+        MutedKeyword::firstOrCreate([
+            'user_id' => $request->user()->id,
+            'keyword' => strtolower(trim($request->keyword)),
+        ]);
+
+        return back()->with('status', 'keyword-muted');
+    }
+
+    /**
+     * Remove muted keyword.
+     */
+    public function removeMutedKeyword(MutedKeyword $keyword): RedirectResponse
+    {
+        if ($keyword->user_id !== Auth::id()) {
+            abort(403);
+        }
+
+        $keyword->delete();
+
+        return back()->with('status', 'keyword-unmuted');
+    }
+
+    /**
+     * Get login activities.
+     */
+    public function loginActivity(): JsonResponse
+    {
+        $activities = Auth::user()->loginActivities()
+            ->orderByDesc('logged_in_at')
+            ->limit(10)
+            ->get();
+
+        return response()->json($activities);
+    }
+
+    /**
+     * Log out all other sessions.
+     */
+    public function logoutOtherSessions(Request $request): JsonResponse
+    {
+        $currentToken = session()->getId();
+
+        // Delete all sessions except current
+        DB::table('sessions')
+            ->where('user_id', Auth::id())
+            ->where('id', '!=', $currentToken)
+            ->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /**

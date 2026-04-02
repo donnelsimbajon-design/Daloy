@@ -37,7 +37,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user ? $user->only([
                     'id', 'name', 'username', 'email', 'profile_picture', 'background_picture',
                     'bio', 'location', 'privacy_setting', 'created_at',
-                    'font_size', 'reduce_motion', 'high_contrast', 'notification_preferences', 'dark_mode'
+                    'font_size', 'reduce_motion', 'high_contrast', 'notification_preferences', 'dark_mode',
+                    'pronouns', 'show_activity_status', 'profile_accent', 'notifications_snoozed_until',
                 ]) : null,
             ],
             'status' => session('status'),

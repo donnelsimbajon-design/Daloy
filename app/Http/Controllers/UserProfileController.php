@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Models\Post;
 use App\Models\BlockedUser;
-use App\Models\Notification;
+use App\Models\ProfileVisit;
+use App\Models\Ripple;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,6 +25,8 @@ class UserProfileController extends Controller
         $isFollowing = !$isSelf && $authUser->isFollowing($user);
         $isBlocked  = !$isSelf && $authUser->blockedUsers()->where('blocked_user_id', $user->id)->exists();
         $isBlockedBy = !$isSelf && $user->blockedUsers()->where('blocked_user_id', $authUser->id)->exists();
+        $isRestricted = !$isSelf && $authUser->hasRestricted($user);
+        $isCloseFriend = !$isSelf && $authUser->isCloseFriend($user);
 
         // If blocked by this user, show restricted view
         if ($isBlockedBy) {
@@ -30,7 +35,20 @@ class UserProfileController extends Controller
                 'isSelf' => false, 'isFollowing' => false, 'followRequestSent' => false,
                 'friendshipStatus' => 'none', 'friendRequestId' => null,
                 'canViewProfile' => false, 'isBlocked' => false, 'isBlockedBy' => true,
-                'posts' => [], 'friends' => [],
+                'isRestricted' => false, 'isCloseFriend' => false,
+                'posts' => [], 'friends' => [], 'schools' => [],
+                'mutualFriends' => [], 'mutualFriendsCount' => 0,
+                'badges' => [], 'profileCompletion' => null,
+                'profileVisitsThisWeek' => 0, 'featuredPost' => null,
+                'tideScore' => 0, 'activityStatus' => 'hidden',
+            ]);
+        }
+
+        // Record profile visit
+        if (!$isSelf) {
+            ProfileVisit::create([
+                'visited_user_id' => $user->id,
+                'visitor_user_id' => $authUser->id,
             ]);
         }
 
@@ -62,7 +80,6 @@ class UserProfileController extends Controller
             $friendRequestId  = $receivedFriendRequest->id;
         }
 
-        // Determine if private account is viewable
         $canViewProfile = $user->privacy_setting !== 'private'
             || $isSelf
             || $isFriend;
@@ -77,36 +94,90 @@ class UserProfileController extends Controller
         $posts = [];
         if ($canViewProfile) {
             $posts = $user->posts()
-                ->with(['user', 'media', 'reactions'])
+                ->with(['user', 'media', 'reactions', 'poll.options', 'repostOf.user:id,name,username,profile_picture', 'repostOf.media'])
                 ->withCount('reactions', 'comments')
+                ->orderByDesc('is_pinned')
                 ->latest()
                 ->take(20)
                 ->get()
                 ->map(function ($post) use ($authUser) {
-                    $post->liked_by_user = $post->reactions
-                        ->where('user_id', $authUser->id)
-                        ->isNotEmpty();
+                    $userReaction = $post->reactions->where('user_id', $authUser->id)->first();
+                    $post->user_reaction = $userReaction ? $userReaction->type : null;
+                    $post->liked_by_user = $userReaction !== null;
+                    $post->reaction_counts = $post->reactions
+                        ->groupBy('type')
+                        ->map->count()
+                        ->toArray();
+                    $post->is_bookmarked = $post->bookmarks()->where('user_id', $authUser->id)->exists();
                     return $post;
                 });
         }
 
-        // Friends preview (up to 9 for sidebar grid)
+        // Mutual friends
+        $mutualFriends = [];
+        $mutualFriendsCount = 0;
+        if (!$isSelf) {
+            $authFriendIds = $authUser->friends()->pluck('users.id');
+            $profileFriendIds = $user->friends()->pluck('users.id');
+            $mutualIds = $authFriendIds->intersect($profileFriendIds);
+            $mutualFriendsCount = $mutualIds->count();
+            $mutualFriends = User::whereIn('id', $mutualIds->take(3))
+                ->select('id', 'name', 'username', 'profile_picture')
+                ->get();
+        }
+
+        // Friends preview
         $friends = $user->friends()
             ->select('users.id', 'users.name', 'users.username', 'users.profile_picture')
             ->limit(9)
             ->get();
 
-        // Groups/Schools joined
+        // Schools joined
         $schools = $user->schools()
             ->withCount('members')
             ->withPivot('role')
             ->limit(6)
             ->get();
 
+        // Badges
+        $badges = $user->badges()->get();
+
+        // Profile completion (own profile only)
+        $profileCompletion = $isSelf ? $user->getProfileCompletionScore() : null;
+
+        // Profile visits this week (own profile only)
+        $profileVisitsThisWeek = 0;
+        if ($isSelf) {
+            $profileVisitsThisWeek = ProfileVisit::where('visited_user_id', $user->id)
+                ->where('visited_at', '>=', now()->subWeek())
+                ->count();
+        }
+
+        // Featured post
+        $featuredPost = null;
+        if ($user->featured_post_id) {
+            $featuredPost = Post::with(['user', 'media'])
+                ->withCount('reactions', 'comments')
+                ->find($user->featured_post_id);
+        }
+
+        // Tide Score
+        $tideScore = $user->tideScore?->score ?? 0;
+
+        // Activity Status
+        $activityStatus = 'hidden';
+        if ($user->show_activity_status && ($isSelf || !$isBlocked)) {
+            $activityStatus = $user->getActivityStatus();
+        }
+
+        // Interest tags
+        $userInterests = $user->interestTags()->get();
+
         return Inertia::render('UserProfile', [
             'profileUser' => array_merge($user->only([
                 'id', 'name', 'username', 'bio', 'about', 'profile_picture',
                 'background_picture', 'location', 'privacy_setting', 'created_at',
+                'pronouns', 'profile_accent',
             ]), [
                 'friend_count'    => $friendCount,
                 'follower_count'  => $followerCount,
@@ -124,15 +195,25 @@ class UserProfileController extends Controller
             'canViewProfile'   => $canViewProfile,
             'isBlocked'        => $isBlocked,
             'isBlockedBy'      => false,
-            // Hide friends/schools list from blocked viewers
+            'isRestricted'     => $isRestricted,
+            'isCloseFriend'    => $isCloseFriend,
             'posts'            => $posts,
             'friends'          => $isBlocked ? [] : $friends,
             'schools'          => $isBlocked ? [] : $schools,
+            'mutualFriends'    => $mutualFriends,
+            'mutualFriendsCount' => $mutualFriendsCount,
+            'badges'           => $badges,
+            'profileCompletion' => $profileCompletion,
+            'profileVisitsThisWeek' => $profileVisitsThisWeek,
+            'featuredPost'     => $featuredPost,
+            'tideScore'        => $tideScore,
+            'activityStatus'   => $activityStatus,
+            'userInterests'    => $userInterests,
         ]);
     }
 
     /**
-     * Block a user — mutual, complete, and silent.
+     * Block a user.
      */
     public function block(User $user)
     {
@@ -143,68 +224,73 @@ class UserProfileController extends Controller
         }
 
         DB::transaction(function () use ($authUser, $user) {
-            // Block the user (idempotent)
             $authUser->blockedUsers()->syncWithoutDetaching([$user->id]);
-
-            // Remove friendship in both directions
             $authUser->friends()->detach($user->id);
             $user->friends()->detach($authUser->id);
-
-            // Remove all follow relationships
             $authUser->following()->detach($user->id);
             $authUser->followers()->detach($user->id);
             $user->following()->detach($authUser->id);
             $user->followers()->detach($authUser->id);
-
-            // Cancel pending friend & follow requests (both directions)
             $authUser->sentFriendRequests()->where('receiver_id', $user->id)->delete();
             $authUser->receivedFriendRequests()->where('sender_id', $user->id)->delete();
             $authUser->sentFollowRequests()->where('following_id', $user->id)->delete();
             $authUser->receivedFollowRequests()->where('follower_id', $user->id)->delete();
-
-            // Private confirmation notification for the BLOCKER only
-            // The blocked user is NEVER notified — block is silent
-            if (class_exists('App\\Models\\Notification')) {
-                \App\Models\Notification::create([
-                    'user_id'  => $authUser->id,
-                    'type'     => 'block_confirmation',
-                    'data'     => json_encode([
-                        'message' => 'You have blocked this user. They can no longer interact with you.',
-                    ]),
-                    'read_at'  => null,
-                ]);
-            }
+            // Also remove close friends
+            $authUser->closeFriends()->detach($user->id);
+            $user->closeFriends()->detach($authUser->id);
         });
 
         return back()->with('status', 'user-blocked');
     }
 
     /**
-     * Unblock a user — records unblocked_at for 48h cooldown enforcement.
+     * Unblock a user.
      */
     public function unblock(User $user)
     {
         $authUser = Auth::user();
 
-        // Record unblocked_at so we can enforce the 48h cooldown
         DB::table('blocked_users')
             ->where('user_id', $authUser->id)
             ->where('blocked_user_id', $user->id)
             ->update(['unblocked_at' => now()]);
 
-        // Wait until cooldown passes, then actually remove the row
-        // For now we remove immediately but keep unblocked_at for downstream checks
         $authUser->blockedUsers()->detach($user->id);
 
-        // Re-insert as a cooldown-only record so we can check 48h window
         DB::table('blocked_users')->insert([
-            'user_id'         => $authUser->id,
+            'user_id' => $authUser->id,
             'blocked_user_id' => $user->id,
-            'created_at'      => now(),
-            'updated_at'      => now(),
-            'unblocked_at'    => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+            'unblocked_at' => now(),
         ]);
 
         return back()->with('status', 'user-unblocked');
+    }
+
+    /**
+     * Restrict a user.
+     */
+    public function restrict(User $user): JsonResponse
+    {
+        $authUser = Auth::user();
+
+        if ($authUser->id === $user->id) {
+            return response()->json(['message' => 'You cannot restrict yourself.'], 422);
+        }
+
+        $authUser->restrictedUsers()->syncWithoutDetaching([$user->id]);
+
+        return response()->json(['restricted' => true]);
+    }
+
+    /**
+     * Unrestrict a user.
+     */
+    public function unrestrict(User $user): JsonResponse
+    {
+        Auth::user()->restrictedUsers()->detach($user->id);
+
+        return response()->json(['unrestricted' => true]);
     }
 }

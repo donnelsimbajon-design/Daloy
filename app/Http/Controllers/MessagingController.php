@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageReaction;
+use App\Models\TypingIndicator;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use App\Events\MessageSent; // Will create this event next
+use Illuminate\Support\Facades\DB;
 
 class MessagingController extends Controller
 {
@@ -15,15 +18,15 @@ class MessagingController extends Controller
     {
         $user = Auth::user();
 
-        // Collect all blocked/blocking user IDs so we can hide their conversations
         $blockedByMeIds = $user->blockedUsers()->pluck('users.id');
         $blockedMeIds   = $user->blockedBy()->pluck('users.id');
         $allBlockedIds  = $blockedByMeIds->merge($blockedMeIds)->unique()->toArray();
 
-        // Get conversations, excluding any that involve a blocked/blocking participant
+        // Restricted users who can't DM me
+        $restrictedMeIds = $user->restrictedBy()->pluck('users.id')->toArray();
+
         $conversations = $user->conversations()
             ->with(['participants:id,name,username,profile_picture', 'latestMessage'])
-            // Exclude conversations where any other participant is blocked
             ->whereDoesntHave('participants', function ($q) use ($user, $allBlockedIds) {
                 $q->where('user_id', '!=', $user->id)
                   ->whereIn('user_id', $allBlockedIds);
@@ -36,6 +39,15 @@ class MessagingController extends Controller
             )
             ->get();
 
+        // Add unread count per conversation
+        $conversations->transform(function ($convo) use ($user) {
+            $convo->unread_count = $convo->messages()
+                ->where('user_id', '!=', $user->id)
+                ->whereNull('read_at')
+                ->count();
+            return $convo;
+        });
+
         return response()->json($conversations);
     }
 
@@ -46,33 +58,26 @@ class MessagingController extends Controller
         $currentUser  = Auth::user();
         $targetUser   = User::find($targetUserId);
 
-        // Block check: cannot start conversations with blocked/blocking users
-        if ($targetUser) {
-            $isBlockedByTarget = $targetUser->blockedUsers()->where('blocked_user_id', $currentUser->id)->exists();
-            $hasBlockedTarget  = $currentUser->blockedUsers()->where('blocked_user_id', $targetUserId)->exists();
-
-            if ($isBlockedByTarget || $hasBlockedTarget) {
-                return response()->json(['message' => 'You cannot message this user.'], 403);
-            }
+        // Block check
+        if ($targetUser && $targetUser->isBlockedWith($currentUser)) {
+            return response()->json(['message' => 'You cannot message this user.'], 403);
         }
 
-        // Check if conversation already exists between these two users (direct)
+        // Restricted check - restricted users cannot initiate DMs
+        if ($targetUser && $targetUser->hasRestricted($currentUser)) {
+            return response()->json(['message' => 'You cannot message this user.'], 403);
+        }
+
         $conversation = Conversation::where('type', 'direct')
-            ->whereHas('participants', function ($q) use ($currentUser) {
-                $q->where('user_id', $currentUser->id);
-            })
-            ->whereHas('participants', function ($q) use ($targetUserId) {
-                $q->where('user_id', $targetUserId);
-            })
+            ->whereHas('participants', fn($q) => $q->where('user_id', $currentUser->id))
+            ->whereHas('participants', fn($q) => $q->where('user_id', $targetUserId))
             ->first();
 
         if (!$conversation) {
-            // Create new conversation
             $conversation = Conversation::create(['type' => 'direct']);
             $conversation->participants()->attach([$currentUser->id, $targetUserId]);
         }
 
-        // Always load relationships so the frontend gets a consistent structure
         $conversation->load(['participants:id,name,username,profile_picture', 'latestMessage']);
 
         return response()->json($conversation);
@@ -83,67 +88,304 @@ class MessagingController extends Controller
         $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
             'content' => 'required_without:media_url|string',
-            'media_url' => 'nullable|string'
+            'media_url' => 'nullable|string',
+            'reply_to_id' => 'nullable|integer|exists:messages,id',
         ]);
 
         $user = Auth::user();
         $conversation = Conversation::findOrFail($request->conversation_id);
 
-        // Check if user is participant
         if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        // Check messaging permissions (Friends, Mutual Follow, or Public allow)
-        // Need to check specific participants depending on type.
-        // Simple check: Is the OTHER user allowed to receive messages from me?
-        // Prompt says: "Messaging must be allowed only if: Users are friends OR Users mutually follow each other OR Receiver allows public messages"
-        // Blocked users cannot send messages.
-        
-        // For direct message, find the other participant
-        $otherParticipant = $conversation->participants()->where('user_id', '!=', $user->id)->first();
-        if ($otherParticipant) {
-             // Check blocked status — neutral message, no information leakage
-             if ($otherParticipant->blockedUsers()->where('blocked_user_id', $user->id)->exists() ||
-                 $user->blockedUsers()->where('blocked_user_id', $otherParticipant->id)->exists()) {
-                 return response()->json(['message' => 'You are unable to send a message to this person.'], 403);
-             }
+        // Block/restrict checks for direct messages
+        if ($conversation->type === 'direct') {
+            $otherParticipant = $conversation->participants()->where('user_id', '!=', $user->id)->first();
+            if ($otherParticipant) {
+                if ($otherParticipant->isBlockedWith($user)) {
+                    return response()->json(['message' => 'You are unable to send a message to this person.'], 403);
+                }
+                if ($otherParticipant->hasRestricted($user)) {
+                    return response()->json(['message' => 'You cannot message this user.'], 403);
+                }
 
-             // Check permissions
-             $isFriend = $user->isFriend($otherParticipant);
-             $isMutualFollow = $user->isFollowing($otherParticipant) && $otherParticipant->isFollowing($user);
-             $allowsPublic = $otherParticipant->privacy_setting !== 'private'; // Or a separate setting for messages? Prompt says "Receiver allows public messages". Assuming privacy_setting covers it or true by default if public?
-             // Prompt implies explicit rule. I will assume privacy_setting 'public' implies public messages unless another setting exists. But "Receiver allows public messages" suggests a specific setting.
-             // Since I don't see a `message_privacy` column, I'll rely on friendship/mutual follow.
-             // If I need to be strict, I'd say: if not friend and not mutual follow, forbid for now unless we add a setting.
-             // But prompt says "OR Receiver allows public messages". I'll assume if their profile is public, they accept messages.
-             
-             if (!$isFriend && !$isMutualFollow && $otherParticipant->privacy_setting === 'private') {
-                  return response()->json(['message' => 'You cannot message this user due to their privacy settings.'], 403);
-             }
+                $isFriend = $user->isFriend($otherParticipant);
+                $isMutualFollow = $user->isFollowing($otherParticipant) && $otherParticipant->isFollowing($user);
+                if (!$isFriend && !$isMutualFollow && $otherParticipant->privacy_setting === 'private') {
+                    return response()->json(['message' => 'You cannot message this user due to their privacy settings.'], 403);
+                }
+            }
         }
 
         $message = $conversation->messages()->create([
-            'user_id' => $user->id, // Existing schema uses user_id
-            'content' => $request->content,
-            'media_url' => $request->media_url,
+            'user_id' => $user->id,
+            'content' => $request->input('content'),
+            'media_url' => $request->input('media_url'),
+            'reply_to_id' => $request->input('reply_to_id'),
         ]);
 
-        // Load user so the frontend can display sender info
         $message->load('user:id,name,username,profile_picture');
 
-        // Broadcast event
-        // broadcast(new MessageSent($message))->toOthers(); 
+        if ($request->reply_to_id) {
+            $message->load('replyTo:id,content,user_id');
+            if ($message->replyTo) {
+                $message->replyTo->load('user:id,name');
+            }
+        }
 
         return response()->json($message);
     }
 
     public function messages(Conversation $conversation)
     {
-        if (!$conversation->participants()->where('user_id', Auth::id())->exists()) {
+        $user = Auth::user();
+
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        return response()->json($conversation->messages()->with('user:id,name,username,profile_picture')->latest()->paginate(20));
+        // Mark messages as read
+        $conversation->messages()
+            ->where('user_id', '!=', $user->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        // Update last_read_at on pivot
+        $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => now()]);
+
+        $messages = $conversation->messages()
+            ->with([
+                'user:id,name,username,profile_picture',
+                'replyTo:id,content,user_id',
+                'replyTo.user:id,name',
+                'messageReactions.user:id,name,profile_picture',
+            ])
+            ->latest()
+            ->paginate(30);
+
+        // Mark deleted-for-everyone messages
+        $messages->getCollection()->transform(function ($msg) {
+            if ($msg->isDeletedForEveryone()) {
+                $msg->content = null;
+                $msg->media_url = null;
+                $msg->is_deleted = true;
+            } else {
+                $msg->is_deleted = false;
+            }
+            // Group reactions by emoji
+            $msg->grouped_reactions = $msg->messageReactions->groupBy('emoji')->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'users' => $group->pluck('user')->take(3),
+                ];
+            });
+            return $msg;
+        });
+
+        return response()->json($messages);
+    }
+
+    /**
+     * React to a message.
+     */
+    public function reactToMessage(Request $request, Message $message): JsonResponse
+    {
+        $request->validate(['emoji' => 'required|string|max:10']);
+
+        $user = Auth::user();
+
+        $existing = MessageReaction::where('message_id', $message->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existing) {
+            if ($existing->emoji === $request->emoji) {
+                $existing->delete();
+                return response()->json(['removed' => true]);
+            }
+            $existing->update(['emoji' => $request->emoji]);
+        } else {
+            MessageReaction::create([
+                'message_id' => $message->id,
+                'user_id' => $user->id,
+                'emoji' => $request->emoji,
+            ]);
+        }
+
+        // Return updated reactions
+        $reactions = $message->messageReactions()
+            ->with('user:id,name')
+            ->get()
+            ->groupBy('emoji')
+            ->map(fn($g) => ['count' => $g->count(), 'users' => $g->pluck('user')->take(3)]);
+
+        return response()->json(['reactions' => $reactions]);
+    }
+
+    /**
+     * Delete a message for everyone.
+     */
+    public function deleteMessage(Request $request, Message $message): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($message->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $scope = $request->input('scope', 'me');
+
+        if ($scope === 'everyone') {
+            // Only within 5 minutes
+            if ($message->created_at->diffInMinutes(now()) > 5) {
+                return response()->json(['message' => 'You can only delete messages within 5 minutes.'], 422);
+            }
+            $message->update(['deleted_for_everyone_at' => now()]);
+        } else {
+            $message->delete(); // soft delete for me
+        }
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Record typing indicator.
+     */
+    public function typing(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        TypingIndicator::updateOrCreate(
+            ['conversation_id' => $conversation->id, 'user_id' => $user->id],
+            ['updated_at' => now()]
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Get who's typing.
+     */
+    public function getTyping(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        $typingUsers = TypingIndicator::where('conversation_id', $conversation->id)
+            ->where('user_id', '!=', $user->id)
+            ->where('updated_at', '>=', now()->subSeconds(3))
+            ->with('user:id,name,username')
+            ->get()
+            ->pluck('user');
+
+        return response()->json($typingUsers);
+    }
+
+    /**
+     * Create a group chat.
+     */
+    public function createGroup(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:100',
+            'member_ids' => 'required|array|min:1',
+            'member_ids.*' => 'exists:users,id',
+        ]);
+
+        $user = Auth::user();
+
+        $conversation = Conversation::create([
+            'type' => 'group',
+            'name' => $request->name,
+        ]);
+
+        // Add creator as admin
+        $conversation->participants()->attach($user->id, ['role' => 'admin']);
+
+        // Add members
+        foreach ($request->member_ids as $memberId) {
+            if ($memberId !== $user->id) {
+                $conversation->participants()->attach($memberId, ['role' => 'member']);
+            }
+        }
+
+        $conversation->load('participants:id,name,username,profile_picture');
+
+        return response()->json($conversation);
+    }
+
+    /**
+     * Add member to group.
+     */
+    public function addMember(Request $request, Conversation $conversation): JsonResponse
+    {
+        $request->validate(['user_id' => 'required|exists:users,id']);
+
+        $user = Auth::user();
+
+        // Check if requester is admin
+        $pivot = $conversation->participants()->where('user_id', $user->id)->first();
+        if (!$pivot || $pivot->pivot->role !== 'admin') {
+            return response()->json(['message' => 'Only admins can add members.'], 403);
+        }
+
+        $conversation->participants()->syncWithoutDetaching([
+            $request->user_id => ['role' => 'member']
+        ]);
+
+        return response()->json(['added' => true]);
+    }
+
+    /**
+     * Remove member from group.
+     */
+    public function removeMember(Conversation $conversation, User $user): JsonResponse
+    {
+        $authUser = Auth::user();
+
+        $pivot = $conversation->participants()->where('user_id', $authUser->id)->first();
+        if (!$pivot || $pivot->pivot->role !== 'admin') {
+            return response()->json(['message' => 'Only admins can remove members.'], 403);
+        }
+
+        $conversation->participants()->detach($user->id);
+
+        return response()->json(['removed' => true]);
+    }
+
+    /**
+     * Update group name.
+     */
+    public function updateGroupName(Request $request, Conversation $conversation): JsonResponse
+    {
+        $request->validate(['name' => 'required|string|max:100']);
+
+        $conversation->update(['name' => $request->name]);
+
+        return response()->json(['updated' => true]);
+    }
+
+    /**
+     * Search messages in a conversation.
+     */
+    public function searchMessages(Request $request, Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $q = $request->input('q', '');
+
+        $messages = $conversation->messages()
+            ->with('user:id,name,username,profile_picture')
+            ->where('content', 'LIKE', "%{$q}%")
+            ->whereNull('deleted_for_everyone_at')
+            ->latest()
+            ->take(20)
+            ->get();
+
+        return response()->json($messages);
     }
 }

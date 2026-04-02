@@ -11,7 +11,7 @@ class Conversation extends Model
     public function participants()
     {
         return $this->belongsToMany(User::class, 'conversation_participants')
-            ->withPivot('last_read_at')
+            ->withPivot('last_read_at', 'role')
             ->withTimestamps();
     }
 
@@ -23,5 +23,17 @@ class Conversation extends Model
     public function latestMessage()
     {
         return $this->hasOne(Message::class)->latestOfMany();
+    }
+
+    public function typingIndicators()
+    {
+        return $this->hasMany(TypingIndicator::class);
+    }
+
+    public function admins()
+    {
+        return $this->belongsToMany(User::class, 'conversation_participants')
+            ->withPivot('last_read_at', 'role')
+            ->wherePivot('role', 'admin');
     }
 }

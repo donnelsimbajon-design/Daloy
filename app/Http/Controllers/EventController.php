@@ -331,6 +331,42 @@ class EventController extends Controller
     }
 
     /**
+     * Check in to an event (Prompt 7).
+     */
+    public function checkin(Event $event)
+    {
+        $user = Auth::user();
+
+        // Must have RSVP'd as going
+        $rsvp = EventRsvp::where('event_id', $event->id)
+            ->where('user_id', $user->id)
+            ->where('status', 'going')
+            ->first();
+
+        if (!$rsvp) {
+            return response()->json(['message' => 'You must RSVP as going before checking in.'], 422);
+        }
+
+        // Event must be live
+        $event->syncStatus();
+        if ($event->status !== 'live') {
+            return response()->json(['message' => 'Check-in is only available during live events.'], 422);
+        }
+
+        // Already checked in?
+        if ($rsvp->checked_in_at) {
+            return response()->json(['message' => 'You have already checked in.', 'checked_in' => true]);
+        }
+
+        $rsvp->update(['checked_in_at' => now()]);
+
+        return response()->json([
+            'checked_in' => true,
+            'checked_in_at' => $rsvp->checked_in_at,
+        ]);
+    }
+
+    /**
      * Check if user is admin/moderator of the group.
      */
     private function authorizeGroupAdmin(School $school, $user): void

@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Post;
+use App\Models\Mention;
+use App\Models\Ripple;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -15,12 +18,27 @@ class CommentController extends Controller
      */
     public function index(Post $post): JsonResponse
     {
+        $user = Auth::user();
+
+        // Get IDs of users restricted by the post author
+        $restrictedByAuthor = [];
+        if ($post->user) {
+            $restrictedByAuthor = $post->user->restrictedUsers()
+                ->pluck('users.id')->toArray();
+        }
+
         $comments = $post->comments()
             ->with([
                 'user:id,name,username,profile_picture',
                 'replies.user:id,name,username,profile_picture',
             ])
             ->whereNull('parent_id')
+            // Hide comments from users restricted by the post author
+            // (unless the commenter is viewing their own comments)
+            ->where(function ($q) use ($restrictedByAuthor, $user) {
+                $q->whereNotIn('user_id', $restrictedByAuthor)
+                  ->orWhere('user_id', $user->id);
+            })
             ->latest()
             ->paginate(20);
 
@@ -35,15 +53,21 @@ class CommentController extends Controller
         $authUser = Auth::user();
         $postOwner = $post->user;
 
-        // Block check: neither party can comment on the other's posts
+        // Block check
         if ($postOwner && $postOwner->id !== $authUser->id) {
-            $isBlockedByOwner = $postOwner->blockedUsers()
-                ->where('blocked_user_id', $authUser->id)->exists();
-            $hasBlockedOwner  = $authUser->blockedUsers()
-                ->where('blocked_user_id', $postOwner->id)->exists();
-
-            if ($isBlockedByOwner || $hasBlockedOwner) {
+            if ($postOwner->isBlockedWith($authUser)) {
                 return response()->json(['message' => 'You cannot comment on this post.'], 403);
+            }
+        }
+
+        // Comment permission check
+        if ($post->comment_permission === 'nobody' && $post->user_id !== $authUser->id) {
+            return response()->json(['message' => 'Comments are disabled on this post.'], 403);
+        }
+
+        if ($post->comment_permission === 'friends' && $post->user_id !== $authUser->id) {
+            if (!$authUser->isFriend($postOwner)) {
+                return response()->json(['message' => 'Only friends can comment on this post.'], 403);
             }
         }
 
@@ -57,6 +81,49 @@ class CommentController extends Controller
             'content'   => $validated['content'],
             'parent_id' => $validated['parent_id'] ?? null,
         ]);
+
+        // Parse mentions in comment
+        preg_match_all('/@(\w+)/', $validated['content'], $mentionMatches);
+        if (!empty($mentionMatches[1])) {
+            foreach ($mentionMatches[1] as $username) {
+                $mentionedUser = User::where('username', $username)->first();
+                if ($mentionedUser && $mentionedUser->id !== $authUser->id) {
+                    Mention::create([
+                        'comment_id' => $comment->id,
+                        'mentioned_user_id' => $mentionedUser->id,
+                    ]);
+
+                    Ripple::create([
+                        'user_id' => $mentionedUser->id,
+                        'sender_id' => $authUser->id,
+                        'type' => 'mention',
+                        'notifiable_type' => 'App\\Models\\Comment',
+                        'notifiable_id' => $comment->id,
+                        'data' => [
+                            'post_id' => $post->id,
+                            'comment_id' => $comment->id,
+                            'message' => $authUser->name . " mentioned you in a comment",
+                        ],
+                    ]);
+                }
+            }
+        }
+
+        // Ripple notification for comment
+        if ($postOwner && $postOwner->id !== $authUser->id) {
+            Ripple::create([
+                'user_id' => $postOwner->id,
+                'sender_id' => $authUser->id,
+                'type' => 'comment',
+                'notifiable_type' => 'App\\Models\\Post',
+                'notifiable_id' => $post->id,
+                'data' => [
+                    'post_id' => $post->id,
+                    'comment_id' => $comment->id,
+                    'message' => $authUser->name . " commented on your post",
+                ],
+            ]);
+        }
 
         $comment->load('user:id,name,username,profile_picture');
 

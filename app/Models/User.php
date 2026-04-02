@@ -27,6 +27,12 @@ class User extends Authenticatable
         'reduce_motion',
         'high_contrast',
         'dark_mode',
+        // New fields
+        'pronouns',
+        'show_activity_status',
+        'featured_post_id',
+        'profile_accent',
+        'notifications_snoozed_until',
     ];
 
     protected $hidden = [
@@ -43,6 +49,8 @@ class User extends Authenticatable
             'reduce_motion' => 'boolean',
             'high_contrast' => 'boolean',
             'dark_mode' => 'boolean',
+            'show_activity_status' => 'boolean',
+            'notifications_snoozed_until' => 'datetime',
         ];
     }
 
@@ -95,7 +103,7 @@ class User extends Authenticatable
     public function conversations()
     {
         return $this->belongsToMany(Conversation::class, 'conversation_participants')
-            ->withPivot('last_read_at')
+            ->withPivot('last_read_at', 'role')
             ->withTimestamps();
     }
 
@@ -162,6 +170,80 @@ class User extends Authenticatable
         return $this->hasMany(FollowRequest::class, 'following_id');
     }
 
+    // --- New Relationships ---
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function bookmarkedPosts()
+    {
+        return $this->belongsToMany(Post::class, 'bookmarks')
+            ->withPivot('created_at');
+    }
+
+    public function closeFriends()
+    {
+        return $this->belongsToMany(User::class, 'close_friends', 'user_id', 'friend_id');
+    }
+
+    public function closeFriendOf()
+    {
+        return $this->belongsToMany(User::class, 'close_friends', 'friend_id', 'user_id');
+    }
+
+    public function tideScore()
+    {
+        return $this->hasOne(TideScore::class);
+    }
+
+    public function interestTags()
+    {
+        return $this->belongsToMany(InterestTag::class, 'user_interest_tags', 'user_id', 'tag_id');
+    }
+
+    public function badges()
+    {
+        return $this->belongsToMany(ProfileBadge::class, 'user_badges', 'user_id', 'badge_id')
+            ->withPivot('earned_at');
+    }
+
+    public function featuredPost()
+    {
+        return $this->belongsTo(Post::class, 'featured_post_id');
+    }
+
+    public function restrictedUsers()
+    {
+        return $this->belongsToMany(User::class, 'restricted_users', 'user_id', 'restricted_user_id');
+    }
+
+    public function restrictedBy()
+    {
+        return $this->belongsToMany(User::class, 'restricted_users', 'restricted_user_id', 'user_id');
+    }
+
+    public function mutedKeywords()
+    {
+        return $this->hasMany(MutedKeyword::class);
+    }
+
+    public function loginActivities()
+    {
+        return $this->hasMany(LoginActivity::class);
+    }
+
+    public function searchHistory()
+    {
+        return $this->hasMany(SearchHistory::class);
+    }
+
+    public function reports()
+    {
+        return $this->hasMany(Report::class, 'reporter_id');
+    }
+
     // --- Helpers ---
 
     public function isFollowing(User $user): bool
@@ -184,8 +266,60 @@ class User extends Authenticatable
             || $user->blockedUsers()->where('blocked_user_id', $this->id)->exists();
     }
 
+    public function isCloseFriend(User $user): bool
+    {
+        return $this->closeFriends()->where('friend_id', $user->id)->exists();
+    }
+
+    public function hasRestricted(User $user): bool
+    {
+        return $this->restrictedUsers()->where('restricted_user_id', $user->id)->exists();
+    }
+
     public function isAdmin(): bool
     {
         return $this->admin !== null;
+    }
+
+    /**
+     * Activity status computed from updated_at.
+     */
+    public function getActivityStatus(): string
+    {
+        if (!$this->show_activity_status) {
+            return 'hidden';
+        }
+
+        $diff = now()->diffInMinutes($this->updated_at);
+
+        if ($diff <= 5) return 'Active Now';
+        if ($diff <= 1440) return 'Active Today'; // 24 hours
+        if ($diff <= 10080) return 'Active This Week'; // 7 days
+        return 'Recently';
+    }
+
+    /**
+     * Profile completion score out of 100.
+     */
+    public function getProfileCompletionScore(): array
+    {
+        $items = [];
+        $score = 0;
+
+        if ($this->name) { $score += 10; $items['name'] = true; } else { $items['name'] = false; }
+        if ($this->username) { $score += 10; $items['username'] = true; } else { $items['username'] = false; }
+        if ($this->profile_picture) { $score += 20; $items['profile_picture'] = true; } else { $items['profile_picture'] = false; }
+        if ($this->background_picture) { $score += 10; $items['background_picture'] = true; } else { $items['background_picture'] = false; }
+        if ($this->bio) { $score += 15; $items['bio'] = true; } else { $items['bio'] = false; }
+        if ($this->about) { $score += 10; $items['about'] = true; } else { $items['about'] = false; }
+        if ($this->location) { $score += 10; $items['location'] = true; } else { $items['location'] = false; }
+        if ($this->interestTags()->count() > 0) { $score += 15; $items['interests'] = true; } else { $items['interests'] = false; }
+
+        return ['score' => $score, 'items' => $items];
+    }
+
+    public function isNotificationsSnoozed(): bool
+    {
+        return $this->notifications_snoozed_until && $this->notifications_snoozed_until->isFuture();
     }
 }
