@@ -135,6 +135,8 @@ resources/js/Components/
 │   ├── Messaging/     → MessagePanel.jsx, ShareModal.jsx
 │   ├── Social/        → FriendRequestButton.jsx, FollowButton.jsx, DiscoveryReef.jsx
 │   └── Notifications/ → NotificationPanel.jsx
+├── Hooks/
+│   └── useNotifications.js    → Polling hook (3s interval, unread count, toast data)
 └── Admin/
     ├── UI/            → Sidebar.jsx, Topbar.jsx, StatCard.jsx, StatusBadge.jsx, Modal.jsx
     └── Features/      → DataTable.jsx, BarChart.jsx
@@ -172,6 +174,12 @@ resources/js/Components/
 | POST | `/api/friend-request/accept` | Accept request |
 | POST | `/api/follow` | Follow user |
 | DELETE | `/api/unfollow` | Unfollow user |
+| GET | `/api/ripples/latest` | Recent ripples (toasts) |
+| GET | `/api/ripples/unread-count` | Unread badge count (polled 3s) |
+| POST | `/api/ripples/mark-all-read` | Mark all read |
+| POST | `/api/ripples/{id}/mark-read` | Mark single read |
+| POST | `/api/ripples/snooze` | Snooze notifications |
+| POST | `/api/ripples/unsnooze` | Resume notifications |
 | POST | `/api/conversations/start` | Start conversation |
 | POST | `/api/messages/send` | Send message |
 | GET | `/api/messages/{conversation}` | Fetch messages |
@@ -189,3 +197,6 @@ resources/js/Components/
 | GET | `/admin/analytics` | Analytics |
 | GET | `/admin/settings` | System settings |
 | GET | `/admin/logs` | Audit logs |
+| POST | `/admin/users/store` | Create new user |
+| PATCH | `/admin/users/{user}/role` | Change user role |
+| POST | `/admin/groups/{school}/action` | Group actions (delete with reason → notifies members) |

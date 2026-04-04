@@ -130,6 +130,47 @@ class PostController extends Controller
     }
 
     /**
+     * Display a specific post.
+     */
+    public function show(Post $post)
+    {
+        $post->load([
+            'user:id,name,username,profile_picture',
+            'media',
+            'school:id,name,cover_image,profile_image',
+            'poll.options',
+            'repostOf.user:id,name,username,profile_picture',
+            'repostOf.media',
+        ]);
+        $post->loadCount(['comments', 'reactions', 'bookmarks']);
+
+        $userId = Auth::id();
+        $userReaction = $post->reactions()->where('user_id', $userId)->first();
+        $post->user_reaction = $userReaction ? $userReaction->type : null;
+        $post->liked_by_user = $userReaction !== null;
+        $post->reaction_counts = $this->getReactionCounts($post);
+
+        // Check if bookmarked
+        $post->is_bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+
+        if ($post->poll) {
+            $vote = $post->poll->votes()->where('user_id', $userId)->first();
+            $post->poll->user_voted = $vote !== null;
+            $post->poll->user_voted_option_id = $vote?->option_id;
+            $totalVotes = $post->poll->options->sum('votes_count');
+            $post->poll->total_votes = $totalVotes;
+            $post->poll->options->transform(function ($opt) use ($totalVotes) {
+                $opt->percentage = $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0;
+                return $opt;
+            });
+        }
+
+        return Inertia::render('Post/Show', [
+            'post' => $post,
+        ]);
+    }
+
+    /**
      * Store a new post.
      */
     public function store(Request $request): RedirectResponse
@@ -146,7 +187,7 @@ class PostController extends Controller
             // Poll
             'poll_question' => 'nullable|string|max:500',
             'poll_options' => 'nullable|array|min:2|max:4',
-            'poll_options.*' => 'string|max:200',
+            'poll_options.*' => 'nullable|string|max:200',
             'poll_expires_at' => 'nullable|date|after:now',
             // Content Warning
             'has_content_warning' => 'nullable|boolean',

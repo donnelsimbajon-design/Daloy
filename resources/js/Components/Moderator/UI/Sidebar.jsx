@@ -1,15 +1,11 @@
 import { Link, usePage, router } from '@inertiajs/react';
 
+/* ── Map each nav item to required permission categories ── */
 const navItems = [
-    { id: 'dashboard', label: 'Dashboard', page: 'Admin/Dashboard', route: '/admin/dashboard', icon: 'grid' },
-    { id: 'users', label: 'Users', page: 'Admin/Users', route: '/admin/users', icon: 'users' },
-    { id: 'moderation', label: 'Moderation', page: 'Admin/Moderation', route: '/admin/moderation', icon: 'shield' },
-    { id: 'reports', label: 'Reports', page: 'Admin/Reports', route: '/admin/reports', icon: 'file' },
-    { id: 'groups', label: 'Groups', page: 'Admin/Groups', route: '/admin/groups', icon: 'group' },
-    { id: 'messages', label: 'Messages', page: 'Admin/Messages', route: '/admin/messages', icon: 'message' },
-    { id: 'analytics', label: 'Analytics', page: 'Admin/Analytics', route: '/admin/analytics', icon: 'chart' },
-    { id: 'settings', label: 'Settings', page: 'Admin/Settings', route: '/admin/settings', icon: 'settings' },
-    { id: 'logs', label: 'Logs', page: 'Admin/Logs', route: '/admin/logs', icon: 'log' },
+    { id: 'dashboard',  label: 'Dashboard',  page: 'Moderator/Dashboard',  route: '/moderator/dashboard',  icon: 'grid',    requires: null },
+    { id: 'moderation', label: 'Moderation', page: 'Moderator/Moderation', route: '/moderator/moderation', icon: 'shield',  requires: 'content' },
+    { id: 'reports',    label: 'Reports',    page: 'Moderator/Reports',    route: '/moderator/reports',    icon: 'file',    requires: 'reports' },
+    { id: 'messages',   label: 'Messages',   page: 'Moderator/Messages',   route: '/moderator/messages',   icon: 'message', requires: 'messages' },
 ];
 
 const icons = {
@@ -67,16 +63,55 @@ const icons = {
             <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
         </svg>
     ),
+    activity: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+        </svg>
+    ),
+    live: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+        </svg>
+    ),
+    megaphone: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+        </svg>
+    ),
+    key: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
+    ),
 };
 
+/**
+ * Check if an admin has access to a nav item.
+ * - Super admins (permissions = ['*']) see everything.
+ * - `requires: null` means dashboard — always visible.
+ * - Otherwise, check if any permission key starts with the category prefix.
+ */
+function hasAccess(adminContext, requiredCategory) {
+    if (!requiredCategory) return true; // Dashboard always visible
+    if (!adminContext?.permissions) return false;
+    if (adminContext.is_super_admin || adminContext.permissions.includes('*')) return true;
+    // Check if any permission key matches or starts with the category
+    return adminContext.permissions.some(
+        p => p === requiredCategory || p.startsWith(requiredCategory + '.')
+    );
+}
+
 export default function Sidebar({ currentPage, isOpen, onNavClick }) {
-    const { auth } = usePage().props;
+    const { auth, admin_context } = usePage().props;
     const user = auth?.user;
     const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'SA';
 
+    // Show all moderator tabs unconditionally since this is their dedicated portal
+    const visibleItems = navItems;
+
     const handleLogout = (e) => {
         e.preventDefault();
-        router.post('/admin/logout');
+        router.post('/moderator/logout');
     };
 
     return (
@@ -87,7 +122,7 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
             </div>
 
             <nav className="adm-sidebar-nav">
-                {navItems.map((item) => (
+                {visibleItems.map((item) => (
                     <Link
                         key={item.id}
                         href={item.route}
@@ -110,7 +145,9 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
                     </div>
                     <div className="adm-admin-info">
                         <span className="adm-admin-name">{user?.name || 'Admin'}</span>
-                        <span className="adm-admin-role">Super Admin</span>
+                        <span className="adm-admin-role" style={{ color: admin_context?.role_color || '#888' }}>
+                            Moderator
+                        </span>
                     </div>
                 </div>
                 <button
@@ -136,5 +173,3 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
         </aside>
     );
 }
-
-

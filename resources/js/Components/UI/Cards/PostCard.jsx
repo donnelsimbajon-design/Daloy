@@ -4,6 +4,7 @@ import axios from 'axios';
 import PostActions from '@/Components/Features/Posts/PostActions';
 import CommentsSection from '@/Components/Features/Comments/CommentsSection';
 import ShareModal from '@/Components/Features/Messaging/ShareModal';
+import { Globe2, Users, Lock } from 'lucide-react';
 
 export default function PostCard({ post }) {
     const currentUser = usePage().props?.auth?.user;
@@ -44,9 +45,9 @@ export default function PostCard({ post }) {
 
         try {
             const response = await axios.post(`/posts/${post.id}/like`);
-            // Sync with server state
-            setIsLiked(response.data.liked);
-            setReactionsCount(response.data.count);
+            // Sync with server state — backend returns "reacted" and "reaction_counts"
+            setIsLiked(response.data.reacted);
+            setReactionsCount(response.data.reaction_counts?.total ?? previousCount);
         } catch (error) {
             // Revert on error
             setIsLiked(previousLiked);
@@ -82,9 +83,9 @@ export default function PostCard({ post }) {
     const flowVelocity = post.flow_velocity || 'steady';
 
     const visibilityIcon = {
-        public: '🌍',
-        followers: '👥',
-        private: '🔒',
+        public: <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
+        followers: <Users className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
+        private: <Lock className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
     };
 
     return (
@@ -93,11 +94,13 @@ export default function PostCard({ post }) {
             <div className="flex items-center justify-between px-4 pt-4 pb-0">
                 <div className="flex items-center gap-3">
                     <Link href={`/users/${author.id}`} className="shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                        <div className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim/50 ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                             {author.profile_picture ? (
                                 <img src={author.profile_picture} alt={author.name} className="w-full h-full object-cover" />
                             ) : (
-                                initials
+                                <svg className="w-6 h-6 mt-2" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
                             )}
                         </div>
                     </Link>
@@ -121,7 +124,7 @@ export default function PostCard({ post }) {
                         <p className="text-[11px] text-ocean-text-dim/60 mt-0.5 leading-tight font-normal">
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
-                            {' · '}{visibilityIcon[post.visibility] || '🌍'}
+                            {' · '}{visibilityIcon[post.visibility] || <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />}
                         </p>
                     </div>
                 </div>
@@ -191,9 +194,9 @@ export default function PostCard({ post }) {
                                 onChange={(e) => setEditVisibility(e.target.value)}
                                 className="bg-ocean-surface/60 border border-ocean-border rounded-lg px-3 py-1.5 text-xs text-ocean-text-muted focus:outline-none"
                             >
-                                <option value="public">🌍 Public</option>
-                                <option value="followers">👥 Followers</option>
-                                <option value="private">🔒 Private</option>
+                                <option value="public">Public</option>
+                                <option value="followers">Followers</option>
+                                <option value="private">Private</option>
                             </select>
                             <div className="flex-1" />
                             <button

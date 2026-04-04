@@ -115,9 +115,9 @@ export default function CreatePostModal({ isOpen, onClose }) {
     ];
 
     const velocityOptions = [
-        { value: 'high', label: '🔥 High' },
-        { value: 'steady', label: '🌊 Steady' },
-        { value: 'low', label: '🐚 Low' },
+        { value: 'high', label: 'High' },
+        { value: 'steady', label: 'Steady' },
+        { value: 'low', label: 'Low' },
     ];
 
     return (
@@ -341,7 +341,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                         Posting...
                                     </span>
                                 ) : (
-                                    'Cast into the Flow ✨'
+                                    'Cast into the Flow'
                                 )}
                             </button>
                         </div>

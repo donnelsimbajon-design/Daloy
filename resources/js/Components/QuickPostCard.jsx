@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 import CreatePostModal from '@/Components/CreatePostModal';
+import { Button } from '@/Components/shadcn/button';
 
 export default function QuickPostCard() {
     const { auth } = usePage().props;
@@ -49,6 +50,7 @@ export default function QuickPostCard() {
     };
 
     return (
+        <>
         <div className="bg-ocean-card border border-ocean-border rounded-2xl p-4 md:p-5 mb-6 shadow-sm relative transition-all duration-300">
             {processing && (
                 <div className="absolute inset-0 bg-ocean-card/60 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
@@ -60,12 +62,12 @@ export default function QuickPostCard() {
                 <div className="flex gap-3 md:gap-4">
                     {/* Avatar */}
                     <div className="w-10 h-10 md:w-12 md:h-12 rounded-full overflow-hidden shrink-0 border border-ocean-border/50 bg-ocean-deep">
-                        {user?.avatar ? (
-                            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                        {user?.profile_picture ? (
+                            <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-biolum/10 text-biolum font-bold font-heading text-lg">
-                                {user?.name?.charAt(0).toUpperCase()}
-                            </div>
+                            <svg className="w-6 h-6 mt-2 ml-[8px] md:ml-[12px] text-ocean-text-dim/50" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
                         )}
                     </div>
 
@@ -129,17 +131,13 @@ export default function QuickPostCard() {
                                         {data.content.length}/500
                                     </span>
                                 )}
-                                <button
+                                <Button
                                     type="submit"
                                     disabled={!data.content.trim() || processing}
-                                    className={`px-5 py-2 md:px-6 md:py-2 rounded-full font-bold text-sm tracking-wide transition-all ${
-                                        data.content.trim() 
-                                            ? 'bg-biolum text-ocean-deep hover:bg-biolum-bright active:scale-95 shadow-[0_4px_12px_rgba(var(--color-biolum-rgb),0.3)]' 
-                                            : 'bg-ocean-deep border border-ocean-border text-ocean-text-dim cursor-not-allowed hidden sm:block'
-                                    }`}
+                                    className="rounded-full font-bold tracking-wide shadow-md px-6 flex"
                                 >
                                     Post
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     </div>
@@ -148,5 +146,24 @@ export default function QuickPostCard() {
 
             <CreatePostModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
         </div>
+
+        {processing && (
+            <div className="bg-ocean-card/50 border border-ocean-border rounded-[18px] p-4 mb-5 shadow-sm animate-pulse flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-ocean-surface shrink-0 ring-1 ring-ocean-divider"></div>
+                    <div className="flex-1 space-y-2">
+                        <div className="h-3 bg-ocean-surface rounded w-24"></div>
+                        <div className="h-2 bg-ocean-surface/60 rounded w-16"></div>
+                    </div>
+                </div>
+                <div className="space-y-2.5 mt-1">
+                    <div className="h-3 bg-ocean-surface/80 rounded w-full"></div>
+                    <div className="h-3 bg-ocean-surface/80 rounded w-[90%]"></div>
+                    <div className="h-3 bg-ocean-surface/80 rounded w-[60%]"></div>
+                </div>
+                <div className="h-8 bg-ocean-surface/30 rounded-lg w-full mt-2 border border-ocean-divider/50"></div>
+            </div>
+        )}
+        </>
     );
 }

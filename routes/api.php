@@ -55,6 +55,22 @@ Route::middleware('auth')->group(function () {
     Route::post('/conversations/start', [MessagingController::class, 'start']);
     Route::post('/messages/send', [MessagingController::class, 'sendMessage']);
     Route::get('/messages/{conversation}', [MessagingController::class, 'messages']);
+    Route::post('/messages/{message}/react', [MessagingController::class, 'reactToMessage']);
+    Route::delete('/messages/{message}', [MessagingController::class, 'deleteMessage']);
+    
+    // Typing Indicators
+    Route::post('/conversations/{conversation}/typing', [MessagingController::class, 'typing']);
+    Route::get('/conversations/{conversation}/typing', [MessagingController::class, 'getTyping']);
+    
+    // Conversation Media & Search
+    Route::get('/conversations/{conversation}/search', [MessagingController::class, 'searchMessages']);
+    Route::get('/conversations/{conversation}/media', [MessagingController::class, 'getMedia']);
+    
+    // Groups
+    Route::post('/conversations/group', [MessagingController::class, 'createGroup']);
+    Route::post('/conversations/{conversation}/members', [MessagingController::class, 'addMember']);
+    Route::delete('/conversations/{conversation}/members/{user}', [MessagingController::class, 'removeMember']);
+    Route::put('/conversations/{conversation}/name', [MessagingController::class, 'updateGroupName']);
 
     // Search
     Route::get('/search', [SearchController::class, 'search']);

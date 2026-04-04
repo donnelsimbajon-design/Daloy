@@ -146,16 +146,16 @@ export default function CreatePostModal({ isOpen, onClose }) {
     if (!isOpen) return null;
 
     const visibilityOptions = [
-        { value: 'public', label: 'Public', emoji: '🌍' },
-        { value: 'followers', label: 'Followers', emoji: '👥' },
-        { value: 'close_friends', label: 'Close', emoji: '💚' },
-        { value: 'private', label: 'Private', emoji: '🔒' },
+        { value: 'public', label: 'Public' },
+        { value: 'followers', label: 'Followers' },
+        { value: 'close_friends', label: 'Close' },
+        { value: 'private', label: 'Private' },
     ];
 
     const velocityOptions = [
-        { value: 'high', label: '🔥 High' },
-        { value: 'steady', label: '🌊 Steady' },
-        { value: 'low', label: '🐚 Low' },
+        { value: 'high', label: 'High' },
+        { value: 'steady', label: 'Steady' },
+        { value: 'low', label: 'Low' },
     ];
 
     return (

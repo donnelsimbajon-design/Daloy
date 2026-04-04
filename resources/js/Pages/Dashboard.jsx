@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 
 import MainLayout from '@/Layouts/MainLayout';
@@ -6,10 +6,21 @@ import Feed from '@/Components/UI/Misc/Feed';
 import ReefPanel from '@/Components/UI/Panels/ReefPanel';
 import StoryRail from '@/Components/Features/Stories/StoryRail';
 import QuickPostCard from '@/Components/QuickPostCard';
+import FeedAnnouncementCard from '@/Components/Features/Announcements/FeedAnnouncementCard';
 
 export default function Dashboard({ posts }) {
     const postItems = posts?.data || [];
-    const { social } = usePage().props;
+    const { social, announcements } = usePage().props;
+
+    // Filter feed-type announcements that haven't been dismissed
+    const feedAnnouncements = useMemo(() => {
+        if (!announcements || announcements.length === 0) return [];
+        const dismissed = JSON.parse(localStorage.getItem('daloy_dismissed_feed_announcements') || '[]');
+        return announcements.filter(a =>
+            (a.display_location === 'feed' || a.display_location === 'all') &&
+            !dismissed.includes(a.id)
+        );
+    }, [announcements]);
 
     return (
         <MainLayout>
@@ -38,6 +49,11 @@ export default function Dashboard({ posts }) {
 
                         {/* Feed Container */}
                         <div className="w-full">
+                            {/* Pinned Admin Announcements (Feed-type) */}
+                            {feedAnnouncements.map(ann => (
+                                <FeedAnnouncementCard key={ann.id} announcement={ann} />
+                            ))}
+
                             <QuickPostCard />
                             <Feed posts={postItems} />
                         </div>

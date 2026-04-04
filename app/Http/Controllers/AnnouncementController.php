@@ -9,6 +9,7 @@ use App\Models\Announcement;
 use App\Models\Ripple;
 use App\Models\School;
 use App\Models\User;
+use App\Services\AnnouncementService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -91,6 +92,8 @@ class AnnouncementController extends Controller
             'metadata'   => ['target' => $announcement->title, 'target_id' => $announcement->id],
         ]);
 
+        AnnouncementService::bustCache();
+
         return back()->with('success', 'Announcement created' . ($announcement->scheduled_at ? ' and scheduled.' : ' and broadcast dispatched.'));
     }
 
@@ -113,6 +116,7 @@ class AnnouncementController extends Controller
         ]);
 
         $announcement->update($data);
+        AnnouncementService::bustCache();
 
         return back()->with('success', 'Announcement updated.');
     }
@@ -121,6 +125,7 @@ class AnnouncementController extends Controller
     public function destroy(Announcement $announcement)
     {
         $announcement->update(['is_active' => false]);
+        AnnouncementService::bustCache();
         return back()->with('success', 'Announcement deactivated.');
     }
 
@@ -140,6 +145,7 @@ class AnnouncementController extends Controller
             'metadata'   => ['target' => $announcement->title, 'target_id' => $announcement->id],
         ]);
 
+        AnnouncementService::bustCache();
         return back()->with('success', 'Broadcast job dispatched.');
     }
 

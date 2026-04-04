@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import Modal from '../../Components/Admin/UI/Modal';
+import { AlertTriangle, MapPin, Zap, StopCircle, PlayCircle, Trash2 } from 'lucide-react';
 
 /* ── Category dot colours for the feed ── */
 const FEED_COLORS = {
@@ -55,8 +56,8 @@ export default function LiveMonitor({ initialMetrics }) {
             {/* ── Alert Banner ── */}
             {showAlert && (
                 <div className="adm-alert-banner adm-alert-banner--danger">
-                    <span style={{ fontWeight: 700, fontSize: 13 }}>
-                        ⚠ ALERT: {metrics.pendingReports} pending reports require attention
+                    <span style={{ fontWeight: 700, fontSize: 13, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} /> ALERT: {metrics.pendingReports} pending reports require attention
                     </span>
                     <button className="adm-btn-icon" onClick={() => setShowAlert(false)}>✕</button>
                 </div>
@@ -180,7 +181,7 @@ export default function LiveMonitor({ initialMetrics }) {
                                 <div className="adm-empty-state">No location data</div>
                             ) : (metrics.locationMap || []).map((loc, i) => (
                                 <div key={i} className="adm-location-item">
-                                    <span style={{ fontSize: 13 }}>📍 {loc.location}</span>
+                                    <span style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: '4px' }}><MapPin size={12} /> {loc.location}</span>
                                     <span style={{ fontWeight: 700, fontSize: 14 }}>{loc.count}</span>
                                 </div>
                             ))}
@@ -192,7 +193,7 @@ export default function LiveMonitor({ initialMetrics }) {
             {/* ── Emergency Controls ── */}
             <div className="adm-emergency-controls">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    <span className="adm-emergency-controls-label">⚡ Emergency Controls</span>
+                    <span className="adm-emergency-controls-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><Zap size={16} /> Emergency Controls</span>
                     <span className="adm-emergency-controls-sub">— All actions require confirmation</span>
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -201,10 +202,12 @@ export default function LiveMonitor({ initialMetrics }) {
                         style={metrics.maintenanceMode ? { borderColor: 'var(--adm-danger)', color: 'var(--adm-danger)' } : undefined}
                         onClick={() => setConfirmModal('maintenance')}
                     >
-                        {metrics.maintenanceMode ? '🔴 Disable Maintenance Mode' : '🟡 Enable Maintenance Mode'}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {metrics.maintenanceMode ? <><PlayCircle size={14} /> Disable Maintenance Mode</> : <><StopCircle size={14} /> Enable Maintenance Mode</>}
+                        </div>
                     </button>
                     <button className="adm-btn adm-btn-outline" onClick={() => setConfirmModal('cache')}>
-                        🗑 Clear Application Cache
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Trash2 size={14} /> Clear Application Cache</div>
                     </button>
                 </div>
             </div>

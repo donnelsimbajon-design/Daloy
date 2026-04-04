@@ -4,6 +4,7 @@ import TopNav from '@/Components/UI/Navigation/TopNav';
 import StatusBar from '@/Components/UI/Badges/StatusBar';
 import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
+import GlobalAnnouncementBanner from '@/Components/Features/Announcements/GlobalAnnouncementBanner';
 
 export default function MainLayout({ children }) {
     const { auth } = usePage().props;
@@ -51,6 +52,8 @@ export default function MainLayout({ children }) {
             <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative">
                 <GlobalRightRailWrapper>
                     <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300">
+                        {/* Inline announcement banner — flows naturally, no extra padding when empty */}
+                        <GlobalAnnouncementBanner />
                         {children}
                     </div>
                 </GlobalRightRailWrapper>
@@ -60,3 +63,4 @@ export default function MainLayout({ children }) {
         </div>
     );
 }
+

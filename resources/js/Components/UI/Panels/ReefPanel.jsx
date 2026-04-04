@@ -1,21 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import axios from 'axios';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/shadcn/card';
+import { Button } from '@/Components/shadcn/button';
+import { Input } from '@/Components/shadcn/input';
+import { Badge } from '@/Components/shadcn/badge';
+import { FileText, X } from 'lucide-react';
 
-/* ── Static data (swap with API later) ───────────────────────────────── */
-const trendingCurrents = [
-    '#OceanicTech', '#LiquidMotion', '#SaltLife2024', '#Biolum', '#DeepDiveUI',
-    '#CoralCode', '#TidalWave', '#AquaDesign', '#SeaShell', '#DeepBlue',
-];
-
-const suggestedGroups = [
-    { name: 'Coral Designers', members: '12.4k', active: 23, initial: 'C', color: 'bg-cyan-600' },
-    { name: 'Aquatic Arch', members: '8.1k', active: 5, initial: 'A', color: 'bg-blue-600' },
-    { name: 'Tidal Devs', members: '5.2k', active: 12, initial: 'T', color: 'bg-indigo-600' },
-    { name: 'Reef Builders', members: '3.7k', active: 8, initial: 'R', color: 'bg-emerald-600' },
-];
-
-/* ── Search Input ────────────────────────────────────────────────────── */
 function SearchBar({ value, onChange, placeholder }) {
     return (
         <div className="relative">
@@ -24,12 +15,12 @@ function SearchBar({ value, onChange, placeholder }) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
                 </svg>
             </div>
-            <input
+            <Input
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full pl-9 pr-3 py-2.5 bg-ocean-surface/40 border border-ocean-border rounded-xl text-xs text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:border-biolum/40 focus:ring-1 focus:ring-biolum/15 focus:bg-ocean-card transition-all"
+                className="pl-9 h-9 rounded-xl border-ocean-border/60 shadow-sm"
             />
         </div>
     );
@@ -37,133 +28,173 @@ function SearchBar({ value, onChange, placeholder }) {
 
 /* ── Trending Panel ──────────────────────────────────────────────────── */
 function TrendingPanel() {
+    const { reef } = usePage().props;
+    const trendingHashtags = reef?.trending_hashtags || [];
+    const popularToday = reef?.popular_today || [];
     const [search, setSearch] = useState('');
 
     const filtered = useMemo(() =>
-        trendingCurrents.filter(tag =>
-            tag.toLowerCase().includes(search.toLowerCase())
-        ), [search]
+        trendingHashtags.filter(tag =>
+            tag.name.toLowerCase().includes(search.toLowerCase())
+        ), [search, trendingHashtags]
     );
 
     return (
-        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 animate-[fadeIn_0.25s_ease-out]">
-            {/* Section 1: Header & Search */}
-            <div className="pb-4">
-                <div className="flex items-center gap-2 mb-4">
+        <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none">
+            <CardHeader className="pb-3 border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <div className="flex items-center gap-2 mb-2">
                     <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
                         <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" />
                         </svg>
                     </div>
                     <div>
-                        <h3 className="text-sm font-bold text-ocean-text leading-tight tracking-[-0.01em]">Trending Currents</h3>
-                        <p className="text-[10px] text-ocean-text-dim/60">What&apos;s hot right now</p>
+                        <CardTitle className="text-sm">Trending Currents</CardTitle>
+                        <CardDescription className="text-[10px]">What's hot right now</CardDescription>
                     </div>
                 </div>
-
                 <SearchBar value={search} onChange={setSearch} placeholder="Search trends..." />
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-ocean-divider-subtle mx-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" />
-
-            {/* Section 2: Tags */}
-            <div className="py-4">
-                <div className="flex flex-wrap gap-2">
-                    {filtered.length > 0 ? filtered.map((tag) => (
-                        <button
-                            key={tag}
-                            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-biolum bg-biolum/5 border border-biolum/20 hover:bg-biolum hover:text-white hover:border-biolum transition-colors"
-                        >
-                            {tag}
-                        </button>
-                    )) : (
+            </CardHeader>
+            <CardContent className="py-4 space-y-4">
+                {/* Section 2: Tags */}
+                <div>
+                    <div className="flex flex-wrap gap-2">
+                        {filtered.length > 0 ? filtered.map((tag) => (
+                            <Badge key={tag.id} variant="secondary" className="px-3 py-1 cursor-pointer hover:bg-biolum hover:text-white transition-colors">
+                                {tag.name}
+                            </Badge>
+                        )) : trendingHashtags.length === 0 ? (
+                        <p className="text-xs text-ocean-text-dim italic py-3">No trending hashtags yet — start posting!</p>
+                    ) : (
                         <p className="text-xs text-ocean-text-dim italic py-3">No trends matching &quot;{search}&quot;</p>
                     )}
                 </div>
             </div>
 
-            {/* Divider */}
             <div className="h-px bg-ocean-divider-subtle mx-0 shadow-[0_1px_2px_rgba(0,0,0,0.02)]" />
 
             {/* Section 3: Popular Today */}
-            <div className="pt-4">
+            <div>
                 <h4 className="text-xs font-semibold text-ocean-text-dim mb-3">Popular Today</h4>
                 <div className="space-y-3">
-                    {['#OceanicTech', '#LiquidMotion', '#Biolum'].map((tag, i) => (
-                        <div key={tag} className="flex items-center justify-between p-2.5 rounded-[12px] hover:bg-ocean-card/50 transition-all">
+                    {popularToday.length > 0 ? popularToday.map((tag, i) => (
+                        <div key={tag.id} className="flex items-center justify-between p-2.5 rounded-xl border border-ocean-border/50 bg-ocean-surface/30 hover:bg-ocean-surface transition-all cursor-pointer">
                             <div className="flex items-center gap-3">
                                 <span className="text-[11px] font-bold text-ocean-text-dim/40 w-5">{i + 1}</span>
                                 <div>
-                                    <p className="text-sm font-bold text-ocean-text tracking-[-0.01em]">{tag}</p>
-                                    <p className="text-[10px] text-ocean-text-dim/50 font-normal">{Math.floor(Math.random() * 500 + 100)} posts</p>
+                                    <p className="text-sm font-bold text-ocean-text tracking-tight">{tag.name}</p>
+                                    <p className="text-[10px] text-ocean-text-dim/50 font-normal">{tag.posts} posts</p>
                                 </div>
                             </div>
                             <svg className="w-4 h-4 text-ocean-text-dim/50" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22" />
                             </svg>
                         </div>
-                    ))}
+                    )) : (
+                        <p className="text-xs text-ocean-text-dim italic py-2">No trending content yet</p>
+                    )}
                 </div>
             </div>
-        </div>
+        </CardContent>
+    </Card>
     );
 }
 
 /* ── Groups Panel ───────────────────────────────────────────────────── */
 function GroupsPanel() {
+    const { reef } = usePage().props;
+    const groups = reef?.suggested_groups || [];
     const [search, setSearch] = useState('');
+    const [joining, setJoining] = useState(null);
+
+    const groupColors = ['bg-cyan-600', 'bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-rose-600'];
 
     const filtered = useMemo(() =>
-        suggestedGroups.filter(s =>
+        groups.filter(s =>
             s.name.toLowerCase().includes(search.toLowerCase())
-        ), [search]
+        ), [search, groups]
     );
 
+    const handleJoin = async (groupId) => {
+        setJoining(groupId);
+        try {
+            await axios.post(`/schools/${groupId}/join`);
+            router.reload({ only: ['reef'] });
+        } catch (err) {
+            console.error('Failed to join group:', err);
+        } finally {
+            setJoining(null);
+        }
+    };
+
+    const formatMembers = (count) => {
+        if (count >= 1000) return (count / 1000).toFixed(1) + 'k';
+        return count.toString();
+    };
+
     return (
-        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
-            <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
-                    <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                    </svg>
+        <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none">
+            <CardHeader className="pb-3 border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
+                        <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <CardTitle className="text-sm">Suggested Groups</CardTitle>
+                        <CardDescription className="text-[10px]">Communities you might like</CardDescription>
+                    </div>
                 </div>
-                <div>
-                    <h3 className="text-sm font-bold text-ocean-text leading-tight">Suggested Groups</h3>
-                    <p className="text-[10px] text-ocean-text-dim">Communities you might like</p>
-                </div>
-            </div>
-
-            <SearchBar value={search} onChange={setSearch} placeholder="Search groups..." />
-
-            <div className="space-y-2">
-                {filtered.length > 0 ? filtered.map((group) => (
-                    <div key={group.name} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
+                <SearchBar value={search} onChange={setSearch} placeholder="Search groups..." />
+            </CardHeader>
+            
+            <CardContent className="py-4 space-y-2">
+                {filtered.length > 0 ? filtered.map((group, i) => (
+                    <div key={group.id} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl ${group.color} flex items-center justify-center text-white font-bold text-sm`}>
-                                {group.initial}
-                            </div>
+                            {group.profile_image ? (
+                                <img src={`/storage/${group.profile_image}`} alt={group.name} className="w-10 h-10 rounded-xl object-cover" />
+                            ) : (
+                                <div className={`w-10 h-10 rounded-xl ${groupColors[i % groupColors.length]} flex items-center justify-center text-white font-bold text-sm`}>
+                                    {group.initial}
+                                </div>
+                            )}
                             <div>
                                 <h4 className="text-sm font-bold text-ocean-text tracking-[-0.01em]">{group.name}</h4>
-                                <p className="text-[11px] text-ocean-text-dim/60">{group.members} members · {group.active} active</p>
+                                <p className="text-[11px] text-ocean-text-dim/60">{formatMembers(group.members)} members</p>
                             </div>
                         </div>
-                        <button className="px-4 py-1.5 rounded-xl text-xs font-semibold text-white bg-biolum hover:bg-biolum-bright transition-colors">
-                            Join
-                        </button>
+                        <Button 
+                            onClick={() => handleJoin(group.id)}
+                            disabled={joining === group.id}
+                            size="sm"
+                            className="rounded-xl px-4"
+                        >
+                            {joining === group.id ? '...' : 'Join'}
+                        </Button>
                     </div>
-                )) : (
+                )) : groups.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <svg className="w-10 h-10 text-ocean-text-dim/30 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772" />
+                        </svg>
+                        <p className="text-xs text-ocean-text-dim">You've joined all available groups!</p>
+                    </div>
+                ) : (
                     <p className="text-xs text-ocean-text-dim italic py-3">No groups matching &quot;{search}&quot;</p>
                 )}
-            </div>
+            </CardContent>
 
             {/* Browse all */}
-            <div className="pt-3">
-                <button className="w-full py-2.5 text-sm font-semibold text-biolum bg-biolum/10 rounded-xl hover:bg-biolum/20 transition-all">
-                    Browse All Groups
-                </button>
+            <div className="px-4 pb-4">
+                <Button variant="secondary" className="w-full rounded-xl" asChild>
+                    <a href="/schools">
+                        Browse All Groups
+                    </a>
+                </Button>
             </div>
-        </div>
+        </Card>
     );
 }
 
@@ -172,7 +203,9 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     const [messageText, setMessageText] = React.useState('');
     const [messages, setMessages] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
+    const [attachment, setAttachment] = React.useState(null);
     const messagesEndRef = React.useRef(null);
+    const fileInputRef = React.useRef(null);
     
     // Fetch live messages
     React.useEffect(() => {
@@ -206,10 +239,12 @@ function ChatThreadView({ chat, onBack, currentUser }) {
 
     const handleSend = async (e) => {
         if (e) e.preventDefault();
-        if (!messageText.trim()) return;
+        if (!messageText.trim() && !attachment) return;
         
         const contentToSend = messageText.trim();
         setMessageText('');
+        const currentAttachment = attachment;
+        setAttachment(null);
 
         // Optimistic UI update
         const tempId = Date.now();
@@ -217,13 +252,18 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             id: tempId,
             user_id: currentUser.id,
             content: contentToSend,
+            media_url: currentAttachment ? URL.createObjectURL(currentAttachment) : null,
             created_at: new Date().toISOString()
         }]);
 
         try {
-            const res = await axios.post('/api/messages/send', {
-                conversation_id: chat.id,
-                content: contentToSend
+            const formData = new FormData();
+            formData.append('conversation_id', chat.id);
+            if (contentToSend) formData.append('content', contentToSend);
+            if (currentAttachment) formData.append('file', currentAttachment);
+
+            const res = await axios.post('/api/messages/send', formData, {
+                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
         } catch (err) {
@@ -274,7 +314,21 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                         return (
                             <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
                                 <div className={`max-w-[85%] rounded-[18px] px-4 py-2.5 ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`}>
-                                    <p className="text-sm break-words">{msg.content}</p>
+                                    {msg.media_url && (
+                                        <div className="mb-2 w-full rounded-xl overflow-hidden border border-black/10 bg-black/10">
+                                            {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
+                                                <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover" alt="attachment" />
+                                            ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                                <video src={msg.media_url} controls className="w-full max-h-48 object-contain bg-black" />
+                                            ) : (
+                                                <a href={msg.media_url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 p-2 hover:bg-black/5 transition-colors ${isSelf ? 'text-white' : 'text-ocean-text'}`}>
+                                                    <div className={`p-1.5 rounded-lg shrink-0 ${isSelf ? 'bg-white/20' : 'bg-biolum/20 text-biolum'}`}><FileText size={16} /></div>
+                                                    <span className="truncate text-xs font-semibold underline decoration-transparent hover:decoration-current transition-all">Attachment</span>
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                    {msg.content && <p className="text-sm break-words whitespace-pre-wrap">{msg.content}</p>}
                                     <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </p>
@@ -287,24 +341,48 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             </div>
 
             {/* Input Area */}
-            <form onSubmit={handleSend} className="pt-4 pb-2 border-t border-ocean-divider flex items-center gap-2 shrink-0">
-                <button type="button" className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors shrink-0">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                </button>
-                <input 
-                    type="text" 
-                    value={messageText}
-                    onChange={e => setMessageText(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all placeholder:text-ocean-text-dim"
-                />
-                <button 
-                    type="submit"
-                    disabled={!messageText.trim()}
-                    className="p-2 rounded-full text-biolum hover:bg-biolum/10 disabled:opacity-50 disabled:hover:bg-transparent transition-colors shrink-0"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
-                </button>
+            <form onSubmit={handleSend} className="pt-2 pb-2 border-t border-ocean-divider flex flex-col shrink-0">
+                {attachment && (
+                    <div className="mx-2 mb-2 p-2 bg-ocean-surface border border-ocean-border/50 rounded-xl flex items-center justify-between gap-3 animate-[slideUp_0.2s_ease-out]">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            {attachment.type.startsWith('image/') ? (
+                                <img src={URL.createObjectURL(attachment)} className="w-8 h-8 object-cover rounded-md border border-ocean-border shrink-0" />
+                            ) : attachment.type.startsWith('video/') ? (
+                                 <video src={URL.createObjectURL(attachment)} className="w-8 h-8 object-cover rounded-md border border-ocean-border shrink-0" />
+                            ) : (
+                                <div className="w-8 h-8 bg-biolum/10 text-biolum rounded-md flex items-center justify-center shrink-0">
+                                    <FileText size={16} />
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <p className="text-xs text-ocean-text truncate font-semibold">{attachment.name}</p>
+                            </div>
+                        </div>
+                        <button type="button" onClick={() => setAttachment(null)} className="p-1 rounded-full text-ocean-text-dim hover:bg-ocean-card hover:text-red-400 transition-colors shrink-0">
+                            <X size={14} />
+                        </button>
+                    </div>
+                )}
+                <div className="flex items-center gap-2">
+                    <input type="file" ref={fileInputRef} accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" className="hidden" onChange={(e) => { if(e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors shrink-0">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    </button>
+                    <input 
+                        type="text" 
+                        value={messageText}
+                        onChange={e => setMessageText(e.target.value)}
+                        placeholder="Type a message..."
+                        className="flex-1 bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all placeholder:text-ocean-text-dim"
+                    />
+                    <button 
+                        type="submit"
+                        disabled={!messageText.trim() && !attachment}
+                        className="p-2 rounded-full text-biolum hover:bg-biolum/10 disabled:opacity-50 disabled:hover:bg-transparent transition-colors shrink-0"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                    </button>
+                </div>
             </form>
         </div>
     );
@@ -391,6 +469,14 @@ function NotificationsPanel() {
     const [search, setSearch] = useState('');
     const [actionLoading, setActionLoading] = useState(null);
 
+    React.useEffect(() => {
+        if (social?.unread_notifications > 0) {
+            axios.post('/api/ripples/mark-all-read').then(() => {
+                router.reload({ only: ['social'] }); // Reload social props to clear badge
+            }).catch(console.error);
+        }
+    }, [social?.unread_notifications]);
+
     const filtered = notifications.filter(n =>
         (n.user || '').toLowerCase().includes(search.toLowerCase()) ||
         (n.action || '').toLowerCase().includes(search.toLowerCase())
@@ -423,9 +509,11 @@ function NotificationsPanel() {
         }
     };
 
-    const navigateToUser = (userId) => {
-        if (userId) {
-            router.visit(`/users/${userId}`);
+    const navigateToTarget = (notif) => {
+        if (['reaction', 'comment', 'share', 'mention'].includes(notif.type) && notif.data && notif.data.post_id) {
+            router.visit(`/posts/${notif.data.post_id}`);
+        } else if (notif.user_id) {
+            router.visit(`/users/${notif.user_id}`);
         }
     };
 
@@ -458,20 +546,25 @@ function NotificationsPanel() {
                 {filtered.length > 0 ? filtered.map((notif) => (
                     <div
                         key={notif.id}
-                        onClick={() => navigateToUser(notif.user_id)}
-                        className="flex items-start gap-3 p-3 rounded-xl hover:bg-ocean-surface/30 transition-colors cursor-pointer group/notif"
+                        onClick={() => navigateToTarget(notif)}
+                        className={`flex items-start gap-3 p-3 rounded-xl transition-colors cursor-pointer group/notif ${notif.is_unread ? 'bg-biolum/10 border border-biolum/20' : 'hover:bg-ocean-surface/30'}`}
                     >
-                        {notif.avatar ? (
-                            <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover shrink-0 mt-0.5" />
-                        ) : (
-                            <div className={`mt-0.5 w-2.5 h-2.5 rounded-full ${typeColors[notif.type] || 'bg-biolum'} shrink-0`} />
-                        )}
+                        <div className="relative shrink-0">
+                            {notif.avatar ? (
+                                <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover mt-0.5" />
+                            ) : (
+                                <div className={`mt-0.5 w-8 h-8 flex justify-center items-center rounded-full ${typeColors[notif.type] || 'bg-biolum'}`} />
+                            )}
+                            {notif.is_unread && (
+                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-biolum border-2 border-ocean-card rounded-full" />
+                            )}
+                        </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-xs text-ocean-text leading-relaxed">
-                                <span className="font-semibold text-ocean-text">{notif.user}</span>{' '}
+                            <p className={`text-xs leading-relaxed ${notif.is_unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim/90'}`}>
+                                <span className={`font-bold ${notif.is_unread ? 'text-ocean-text' : 'text-ocean-text'}`}>{notif.user}</span>{' '}
                                 {notif.action}
                             </p>
-                            <p className="text-[10px] text-ocean-text-dim mt-0.5">{notif.time}</p>
+                            <p className={`text-[10px] mt-0.5 ${notif.is_unread ? 'text-biolum font-medium' : 'text-ocean-text-dim'}`}>{notif.time}</p>
                             
                             {notif.type === 'friend' && (
                                 <div className="mt-2 flex items-center gap-2">
@@ -597,6 +690,71 @@ function LanguagePanel() {
     );
 }
 
+/* ── Announcements Panel ────────────────────────────────────────────── */
+function AnnouncementsPanel() {
+    const { announcements } = usePage().props;
+    const items = announcements || [];
+
+    const typeStyles = {
+        info:     { border: 'border-biolum/30',     icon: 'text-biolum',      bg: 'bg-biolum/[0.06]',      badge: 'bg-biolum/15 text-biolum' },
+        success:  { border: 'border-emerald-500/30', icon: 'text-emerald-400', bg: 'bg-emerald-500/[0.06]',  badge: 'bg-emerald-500/15 text-emerald-400' },
+        warning:  { border: 'border-amber-500/30',   icon: 'text-amber-400',   bg: 'bg-amber-500/[0.06]',    badge: 'bg-amber-500/15 text-amber-400' },
+        critical: { border: 'border-rose-500/30',    icon: 'text-rose-400',    bg: 'bg-rose-500/[0.06]',     badge: 'bg-rose-500/15 text-rose-400' },
+    };
+
+    const typeLabels = {
+        info: 'Information',
+        success: 'Good News',
+        warning: 'Heads Up',
+        critical: 'Critical',
+    };
+
+    return (
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border p-4 space-y-4 animate-[fadeIn_0.25s_ease-out]">
+            <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
+                    <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
+                    </svg>
+                </div>
+                <div>
+                    <h3 className="text-sm font-bold text-ocean-text leading-tight">Announcements</h3>
+                    <p className="text-[10px] text-ocean-text-dim">Official updates from Daloy</p>
+                </div>
+            </div>
+
+            {items.length > 0 ? (
+                <div className="space-y-3">
+                    {items.map((ann) => {
+                        const s = typeStyles[ann.type] || typeStyles.info;
+                        return (
+                            <div key={ann.id} className={`p-3.5 rounded-[14px] border ${s.border} ${s.bg} transition-all hover:shadow-sm`}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest ${s.badge}`}>
+                                        {typeLabels[ann.type] || 'Info'}
+                                    </span>
+                                    {ann.priority === 'high' && (
+                                        <span className="text-[9px] font-bold text-rose-400 uppercase tracking-wider">Urgent</span>
+                                    )}
+                                </div>
+                                <h4 className="text-[13px] font-bold text-ocean-text leading-snug">{ann.title}</h4>
+                                <p className="text-[11px] text-ocean-text-dim/70 mt-1 leading-relaxed line-clamp-3">{ann.message}</p>
+                            </div>
+                        );
+                    })}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <svg className="w-10 h-10 text-ocean-text-dim/30 mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 0 1-1.44-4.282m3.102.069a18.03 18.03 0 0 1-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 0 1 8.835 2.535M10.34 6.66a23.847 23.847 0 0 0 8.835-2.535m0 0A23.74 23.74 0 0 0 18.795 3m.38 1.125a23.91 23.91 0 0 1 1.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 0 0 1.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 0 1 0 3.46" />
+                    </svg>
+                    <p className="text-xs text-ocean-text-dim">All clear — no active announcements.</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
 /* ── Main ReefPanel ──────────────────────────────────────────────────── */
 export default function ReefPanel({ activePanel }) {
     if (!activePanel) return null;
@@ -609,6 +767,7 @@ export default function ReefPanel({ activePanel }) {
                 {activePanel === 'groups' && <GroupsPanel />}
                 {activePanel === 'messages' && <MessagesPanel />}
                 {activePanel === 'notifications' && <NotificationsPanel />}
+                {activePanel === 'announcements' && <AnnouncementsPanel />}
                 {activePanel === 'language' && <LanguagePanel />}
             </div>
             
@@ -623,3 +782,4 @@ export default function ReefPanel({ activePanel }) {
         </div>
     );
 }
+

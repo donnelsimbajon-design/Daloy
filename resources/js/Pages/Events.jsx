@@ -5,13 +5,9 @@ import axios from 'axios';
 
 const formatDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 const formatTime = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-const formatFull = (d) => new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-
-const statusColors = {
-    live: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-    upcoming: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    ended: 'bg-zinc-200/60 text-zinc-500 border-zinc-300/40',
-};
+const formatFullDate = (d) => new Date(d).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+const getMonth = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+const getDay = (d) => new Date(d).getDate();
 
 export default function Events() {
     const { events: initialEvents = [] } = usePage().props;
@@ -23,7 +19,9 @@ export default function Events() {
         return ev.status === filter;
     });
 
-    const handleRsvp = async (eventId, status) => {
+    const handleRsvp = async (e, eventId, status) => {
+        e.preventDefault();
+        e.stopPropagation();
         try {
             const res = await axios.post(`/events/${eventId}/rsvp`, { status });
             setEvents(prev => prev.map(ev =>
@@ -32,44 +30,68 @@ export default function Events() {
         } catch (err) { console.error(err); }
     };
 
+    const filters = [
+        { key: 'upcoming', label: 'Upcoming' },
+        { key: 'live', label: 'Live Now' },
+        { key: 'ended', label: 'Past' },
+        { key: 'all', label: 'All Tides' },
+    ];
+
     return (
         <MainLayout>
             <Head title="Events" />
 
-            <div className="max-w-4xl mx-auto">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-2xl font-black text-ocean-text tracking-tight">Upcoming Tides</h1>
-                    <div className="flex items-center gap-1 bg-ocean-surface border border-ocean-border rounded-xl p-1">
-                        {[
-                            { key: 'upcoming', label: 'Upcoming' },
-                            { key: 'live', label: 'Live' },
-                            { key: 'ended', label: 'Past' },
-                            { key: 'all', label: 'All' },
-                        ].map(f => (
-                            <button
-                                key={f.key}
-                                onClick={() => setFilter(f.key)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                    filter === f.key
-                                        ? 'bg-biolum text-biolum-foreground'
-                                        : 'text-ocean-text-dim hover:text-ocean-text'
-                                }`}
-                            >{f.label}</button>
-                        ))}
+            <div className="max-w-5xl mx-auto px-4 py-10 lg:px-8">
+                {/* ── Editorial Header ── */}
+                <div className="relative mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-ocean-border">
+                    <div className="max-w-2xl">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-biolum/10 backdrop-blur-md border border-biolum/20 rounded-full text-[11px] font-black tracking-widest text-biolum uppercase mb-4 shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-biolum animate-pulse"></span>
+                            Platform Events
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black text-ocean-text tracking-tight leading-[1.1] animate-subtle-in">
+                            The upcoming <span className="text-biolum">tides</span>
+                        </h1>
+                        <p className="text-ocean-text-dim mt-4 text-base md:text-lg leading-relaxed animate-subtle-in" style={{ animationDelay: '0.1s' }}>
+                            Discover live streams, meetups, and exclusive editorial sessions hosted across the network.
+                        </p>
                     </div>
                 </div>
 
-                {/* Event List */}
-                <div className="space-y-4">
-                    {filtered.length > 0 ? filtered.map(event => (
-                        <div key={event.id} className="flex bg-ocean-card rounded-[20px] overflow-hidden border border-ocean-border hover:shadow-lg hover:border-biolum/20 transition-all group">
+                {/* ── Filters ── */}
+                <div className="flex bg-ocean-surface p-1.5 rounded-2xl border border-ocean-border w-max mb-10 overflow-x-auto mx-auto md:mx-0 animate-subtle-in" style={{ animationDelay: '0.2s' }}>
+                    {filters.map(f => (
+                        <button
+                            key={f.key}
+                            onClick={() => setFilter(f.key)}
+                            className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 relative ${
+                                filter === f.key
+                                    ? 'bg-ocean-card text-ocean-text shadow-sm border border-ocean-border/50'
+                                    : 'text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-hover'
+                            }`}
+                        >
+                            {f.label}
+                            {f.key === 'live' && filter !== 'live' && (
+                                <span className="absolute top-1.5 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+
+                {/* ── Events List ── */}
+                <div className="space-y-6">
+                    {filtered.length > 0 ? filtered.map((event, index) => (
+                        <div 
+                            key={event.id} 
+                            className="group relative flex flex-col md:flex-row bg-ocean-card rounded-[24px] overflow-hidden border border-ocean-border hover:shadow-[0_8px_30px_rgba(0,0,0,0.04)] hover:border-biolum/30 transition-all duration-500 animate-subtle-in hover:-translate-y-1"
+                            style={{ animationDelay: `${0.1 * Math.min(index, 6)}s` }}
+                        >
                             {/* Date Box */}
-                            <div className="w-24 shrink-0 bg-ocean-surface flex flex-col items-center justify-center border-r border-ocean-border group-hover:bg-biolum/5 transition-colors py-5">
-                                <span className="text-[10px] font-black text-biolum uppercase tracking-widest">{new Date(event.starts_at).toLocaleDateString('en-US', { month: 'short' })}</span>
-                                <span className="text-3xl font-black text-ocean-text leading-none mt-1">{new Date(event.starts_at).getDate()}</span>
+                            <div className="md:w-32 shrink-0 bg-ocean-surface/50 border-b md:border-b-0 md:border-r border-ocean-border flex flex-row md:flex-col items-center justify-center py-4 md:py-0 gap-2 md:gap-0 group-hover:bg-biolum/5 transition-colors">
+                                <span className="text-xs md:text-sm font-black text-biolum tracking-[0.2em]">{getMonth(event.starts_at)}</span>
+                                <span className="text-3xl md:text-5xl font-black text-ocean-text leading-none md:mt-1 tracking-tighter">{getDay(event.starts_at)}</span>
                                 {event.status === 'live' && (
-                                    <span className="mt-2 flex items-center gap-1 text-[9px] font-black text-emerald-600 uppercase">
+                                    <span className="md:mt-3 flex items-center gap-1.5 text-[10px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                         Live
                                     </span>
@@ -77,13 +99,16 @@ export default function Events() {
                             </div>
 
                             {/* Content */}
-                            <Link href={`/events/${event.id}`} className="p-5 flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <h3 className="text-lg font-bold text-ocean-text group-hover:text-biolum transition-colors truncate">{event.title}</h3>
-                                        <div className="flex items-center gap-4 text-xs text-ocean-text-dim mt-2 flex-wrap">
-                                            <span className="flex items-center gap-1.5">
-                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <Link href={`/events/${event.id}`} className="p-6 md:p-8 flex-1 min-w-0 flex flex-col justify-center relative">
+                                {/* Subtle background gradient on hover */}
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-biolum/0 to-biolum/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
+                                
+                                <div className="relative z-10 flex flex-col md:flex-row justify-between items-start gap-6">
+                                    <div className="min-w-0 flex-1">
+                                        {/* Metadata */}
+                                        <div className="flex items-center gap-4 text-xs font-semibold text-ocean-text-dim mb-3 flex-wrap">
+                                            <span className="flex items-center gap-1.5 bg-ocean-surface px-2.5 py-1 rounded-md border border-ocean-border">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                 {formatTime(event.starts_at)}
                                             </span>
                                             {event.location && (
@@ -92,53 +117,84 @@ export default function Events() {
                                                     {event.location}
                                                 </span>
                                             )}
-                                            {event.school && (
-                                                <span className="flex items-center gap-1.5 text-biolum font-semibold">
-                                                    {event.school.profile_image && <img src={event.school.profile_image} className="w-4 h-4 rounded-md object-cover" />}
+                                        </div>
+
+                                        <h3 className="text-2xl font-black text-ocean-text tracking-tight group-hover:text-biolum transition-colors mb-2 truncate">
+                                            {event.title}
+                                        </h3>
+                                        
+                                        {event.school && (
+                                            <div className="flex items-center gap-2 text-sm text-ocean-text-dim font-medium mb-5">
+                                                Hosted by 
+                                                <span className="flex items-center gap-1.5 text-biolum font-bold bg-biolum/5 px-2 py-0.5 rounded border border-biolum/20">
+                                                    {event.school.profile_image && <img src={event.school.profile_image} className="w-4 h-4 rounded-sm object-cover" />}
                                                     {event.school.name}
                                                 </span>
-                                            )}
-                                        </div>
-                                        {/* Attendee info */}
-                                        <div className="flex items-center gap-3 mt-3">
+                                            </div>
+                                        )}
+
+                                        {/* Attendee Data */}
+                                        <div className="flex items-center gap-4 mt-auto">
                                             <div className="flex -space-x-2">
-                                                {(event.going_avatars || []).slice(0, 3).map((a, i) => (
-                                                    <div key={a.id} className="w-6 h-6 rounded-full bg-ocean-surface border-2 border-ocean-card overflow-hidden" style={{ zIndex: 5 - i }}>
+                                                {(event.going_avatars || []).slice(0, 4).map((a, i) => (
+                                                    <div key={a.id} className="w-8 h-8 rounded-full bg-ocean-surface border-2 border-ocean-card overflow-hidden shadow-sm" style={{ zIndex: 10 - i }}>
                                                         {a.profile_picture
                                                             ? <img src={a.profile_picture} className="w-full h-full object-cover" />
-                                                            : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-biolum bg-biolum/10">{a.name?.charAt(0)}</div>}
+                                                            : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-biolum bg-biolum/10">{a.name?.charAt(0)}</div>}
                                                     </div>
                                                 ))}
                                             </div>
-                                            <span className="text-[10px] font-semibold text-ocean-text-dim">
-                                                {event.going_count || 0} going · {event.interested_count || 0} interested
+                                            <span className="text-xs font-bold text-ocean-text-dim bg-ocean-surface px-2.5 py-1 rounded border border-ocean-border">
+                                                <span className="text-ocean-text">{event.going_count || 0}</span> going · <span className="text-ocean-text">{event.interested_count || 0}</span> interested
                                             </span>
                                         </div>
                                     </div>
+                                    
+                                    {/* Action Desktop Area (hidden on mobile, shown on md+) */}
+                                    {event.status !== 'ended' && (
+                                        <div className="hidden md:flex shrink-0">
+                                            <button
+                                                onClick={(e) => handleRsvp(e, event.id, 'going')}
+                                                className={`px-8 py-3.5 rounded-2xl text-sm font-black transition-all border shadow-sm hover:-translate-y-0.5 ${
+                                                    event.user_rsvp === 'going'
+                                                        ? 'bg-ocean-surface text-ocean-text border-ocean-border hover:bg-ocean-hover'
+                                                        : 'bg-biolum text-biolum-foreground border-biolum hover:bg-biolum-bright'
+                                                }`}
+                                            >
+                                                {event.user_rsvp === 'going' ? 'Going' : 'RSVP'}
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </Link>
-
-                            {/* RSVP Action */}
+                            
+                            {/* Action Mobile Area (shown only on mobile) */}
                             {event.status !== 'ended' && (
-                                <div className="flex flex-col items-center justify-center px-5 gap-2 border-l border-ocean-border">
+                                <div className="flex md:hidden p-4 pt-0">
                                     <button
-                                        onClick={() => handleRsvp(event.id, 'going')}
-                                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border whitespace-nowrap ${
+                                        onClick={(e) => handleRsvp(e, event.id, 'going')}
+                                        className={`w-full py-3 rounded-xl text-sm font-bold transition-all border ${
                                             event.user_rsvp === 'going'
-                                                ? 'bg-biolum text-biolum-foreground border-biolum'
-                                                : 'bg-ocean-surface text-ocean-text border-ocean-border hover:bg-biolum hover:text-biolum-foreground hover:border-biolum'
+                                                ? 'bg-ocean-surface text-ocean-text border-ocean-border'
+                                                : 'bg-biolum text-biolum-foreground border-biolum'
                                         }`}
-                                    >{event.user_rsvp === 'going' ? '✓ Going' : 'RSVP'}</button>
+                                    >
+                                        {event.user_rsvp === 'going' ? 'Going' : 'RSVP Now'}
+                                    </button>
                                 </div>
                             )}
                         </div>
                     )) : (
-                        <div className="flex flex-col items-center justify-center py-20 bg-ocean-card border border-ocean-border rounded-[20px] text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-ocean-surface flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
+                        <div className="flex flex-col items-center justify-center py-24 bg-ocean-card border border-ocean-border border-dashed rounded-3xl text-center">
+                            <div className="w-20 h-20 bg-ocean-surface rounded-full flex items-center justify-center mb-6 shadow-inner">
+                                <svg className="w-8 h-8 text-ocean-text-dim opacity-50" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                                </svg>
                             </div>
-                            <h3 className="text-lg font-bold text-ocean-text mb-1">No {filter === 'all' ? '' : filter} events</h3>
-                            <p className="text-sm text-ocean-text-dim">Join a group and check back later for events!</p>
+                            <h3 className="text-xl font-bold text-ocean-text mb-2 animate-subtle-in">No {filter === 'all' ? '' : filter} events</h3>
+                            <p className="text-sm text-ocean-text-dim max-w-sm leading-relaxed animate-subtle-in" style={{ animationDelay: '0.1s' }}>
+                                The calendar is quiet right now. Wait for groups to announce their upcoming tides or check back later!
+                            </p>
                         </div>
                     )}
                 </div>

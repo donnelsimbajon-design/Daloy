@@ -44,6 +44,7 @@ class HandleInertiaRequests extends Middleware
             'status' => session('status'),
             'social' => $user ? [
                 'unread_messages'        => $this->getUnreadMessageCount($user),
+                'unread_notifications'   => $this->getUnreadNotificationCount($user),
                 'pending_friend_requests' => $user->receivedFriendRequests()
                     ->where('status', 'pending')->count(),
                 'pending_follow_requests' => $user->receivedFollowRequests()
@@ -51,7 +52,41 @@ class HandleInertiaRequests extends Middleware
                 'recent_conversations'   => $this->getRecentConversations($user),
                 'recent_notifications'   => $this->getRecentNotifications($user),
             ] : null,
+            'announcements' => \App\Services\AnnouncementService::getActiveForUser(),
+            'reef' => [
+                'trending_hashtags' => \App\Services\ReefPanelService::getTrendingHashtags(),
+                'popular_today'     => \App\Services\ReefPanelService::getPopularToday(),
+                'suggested_groups'  => \App\Services\ReefPanelService::getSuggestedGroups($user?->id),
+            ],
+            'admin_context' => $user && $user->isAdmin() ? $this->getAdminContext($user) : null,
         ];
+    }
+
+    private function getAdminContext($user): array
+    {
+        $admin = $user->admin;
+        if (!$admin) return [];
+
+        $admin->load('adminRole.permissions');
+
+        $isSuperAdmin = $admin->isSuperAdmin();
+        $permissionKeys = $isSuperAdmin
+            ? ['*'] // Super admin has all permissions
+            : ($admin->adminRole?->permissions?->pluck('key')->toArray() ?? []);
+
+        return [
+            'role' => $admin->adminRole?->display_name ?? ucfirst($admin->role),
+            'role_color' => $admin->adminRole?->color ?? '#111',
+            'is_super_admin' => $isSuperAdmin,
+            'permissions' => $permissionKeys,
+        ];
+    }
+
+    private function getUnreadNotificationCount($user): int
+    {
+        return \App\Models\Ripple::where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
     }
 
     private function getUnreadMessageCount($user): int
@@ -121,6 +156,7 @@ class HandleInertiaRequests extends Middleware
                 'avatar'   => $fr->sender->profile_picture ?? null,
                 'action'   => 'sent you a friend request',
                 'type'     => 'friend',
+                'is_unread'=> true,
                 'time'     => $fr->created_at->diffForHumans(null, true) . ' ago',
                 'raw_time' => $fr->created_at,
             ];
@@ -142,8 +178,46 @@ class HandleInertiaRequests extends Middleware
                 'avatar'   => $flr->follower->profile_picture ?? null,
                 'action'   => 'wants to follow you',
                 'type'     => 'follow',
+                'is_unread'=> true,
                 'time'     => $flr->created_at->diffForHumans(null, true) . ' ago',
                 'raw_time' => $flr->created_at,
+            ];
+        }
+
+        // Recent Ripples (likes, comments, group_deleted, etc.)
+        $ripples = \App\Models\Ripple::where('user_id', $user->id)
+            ->with('sender:id,name,username,profile_picture')
+            ->latest()
+            ->take(10)
+            ->get();
+
+        $typeActions = [
+            'like'          => 'liked your post',
+            'comment'       => 'commented on your post',
+            'mention'       => 'mentioned you',
+            'follow'        => 'started following you',
+            'group_deleted' => 'A school you were in was removed',
+            'reaction'      => 'reacted to your post',
+        ];
+
+        foreach ($ripples as $r) {
+            $action = $typeActions[$r->type] ?? $r->type;
+            // For group_deleted, use data for the message
+            if ($r->type === 'group_deleted' && isset($r->data['group_name'])) {
+                $action = "School \"{$r->data['group_name']}\" was removed by an admin";
+            }
+
+            $notifications[] = [
+                'id'       => 'rpl_' . $r->id,
+                'user_id'  => $r->sender_id,
+                'user'     => $r->sender->name ?? 'System',
+                'avatar'   => $r->sender->profile_picture ?? null,
+                'action'   => $action,
+                'type'     => $r->type,
+                'data'     => $r->data,
+                'is_unread'=> null === $r->read_at,
+                'time'     => $r->created_at->diffForHumans(null, true) . ' ago',
+                'raw_time' => $r->created_at,
             ];
         }
 
@@ -154,7 +228,7 @@ class HandleInertiaRequests extends Middleware
         return array_map(function ($n) {
             unset($n['raw_time']);
             return $n;
-        }, array_slice($notifications, 0, 8));
+        }, array_slice($notifications, 0, 10));
     }
 }
 

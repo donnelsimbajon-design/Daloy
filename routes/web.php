@@ -55,7 +55,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/explore', [SearchController::class, 'explore'])->name('explore');
     Route::get('/events', [EventController::class, 'globalIndex'])->name('events.global');
     Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
-    Route::get('/ripples', function () { return Inertia::render('Ripples'); });
+    Route::get('/ripples', [RippleController::class, 'index'])->name('ripples');
     Route::get('/conversations', function () { return Inertia::render('Conversations'); });
 
     // ── Saved Posts / Bookmarks ──────────────────────────────────
@@ -135,6 +135,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/stories/{story}/viewers', [\App\Http\Controllers\StoryController::class, 'viewers'])->name('stories.viewers');
 
     // Posts
+    Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
@@ -172,10 +173,13 @@ Route::middleware('auth')->group(function () {
     Route::delete('/api/conversations/{conversation}/members/{user}', [MessagingController::class, 'removeMember'])->name('api.conversations.members.remove');
     Route::patch('/api/conversations/{conversation}/name', [MessagingController::class, 'updateGroupName'])->name('api.conversations.name');
     Route::get('/api/conversations/{conversation}/search', [MessagingController::class, 'searchMessages'])->name('api.conversations.search');
+    Route::post('/api/conversations/{conversation}/report', [MessagingController::class, 'reportConversation'])->name('api.conversations.report');
 
     // Ripple / Notification routes (Prompt 6)
     Route::get('/api/ripples/latest', [RippleController::class, 'latest'])->name('api.ripples.latest');
+    Route::get('/api/ripples/unread-count', [RippleController::class, 'unreadCount'])->name('api.ripples.unread-count');
     Route::post('/api/ripples/mark-all-read', [RippleController::class, 'markAllRead'])->name('api.ripples.mark-all-read');
+    Route::post('/api/ripples/{ripple}/mark-read', [RippleController::class, 'markRead'])->name('api.ripples.mark-read');
     Route::post('/api/ripples/snooze', [RippleController::class, 'snooze'])->name('api.ripples.snooze');
     Route::post('/api/ripples/unsnooze', [RippleController::class, 'unsnooze'])->name('api.ripples.unsnooze');
 
@@ -223,7 +227,15 @@ Route::middleware('auth')->group(function () {
 |--------------------------------------------------------------------------
 */
 use App\Http\Controllers\Auth\AdminAuthController;
-use App\Http\Controllers\AdminController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\ModerationController as AdminModerationController;
+use App\Http\Controllers\Admin\ReportController as AdminReportController;
+use App\Http\Controllers\Admin\GroupController as AdminGroupController;
+use App\Http\Controllers\Admin\MessageController as AdminMessageController;
+use App\Http\Controllers\Admin\AnalyticsController as AdminAnalyticsController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LiveMonitorController;
 use App\Http\Controllers\RolesController;
@@ -232,47 +244,78 @@ use App\Http\Controllers\AnnouncementController;
 Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'store']);
 
+Route::get('/moderator/login', [AdminAuthController::class, 'create'])->name('moderator.login');
+Route::post('/moderator/login', [AdminAuthController::class, 'store']);
+
 Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/', function () { return redirect()->route('admin.dashboard'); });
     Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('admin.logout');
 
-    Route::get('/dashboard', [AdminController::class, 'dashboard'])->name('admin.dashboard');
-    Route::get('/users', [AdminController::class, 'users'])->name('admin.users');
-    Route::post('/users/{user}/action', [AdminController::class, 'userAction'])->name('admin.users.action');
-    Route::get('/moderation', [AdminController::class, 'moderation'])->name('admin.moderation');
-    Route::post('/moderation/action', [AdminController::class, 'moderateContent'])->name('admin.moderation.action');
-    Route::get('/reports', [AdminController::class, 'reports'])->name('admin.reports');
-    Route::post('/reports/{report}/action', [AdminController::class, 'reportAction'])->name('admin.reports.action');
-    Route::get('/groups', [AdminController::class, 'groups'])->name('admin.groups');
-    Route::post('/groups/{school}/action', [AdminController::class, 'groupAction'])->name('admin.groups.action');
-    Route::get('/messages', [AdminController::class, 'messages'])->name('admin.messages');
-    Route::get('/analytics', [AdminController::class, 'analytics'])->name('admin.analytics');
-    Route::get('/settings', [AdminController::class, 'settings'])->name('admin.settings');
-    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('admin.settings.update');
-    Route::get('/logs', [AdminController::class, 'logs'])->name('admin.logs');
+    // Dashboard (all admins)
+    Route::get('/dashboard', AdminDashboardController::class)->name('admin.dashboard');
+
+    // Users
+    Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users');
+    Route::post('/users/{user}/action', [AdminUserController::class, 'action'])->name('admin.users.action');
+    Route::post('/users/store', [AdminUserController::class, 'store'])->name('admin.users.store');
+    Route::patch('/users/{user}/role', [AdminUserController::class, 'changeRole'])->name('admin.users.role');
+
+    // Moderation
+    Route::get('/moderation', [AdminModerationController::class, 'index'])->name('admin.moderation');
+    Route::post('/moderation/action', [AdminModerationController::class, 'action'])->name('admin.moderation.action');
+
+    // Reports
+    Route::get('/reports', [AdminReportController::class, 'index'])->name('admin.reports');
+    Route::post('/reports/{report}/action', [AdminReportController::class, 'action'])->name('admin.reports.action');
+
+    // Groups
+    Route::get('/groups', [AdminGroupController::class, 'index'])->name('admin.groups');
+    Route::post('/groups/{school}/action', [AdminGroupController::class, 'action'])->name('admin.groups.action');
+
+    // Messages
+    Route::get('/messages', [AdminMessageController::class, 'index'])->name('admin.messages');
+    Route::post('/messages/{report}/action', [AdminMessageController::class, 'action'])->name('admin.messages.action');
+
+    // Analytics
+    Route::get('/analytics', AdminAnalyticsController::class)->name('admin.analytics');
+
+    // Settings
+    Route::get('/settings', [AdminSettingsController::class, 'index'])->name('admin.settings');
+    Route::post('/settings', [AdminSettingsController::class, 'update'])->name('admin.settings.update');
+
+    // Logs
+    Route::get('/logs', AdminLogController::class)->name('admin.logs');
 
     Route::get('/activity/export', [ActivityController::class, 'exportCsv'])->name('admin.activity.export');
     Route::get('/activity/{user}', [ActivityController::class, 'userActivity'])->name('admin.activity.user');
     Route::get('/activity', [ActivityController::class, 'index'])->name('admin.activity');
 
     Route::get('/live', [LiveMonitorController::class, 'index'])->name('admin.live');
-    Route::get('/live/stream', [LiveMonitorController::class, 'stream'])->name('admin.live.stream');
-    Route::post('/live/maintenance', [LiveMonitorController::class, 'toggleMaintenance'])->name('admin.live.maintenance');
-    Route::post('/live/clear-cache', [LiveMonitorController::class, 'clearCache'])->name('admin.live.cache');
+    Route::get('/live/stats', [LiveMonitorController::class, 'stats'])->name('admin.live.stats');
+
+    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
+    Route::post('/announcements/store', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
 
     Route::get('/roles', [RolesController::class, 'index'])->name('admin.roles');
     Route::post('/roles', [RolesController::class, 'store'])->name('admin.roles.store');
-    Route::put('/roles/{role}', [RolesController::class, 'update'])->name('admin.roles.update');
     Route::delete('/roles/{role}', [RolesController::class, 'destroy'])->name('admin.roles.destroy');
-    Route::post('/roles/{role}/permissions', [RolesController::class, 'updatePermissions'])->name('admin.roles.permissions');
-    Route::post('/admins/{user}/promote', [RolesController::class, 'promoteUser'])->name('admin.admins.promote');
-    Route::delete('/admins/{admin}/remove', [RolesController::class, 'removeAdmin'])->name('admin.admins.remove');
-    Route::patch('/admins/{admin}/role', [RolesController::class, 'changeRole'])->name('admin.admins.role');
+    Route::post('/roles/promote', [RolesController::class, 'promoteUser'])->name('admin.roles.promote');
+    Route::delete('/roles/admin/{admin}', [RolesController::class, 'removeAdmin'])->name('admin.roles.remove');
+    Route::patch('/roles/admin/{admin}/role', [RolesController::class, 'changeRole'])->name('admin.roles.change');
+    Route::get('/roles/users/search', [RolesController::class, 'searchUsers'])->name('admin.roles.search_users');
+});
 
-    Route::get('/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
-    Route::post('/announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
-    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
-    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
-    Route::post('/announcements/{announcement}/broadcast', [AnnouncementController::class, 'broadcast'])->name('admin.announcements.broadcast');
-    Route::get('/announcements/{announcement}/stats', [AnnouncementController::class, 'stats'])->name('admin.announcements.stats');
+Route::prefix('moderator')->middleware(['auth', 'moderator'])->group(function () {
+    Route::get('/', function () { return redirect()->route('moderator.dashboard'); });
+    Route::post('/logout', [AdminAuthController::class, 'destroy'])->name('moderator.logout');
+
+    Route::get('/dashboard', \App\Http\Controllers\Moderator\DashboardController::class)->name('moderator.dashboard');
+    Route::get('/moderation', [\App\Http\Controllers\Moderator\ModerationController::class, 'index'])->name('moderator.moderation');
+    Route::post('/moderation/action', [\App\Http\Controllers\Moderator\ModerationController::class, 'action'])->name('moderator.moderation.action');
+    Route::get('/reports', [\App\Http\Controllers\Moderator\ReportController::class, 'index'])->name('moderator.reports');
+    Route::post('/reports/{report}/action', [\App\Http\Controllers\Moderator\ReportController::class, 'action'])->name('moderator.reports.action');
+    Route::get('/messages', [\App\Http\Controllers\Moderator\MessageController::class, 'index'])->name('moderator.messages');
+    Route::post('/messages/{report}/action', [\App\Http\Controllers\Moderator\MessageController::class, 'action'])->name('moderator.messages.action');
+
+
 });

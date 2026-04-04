@@ -27,8 +27,14 @@ export default function CommentItem({ comment, onDelete, onReply, depth = 0 }) {
         <div className={`flex gap-3 ${depth > 0 ? 'mt-3 pl-4 border-l-2 border-ocean-border/30' : 'mt-4'}`}>
             {/* Avatar */}
             <div className="shrink-0">
-                <div className="w-8 h-8 rounded-full bg-biolum/20 flex items-center justify-center text-xs font-bold text-biolum border border-biolum/30">
-                    {comment.user?.name ? comment.user.name.charAt(0).toUpperCase() : '?'}
+                <div className="w-8 h-8 rounded-full bg-ocean-surface overflow-hidden flex items-center justify-center border border-ocean-border/50 text-ocean-text-dim/50 shadow-sm">
+                    {comment.user?.profile_picture ? (
+                        <img src={comment.user.profile_picture} alt={comment.user.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <svg className="w-5 h-5 mt-1.5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    )}
                 </div>
             </div>
 

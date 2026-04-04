@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import Modal from '../../Components/Admin/UI/Modal';
+import { Lock, Search, X } from 'lucide-react';
+import axios from 'axios';
 
 /* ── Permission category labels ── */
 const PERM_CATEGORIES = {
@@ -131,7 +133,7 @@ export default function Roles({ roles = [], permissions = {}, admins = [] }) {
                                         {!role.is_system && (
                                             <button className="adm-btn adm-btn-sm adm-btn-outline" style={{ color: 'var(--adm-danger)', borderColor: 'var(--adm-danger)' }} onClick={() => setDeleteModal(role)}>Delete</button>
                                         )}
-                                        {role.is_system && <span className="adm-table-cell-sub">🔒 System</span>}
+                                        {role.is_system && <span className="adm-table-cell-sub" style={{display: 'inline-flex', alignItems: 'center', gap: '4px'}}><Lock size={12} /> System</span>}
                                     </div>
                                 )}
                             </div>
@@ -249,27 +251,7 @@ export default function Roles({ roles = [], permissions = {}, admins = [] }) {
 
                         {/* ── Promote User ── */}
                         {activeTab === 'promote' && (
-                            <div className="adm-card-body">
-                                <p className="adm-table-cell-sub" style={{ marginBottom: 20, lineHeight: 1.6 }}>
-                                    Enter a platform user's numeric ID to promote them to an admin role.
-                                </p>
-                                <div className="adm-form-row">
-                                    <div className="adm-form-group">
-                                        <label className="adm-form-label">User ID (numeric)</label>
-                                        <input className="adm-form-input" type="number" value={promoteUser} onChange={(e) => setPromoteUser(e.target.value)} placeholder="Enter user ID..." />
-                                    </div>
-                                    <div className="adm-form-group">
-                                        <label className="adm-form-label">Assign Role</label>
-                                        <select className="adm-form-select" value={promoteRole} onChange={(e) => setPromoteRole(e.target.value)}>
-                                            <option value="">Select role...</option>
-                                            {roles.map((r) => <option key={r.id} value={r.id}>{r.display_name}</option>)}
-                                        </select>
-                                    </div>
-                                </div>
-                                <button className="adm-btn adm-btn-primary" onClick={handlePromote} disabled={!promoteUser || !promoteRole}>
-                                    Promote to Admin
-                                </button>
-                            </div>
+                            <PromoteTab roles={roles} showFlash={showFlash} />
                         )}
                     </div>
                 </div>
@@ -358,6 +340,202 @@ function RoleForm({ form, setForm, hideName = false }) {
                     <span className="adm-color-hex">{form.color}</span>
                 </div>
             </div>
+        </div>
+    );
+}
+
+/* ── Promote User Tab with Search ── */
+function PromoteTab({ roles, showFlash }) {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [selectedUser, setSelectedUser] = useState(null);
+    const [promoteRole, setPromoteRole] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const timerRef = useRef(null);
+    const wrapperRef = useRef(null);
+
+    // Close dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSearch = (value) => {
+        setQuery(value);
+        if (timerRef.current) clearTimeout(timerRef.current);
+        if (value.length < 2) {
+            setResults([]);
+            setShowDropdown(false);
+            return;
+        }
+        setLoading(true);
+        timerRef.current = setTimeout(() => {
+            axios.get('/admin/api/users/search', { params: { q: value } })
+                .then(res => {
+                    setResults(res.data || []);
+                    setShowDropdown(true);
+                    setLoading(false);
+                })
+                .catch(() => { setLoading(false); });
+        }, 300);
+    };
+
+    const handleSelectUser = (user) => {
+        setSelectedUser(user);
+        setQuery('');
+        setShowDropdown(false);
+        setResults([]);
+    };
+
+    const handleClearSelection = () => {
+        setSelectedUser(null);
+        setPromoteRole('');
+    };
+
+    const handlePromote = () => {
+        if (!selectedUser || !promoteRole) return;
+        router.post(`/admin/admins/${selectedUser.id}/promote`, { role_id: promoteRole }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                showFlash(`${selectedUser.name} promoted to admin`);
+                setSelectedUser(null);
+                setPromoteRole('');
+            },
+        });
+    };
+
+    return (
+        <div className="adm-card-body">
+            <p className="adm-table-cell-sub" style={{ marginBottom: 20, lineHeight: 1.6 }}>
+                Search for a platform user to promote them to an admin role. Only non-admin users appear in results.
+            </p>
+
+            {/* Selected User Card */}
+            {selectedUser ? (
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '14px 16px', background: 'var(--adm-bg-secondary, #f7f7f8)',
+                    border: '1px solid var(--adm-border, #e5e5e5)', borderRadius: 8, marginBottom: 16
+                }}>
+                    <div style={{
+                        width: 44, height: 44, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                        background: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 16, fontWeight: 800, color: '#fff'
+                    }}>
+                        {selectedUser.profile_picture ? (
+                            <img src={selectedUser.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : selectedUser.name?.charAt(0)?.toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{selectedUser.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--adm-text-secondary, #888)' }}>
+                            @{selectedUser.username} &middot; ID: {selectedUser.id} &middot; {selectedUser.email}
+                        </div>
+                    </div>
+                    <button
+                        onClick={handleClearSelection}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', padding: 4 }}
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+            ) : (
+                /* Search Input */
+                <div ref={wrapperRef} style={{ position: 'relative', marginBottom: 16 }}>
+                    <div className="adm-form-group" style={{ marginBottom: 0 }}>
+                        <label className="adm-form-label">Search User</label>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#aaa', pointerEvents: 'none' }} />
+                            <input
+                                className="adm-form-input"
+                                style={{ paddingLeft: 36 }}
+                                value={query}
+                                onChange={e => handleSearch(e.target.value)}
+                                placeholder="Search by name, username, or email..."
+                                autoComplete="off"
+                            />
+                            {loading && (
+                                <span style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: '#aaa' }}>
+                                    Searching...
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Dropdown Results */}
+                    {showDropdown && (
+                        <div style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                            background: '#fff', border: '1px solid var(--adm-border, #e5e5e5)',
+                            borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                            maxHeight: 320, overflowY: 'auto', marginTop: 4,
+                        }}>
+                            {results.length === 0 ? (
+                                <div style={{ padding: '20px 16px', textAlign: 'center', color: '#aaa', fontSize: 13 }}>
+                                    No users found
+                                </div>
+                            ) : (
+                                results.map(user => (
+                                    <div
+                                        key={user.id}
+                                        onClick={() => handleSelectUser(user)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: 10,
+                                            padding: '10px 14px', cursor: 'pointer',
+                                            borderBottom: '1px solid #f0f0f0',
+                                            transition: 'background 0.15s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#f7f7f8'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        <div style={{
+                                            width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+                                            background: '#0ea5e9', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                            fontSize: 13, fontWeight: 800, color: '#fff'
+                                        }}>
+                                            {user.profile_picture ? (
+                                                <img src={user.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                            ) : user.name?.charAt(0)?.toUpperCase()}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 700, fontSize: 13 }}>{user.name}</div>
+                                            <div style={{ fontSize: 11, color: '#888' }}>@{user.username}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                            <div style={{ fontSize: 11, color: '#aaa', fontFamily: 'monospace' }}>ID: {user.id}</div>
+                                            <div style={{ fontSize: 10, color: '#bbb' }}>{user.email}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Role Selection */}
+            <div className="adm-form-group">
+                <label className="adm-form-label">Assign Role</label>
+                <select className="adm-form-select" value={promoteRole} onChange={e => setPromoteRole(e.target.value)}>
+                    <option value="">Select role...</option>
+                    {roles.map(r => <option key={r.id} value={r.id}>{r.display_name}</option>)}
+                </select>
+            </div>
+
+            <button
+                className="adm-btn adm-btn-primary"
+                onClick={handlePromote}
+                disabled={!selectedUser || !promoteRole}
+                style={{ marginTop: 8 }}
+            >
+                Promote {selectedUser?.name || 'User'} to Admin
+            </button>
         </div>
     );
 }

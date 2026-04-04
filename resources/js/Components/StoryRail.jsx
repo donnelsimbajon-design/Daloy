@@ -422,9 +422,9 @@ export default function StoryRail({ horizontal = false }) {
                                             onChange={(e) => setCreationVisibility(e.target.value)}
                                             className="w-full bg-ocean-card/50 border border-ocean-divider-subtle text-ocean-text font-medium rounded-[14px] p-3 pr-10 text-sm focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all appearance-none cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
                                         >
-                                            <option value="public" className="bg-ocean-deep border-none text-ocean-text">🌍 Public (Anyone)</option>
-                                            <option value="friends" className="bg-ocean-deep border-none text-ocean-text">👥 Friends Only</option>
-                                            <option value="private" className="bg-ocean-deep border-none text-ocean-text">🔒 Only Me</option>
+                                            <option value="public" className="bg-ocean-deep border-none text-ocean-text">Public (Anyone)</option>
+                                            <option value="friends" className="bg-ocean-deep border-none text-ocean-text">Friends Only</option>
+                                            <option value="private" className="bg-ocean-deep border-none text-ocean-text">Only Me</option>
                                         </select>
                                         <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ocean-text-dim"><polyline points="6 9 12 15 18 9"></polyline></svg>

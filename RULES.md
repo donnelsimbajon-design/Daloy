@@ -154,7 +154,7 @@ adm-actions-menu     adm-footer           adm-sidebar-overlay
 The stack is fixed. These are FORBIDDEN additions:
 
 **CSS / UI:**
-- Bootstrap, Material UI, Chakra UI, Ant Design, Shadcn (unless already installed)
+- Bootstrap, Material UI, Chakra UI, Ant Design
 - Any CSS framework that conflicts with Tailwind CSS v4
 
 **JavaScript:**
@@ -167,7 +167,9 @@ The stack is fixed. These are FORBIDDEN additions:
 - Any package that conflicts with Laravel 12.x
 - Any auth package that conflicts with Sanctum 4.0
 
-**Allowed additions (always check compatibility first):**
+**Allowed & Approved Libraries:**
+- **Lucide React** — Official icon library. Use SVG icons from Lucide instead of emoji in all UI components.
+- **shadcn/ui** — Approved for UI components. Can be integrated on user request.
 - New Laravel packages compatible with Laravel 12 + PHP 8.2
 - New npm packages compatible with React 19 + Vite 7
 - Any package that does NOT conflict with Tailwind CSS v4
@@ -413,3 +415,6 @@ Before submitting any code, verify every item:
 - [ ] DB transactions used for complex social actions
 - [ ] Event `syncStatus()` called on all event loads
 - [ ] Blocked user NEVER notified of the block
+- [ ] SVG icons used instead of emoji in UI components
+- [ ] Notifications are clickable (navigate to profile or post)
+- [ ] All new notification types use Ripple model with proper type field

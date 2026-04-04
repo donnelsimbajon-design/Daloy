@@ -172,50 +172,69 @@ export default function StoryRail({ horizontal = false }) {
                         accept="image/*,video/*" 
                         className="hidden" 
                     />
-                    <div className={`relative p-0.5 rounded-full ring-2 ring-ocean-border border-dashed group-hover:ring-biolum/60 group-hover:bg-biolum/5 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-card overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative">
+                    <div className={`relative p-1 rounded-full group-hover:scale-105 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-border border-dashed p-0.5 group-hover:border-biolum/50 overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative transition-colors">
                             {user?.profile_picture ? (
-                                <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                                <img src={user.profile_picture} alt={user.name} className="w-full h-full rounded-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
+                                <div className="w-full h-full rounded-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
                                     {user?.name?.charAt(0)}
                                 </div>
                             )}
                         </div>
-                        <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-biolum border-[2.5px] border-ocean-card flex items-center justify-center text-white text-sm font-bold shadow-[0_2px_6px_rgba(25,25,112,0.4)] z-20 group-hover:scale-110 transition-transform">
+                        <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-biolum border-2 border-ocean-surface flex items-center justify-center text-white text-sm font-bold shadow-sm z-20 group-hover:scale-110 transition-transform">
                             {uploading ? (
-                                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <svg className="w-3 h-3 animate-spin text-biolum-foreground" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             ) : (
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                <svg className="w-3.5 h-3.5 text-biolum-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                             )}
                         </div>
                     </div>
-                    <span className="text-[10px] font-medium text-ocean-text-dim tracking-wide truncate max-w-[72px]">Your Story</span>
+                    <span className="text-[11px] font-semibold text-ocean-text-dim tracking-wide truncate max-w-[72px]">Your Story</span>
                 </div>
 
                 {/* Other Stories Avatars */}
-                {groupedStories.map((group) => (
-                    <div
-                        key={group.user.id}
-                        className="flex flex-col items-center gap-2 group cursor-pointer shrink-0 relative"
-                        onClick={() => setSelectedStory(group.items[0])}
-                    >
-                        <div className="p-0.5 rounded-full ring-2 ring-biolum/50 group-hover:ring-biolum transition-all duration-300">
-                            <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 group-hover:scale-105 relative">
-                                {group.user.profile_picture ? (
-                                    <img src={group.user.profile_picture} alt={group.user.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center bg-biolum text-white text-2xl font-bold">
-                                        {group.user.name.charAt(0)}
-                                    </div>
-                                )}
+                {groupedStories.map((group) => {
+                    const firstStory = group.items[0];
+                    return (
+                        <div
+                            key={group.user.id}
+                            className="flex flex-col items-center gap-2 group cursor-pointer shrink-0 relative hover-lift"
+                            onClick={() => setSelectedStory(group.items[0])}
+                        >
+                            <div className="p-[3px] rounded-full bg-gradient-to-tr from-biolum via-biolum-bright to-ocean-border transition-all duration-300 group-hover:scale-[1.03]">
+                                <div className="w-[64px] h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
+                                    {firstStory.type === 'text' ? (
+                                        <div className="w-full h-full bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] flex items-center justify-center p-2 text-center">
+                                            <span className="text-[8px] font-bold text-white leading-tight line-clamp-4 break-words shadow-sm">
+                                                {firstStory.content}
+                                            </span>
+                                        </div>
+                                    ) : firstStory.image ? (
+                                        <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
+                                            {group.user.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Mini Avatar Overlay */}
+                                <div className="absolute bottom-[20px] right-0 w-6 h-6 rounded-full border-[2px] border-ocean-card bg-ocean-surface overflow-hidden shadow-sm z-10">
+                                    {group.user.profile_picture ? (
+                                        <img src={group.user.profile_picture} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full bg-ocean-text flex items-center justify-center text-[9px] font-bold text-ocean-surface uppercase font-sans">
+                                            {group.user.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+                            <span className="text-[11px] font-semibold text-ocean-text group-hover:text-ocean-text/80 tracking-wide truncate max-w-[72px] text-center transition-colors">
+                                {group.user.name.split(' ')[0]}
+                            </span>
                         </div>
-                        <span className="text-[10px] font-medium text-ocean-text-dim group-hover:text-ocean-text tracking-wide truncate max-w-[72px] text-center transition-colors">
-                            {group.user.name.split(' ')[0]}
-                        </span>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* Scroll Down Button - Vertical only */}
@@ -261,10 +280,10 @@ export default function StoryRail({ horizontal = false }) {
                     {/* Close Button - More accessible on mobile */}
                     <button
                         onClick={() => setSelectedStory(null)}
-                        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 text-ocean-text-dim hover:text-ocean-text transition-all hover:rotate-90 z-[120] bg-ocean-deep/20 hover:bg-ocean-deep/40 rounded-full md:bg-transparent backdrop-blur-md md:backdrop-blur-none"
+                        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 text-ocean-text-muted hover:text-white transition-all hover:rotate-90 z-[120] bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10"
                     >
-                        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
 
@@ -282,19 +301,19 @@ export default function StoryRail({ horizontal = false }) {
                         </div>
 
                         {/* Story Header */}
-                        <div className="absolute top-6 left-4 right-4 z-20 flex items-center gap-3 md:top-10">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-ocean-divider/40 ring-2 ring-biolum/50 shadow-[0_2px_8px_rgba(0,0,0,0.2)] overflow-hidden bg-ocean-surface shrink-0">
+                        <div className="absolute top-6 left-4 right-4 z-20 flex items-center gap-3 md:top-10 bg-gradient-to-b from-black/80 to-transparent pb-6 pt-2 px-2 -mx-2 -mt-2 rounded-t-[24px]">
+                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-white/20 shadow-[0_2px_8px_rgba(0,0,0,0.5)] overflow-hidden bg-ocean-surface shrink-0">
                                 {selectedStory.user.profile_picture ? (
                                     <img src={selectedStory.user.profile_picture} alt={selectedStory.user.name} className="w-full h-full object-cover" />
                                 ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-ocean-text font-bold bg-biolum">
+                                    <div className="w-full h-full flex items-center justify-center text-white font-bold bg-biolum font-serif">
                                         {selectedStory.user.name.charAt(0)}
                                     </div>
                                 )}
                             </div>
-                            <div className="flex-1">
-                                <p className="text-sm md:text-base font-bold text-ocean-text leading-none">{selectedStory.user.name}</p>
-                                <p className="text-[10px] md:text-xs text-ocean-text/70 font-medium mt-1">{selectedStory.time}</p>
+                            <div className="flex-1 drop-shadow-md">
+                                <p className="text-sm md:text-base font-bold text-white leading-none tracking-wide">{selectedStory.user.name}</p>
+                                <p className="text-[10px] md:text-[11px] text-white/70 font-semibold mt-1 tracking-wider uppercase">{selectedStory.time}</p>
                             </div>
                         </div>
 
@@ -422,9 +441,9 @@ export default function StoryRail({ horizontal = false }) {
                                             onChange={(e) => setCreationVisibility(e.target.value)}
                                             className="w-full bg-ocean-card/50 border border-ocean-divider-subtle text-ocean-text font-medium rounded-[14px] p-3 pr-10 text-sm focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all appearance-none cursor-pointer shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
                                         >
-                                            <option value="public" className="bg-ocean-deep border-none text-ocean-text">🌍 Public (Anyone)</option>
-                                            <option value="friends" className="bg-ocean-deep border-none text-ocean-text">👥 Friends Only</option>
-                                            <option value="private" className="bg-ocean-deep border-none text-ocean-text">🔒 Only Me</option>
+                                            <option value="public" className="bg-ocean-deep border-none text-ocean-text">Public (Anyone)</option>
+                                            <option value="friends" className="bg-ocean-deep border-none text-ocean-text">Friends Only</option>
+                                            <option value="private" className="bg-ocean-deep border-none text-ocean-text">Only Me</option>
                                         </select>
                                         <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ocean-text-dim"><polyline points="6 9 12 15 18 9"></polyline></svg>

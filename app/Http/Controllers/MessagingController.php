@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageReaction;
+use App\Models\Report;
 use App\Models\TypingIndicator;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -87,8 +88,8 @@ class MessagingController extends Controller
     {
         $request->validate([
             'conversation_id' => 'required|exists:conversations,id',
-            'content' => 'required_without:media_url|string',
-            'media_url' => 'nullable|string',
+            'content' => 'required_without:file|string|nullable',
+            'file' => 'nullable|file|mimes:jpeg,png,jpg,webp,gif,mp4,mov,webm,pdf,doc,docx,txt,zip|max:51200',
             'reply_to_id' => 'nullable|integer|exists:messages,id',
         ]);
 
@@ -118,10 +119,17 @@ class MessagingController extends Controller
             }
         }
 
+        $mediaUrl = null;
+        if ($request->hasFile('file')) {
+            $mediaUrl = '/storage/' . $request->file('file')->store('message_attachments', 'public');
+        } elseif ($request->filled('media_url')) {
+            $mediaUrl = $request->input('media_url');
+        }
+
         $message = $conversation->messages()->create([
             'user_id' => $user->id,
             'content' => $request->input('content'),
-            'media_url' => $request->input('media_url'),
+            'media_url' => $mediaUrl,
             'reply_to_id' => $request->input('reply_to_id'),
         ]);
 
@@ -387,5 +395,69 @@ class MessagingController extends Controller
             ->get();
 
         return response()->json($messages);
+    }
+
+    /**
+     * Get shared media for a conversation.
+     */
+    public function getMedia(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        $media = $conversation->messages()
+            ->whereNotNull('media_url')
+            ->whereNull('deleted_for_everyone_at')
+            ->latest()
+            ->get(['id', 'media_url', 'created_at']);
+
+        return response()->json($media);
+    }
+
+    /**
+     * Report a conversation (harassment, spam, etc.)
+     */
+    public function reportConversation(Request $request, Conversation $conversation): JsonResponse
+    {
+        $request->validate([
+            'reason' => 'required|string|in:harassment,spam,inappropriate,hate_speech,threats,other',
+            'details' => 'nullable|string|max:1000',
+        ]);
+
+        $user = Auth::user();
+
+        // Must be a participant
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        // Prevent duplicate pending reports
+        $existing = Report::where('reporter_id', $user->id)
+            ->where('reportable_type', 'App\\Models\\Conversation')
+            ->where('reportable_id', $conversation->id)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'You have already reported this conversation.'], 422);
+        }
+
+        $reasonText = $request->reason;
+        if ($request->details) {
+            $reasonText .= ': ' . $request->details;
+        }
+
+        Report::create([
+            'reporter_id' => $user->id,
+            'reportable_type' => 'App\\Models\\Conversation',
+            'reportable_id' => $conversation->id,
+            'reason' => $reasonText,
+            'status' => 'pending',
+        ]);
+
+        return response()->json(['message' => 'Conversation reported successfully. An admin will review it.']);
     }
 }

@@ -17,7 +17,7 @@ class AdminMiddleware
         $user = $request->user();
 
         // Return 404 to hide admin panel from non-admin users
-        if (!$user || !$user->isAdmin() || !$user->hasVerifiedEmail()) {
+        if (!$user || !$user->isAdmin()) {
             abort(404);
         }
 

@@ -246,4 +246,26 @@ class RolesController extends Controller
 
         return back()->with('success', "Role updated to {$role->display_name}.");
     }
+
+    // ─── Search Users (for Promote tab) ─────────────────────────
+    public function searchUsers(Request $request)
+    {
+        $q = $request->input('q', '');
+        if (strlen($q) < 2) return response()->json([]);
+
+        // Get existing admin user IDs to exclude
+        $adminUserIds = Admin::pluck('user_id')->toArray();
+
+        $users = User::where(function ($query) use ($q) {
+                $query->where('name', 'LIKE', "%{$q}%")
+                      ->orWhere('username', 'LIKE', "%{$q}%")
+                      ->orWhere('email', 'LIKE', "%{$q}%");
+            })
+            ->whereNotIn('id', $adminUserIds)
+            ->select('id', 'name', 'username', 'email', 'profile_picture')
+            ->take(10)
+            ->get();
+
+        return response()->json($users);
+    }
 }

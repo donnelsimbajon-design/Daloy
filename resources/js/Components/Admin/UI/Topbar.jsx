@@ -1,11 +1,13 @@
 import { useState } from 'react';
 
+import { AlertTriangle, Lock, BarChart2, User, Siren } from 'lucide-react';
+
 const notifications = [
-    { id: 1, type: 'danger', icon: '⚠', text: 'New critical report: Hate speech detected in Group #412', time: '2 mins ago', unread: true },
-    { id: 2, type: 'warning', icon: '🔒', text: 'Brute force attempt detected from IP 192.168.1.1', time: '15 mins ago', unread: true },
-    { id: 3, type: 'info', icon: '📊', text: 'Daily analytics report is ready for review', time: '1 hour ago', unread: true },
-    { id: 4, type: 'info', icon: '👤', text: 'User verification request from @professional_account', time: '2 hours ago', unread: false },
-    { id: 5, type: 'danger', icon: '🚨', text: 'Server CPU usage exceeded 90% threshold', time: '3 hours ago', unread: false },
+    { id: 1, type: 'danger', icon: <AlertTriangle size={14} />, text: 'New critical report: Hate speech detected in Group #412', time: '2 mins ago', unread: true },
+    { id: 2, type: 'warning', icon: <Lock size={14} />, text: 'Brute force attempt detected from IP 192.168.1.1', time: '15 mins ago', unread: true },
+    { id: 3, type: 'info', icon: <BarChart2 size={14} />, text: 'Daily analytics report is ready for review', time: '1 hour ago', unread: true },
+    { id: 4, type: 'info', icon: <User size={14} />, text: 'User verification request from @professional_account', time: '2 hours ago', unread: false },
+    { id: 5, type: 'danger', icon: <Siren size={14} />, text: 'Server CPU usage exceeded 90% threshold', time: '3 hours ago', unread: false },
 ];
 
 export default function Topbar({ pageTitle, onMenuToggle, notifOpen, onNotifToggle }) {

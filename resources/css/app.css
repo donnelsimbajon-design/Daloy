@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin "tailwindcss-animate";
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -283,3 +284,339 @@ html[data-theme="dark"].dark {
     --color-ocean-text-muted: #E4E4E7;
     --color-ocean-text-dim: #A1A1AA;
 }
+
+/* ═══════ Ripples Page ═══════ */
+.ripples-page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 24px 16px;
+}
+
+.ripples-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.ripples-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ripples-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--color-ocean-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.5px;
+}
+
+.ripples-title-icon {
+    font-size: 20px;
+}
+
+.ripples-unread-badge {
+    font-size: 11px;
+    font-weight: 700;
+    background: var(--color-biolum);
+    color: var(--color-biolum-foreground);
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.3px;
+}
+
+.ripples-mark-all-btn {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-ocean-text-dim);
+    background: var(--color-ocean-surface);
+    border: 1px solid var(--color-ocean-border);
+    border-radius: 8px;
+    padding: 6px 14px;
+    cursor: pointer;
+}
+
+.ripples-mark-all-btn:hover {
+    background: var(--color-ocean-hover);
+    color: var(--color-ocean-text);
+}
+
+.ripples-filters {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--color-ocean-border);
+    padding-bottom: 12px;
+}
+
+.ripples-filter-btn {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 100px;
+    background: transparent;
+    color: var(--color-ocean-text-dim);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.ripples-filter-btn:hover {
+    background: var(--color-ocean-surface);
+    color: var(--color-ocean-text);
+}
+
+.ripples-filter-btn.active {
+    background: var(--color-biolum);
+    color: var(--color-biolum-foreground);
+    border-color: var(--color-biolum);
+}
+
+.ripples-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.ripple-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    transition: background 0.15s ease;
+    position: relative;
+}
+
+.ripple-item:hover {
+    background: var(--color-ocean-surface);
+}
+
+.ripple-item.unread {
+    background: var(--color-ocean-hover);
+}
+
+.ripple-unread-dot {
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-biolum);
+}
+
+.ripple-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.ripple-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 12px;
+}
+
+.ripple-icon-emoji {
+    font-size: 18px;
+}
+
+.ripple-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.ripple-text {
+    font-size: 13px;
+    color: var(--color-ocean-text);
+    line-height: 1.4;
+}
+
+.ripple-sender {
+    font-weight: 700;
+    color: var(--color-ocean-text);
+    text-decoration: none;
+}
+
+.ripple-sender:hover {
+    text-decoration: underline;
+}
+
+.ripple-time {
+    font-size: 11px;
+    color: var(--color-ocean-text-dim);
+    margin-top: 2px;
+    display: block;
+}
+
+.ripple-detail-hint {
+    font-size: 11px;
+    color: var(--color-ocean-text-dim);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.ripples-empty {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.ripples-empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+}
+
+.ripples-empty-text {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-ocean-text);
+    margin-bottom: 6px;
+}
+
+.ripples-empty-sub {
+    font-size: 13px;
+    color: var(--color-ocean-text-dim);
+}
+
+.ripples-pagination {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    padding: 20px 0;
+}
+
+.ripples-page-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-ocean-border);
+    border-radius: 6px;
+    background: var(--color-ocean-card);
+    color: var(--color-ocean-text-dim);
+    text-decoration: none;
+}
+
+.ripples-page-btn.active {
+    background: var(--color-biolum);
+    color: var(--color-biolum-foreground);
+    border-color: var(--color-biolum);
+}
+
+/* Ripple Detail Modal (Group Deleted) */
+.ripple-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 998;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+}
+
+.ripple-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 999;
+    width: 420px;
+    max-width: 90vw;
+    background: var(--color-ocean-card);
+    border: 1px solid var(--color-ocean-border);
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    animation: subtleFadeIn 0.2s ease-out;
+}
+
+.ripple-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-ocean-border);
+}
+
+.ripple-modal-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--color-ocean-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ripple-modal-close {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--color-ocean-text-dim);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.ripple-modal-close:hover {
+    background: var(--color-ocean-surface);
+    color: var(--color-ocean-text);
+}
+
+.ripple-modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.ripple-modal-field label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--color-ocean-text-dim);
+    display: block;
+    margin-bottom: 4px;
+}
+
+.ripple-modal-field p {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--color-ocean-text);
+    margin: 0;
+}
+
+.ripple-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--color-ocean-border);
+    text-align: center;
+}
+
+.ripple-modal-action {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-ocean-text);
+    text-decoration: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    background: var(--color-ocean-surface);
+    display: inline-block;
+    transition: all 0.15s ease;
+}
+
+.ripple-modal-action:hover {
+    background: var(--color-biolum);
+    color: var(--color-biolum-foreground);
+}
+

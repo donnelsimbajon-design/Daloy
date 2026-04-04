@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Waves, Flame, Smile, Frown, Sparkles } from 'lucide-react';
 
 const REACTION_TYPES = [
-    { type: 'wave', emoji: '🌊', label: 'Wave', color: 'text-blue-400' },
-    { type: 'fire', emoji: '🔥', label: 'Fire', color: 'text-orange-400' },
-    { type: 'haha', emoji: '😂', label: 'Haha', color: 'text-yellow-300' },
-    { type: 'sad',  emoji: '😢', label: 'Sad',  color: 'text-indigo-300' },
-    { type: 'wow',  emoji: '😮', label: 'Wow',  color: 'text-fuchsia-400' },
+    { type: 'wave', emoji: <Waves className="w-[1.2em] h-[1.2em] inline text-blue-400" />, label: 'Wave', color: 'text-blue-400' },
+    { type: 'fire', emoji: <Flame className="w-[1.2em] h-[1.2em] inline text-orange-400" />, label: 'Fire', color: 'text-orange-400' },
+    { type: 'haha', emoji: <Smile className="w-[1.2em] h-[1.2em] inline text-yellow-300" />, label: 'Haha', color: 'text-yellow-300' },
+    { type: 'sad',  emoji: <Frown className="w-[1.2em] h-[1.2em] inline text-indigo-300" />, label: 'Sad',  color: 'text-indigo-300' },
+    { type: 'wow',  emoji: <Sparkles className="w-[1.2em] h-[1.2em] inline text-fuchsia-400" />, label: 'Wow',  color: 'text-fuchsia-400' },
 ];
 
 export default function PostActions({
@@ -89,7 +90,7 @@ export default function PostActions({
                                     }`}
                                 title={r.label}
                             >
-                                <span className="text-xl">{r.emoji}</span>
+                                <span className="text-xl flex items-center justify-center p-0.5">{r.emoji}</span>
                                 {/* Label tooltip */}
                                 <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[10px] font-bold text-ocean-text bg-ocean-deep border border-ocean-divider px-1.5 py-0.5 rounded opacity-0 group-hover/emoji:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                                     {r.label}
@@ -115,7 +116,7 @@ export default function PostActions({
                     <div className={`p-1.5 rounded-full transition-all ${currentReaction ? 'bg-current/10 scale-105' : 'group-hover:bg-blue-500/10'
                         }`}>
                         {currentReaction ? (
-                            <span className="text-lg leading-none">{currentReaction.emoji}</span>
+                            <span className="text-lg leading-none flex items-center justify-center">{currentReaction.emoji}</span>
                         ) : (
                             <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
@@ -128,7 +129,7 @@ export default function PostActions({
                             <span className="flex -space-x-0.5 text-xs">
                                 {topReactions.map(([type]) => {
                                     const r = REACTION_TYPES.find(rt => rt.type === type);
-                                    return r ? <span key={type}>{r.emoji}</span> : null;
+                                    return r ? <span key={type} className="w-3.5 h-3.5 flex items-center justify-center [&>svg]:w-3 [&>svg]:h-3 z-10 p-px rounded-full bg-ocean-surface ring-1 ring-ocean-deep relative -ml-1 first:ml-0">{r.emoji}</span> : null;
                                 })}
                             </span>
                         )}

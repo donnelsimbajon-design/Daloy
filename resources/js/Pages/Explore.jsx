@@ -3,6 +3,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/PostCard';
 import axios from 'axios';
+import { Waves, BarChart2 } from 'lucide-react';
 
 // ── Helper: relative time ────────────────────────────────────────────
 function getTimeAgo(dateString) {
@@ -35,11 +36,22 @@ export default function Explore({
     recommendedSchools = [],
     collections = [],
 }) {
-    const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return new URLSearchParams(window.location.search).get('q') || '';
+        }
+        return '';
+    });
     const [searchResults, setSearchResults] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [feedFilter, setFeedFilter] = useState('hot'); // hot | new
     const searchTimeout = useRef(null);
+
+    React.useEffect(() => {
+        if (searchQuery.trim() && !searchResults && !isSearching) {
+            handleSearch(searchQuery);
+        }
+    }, []);
 
     // Sort trending posts by filter
     const sortedPosts = [...trendingPosts].sort((a, b) => {
@@ -111,18 +123,18 @@ export default function Explore({
                     <div className="max-w-3xl mx-auto space-y-6 animate-subtle-in">
                         <h2 className="text-lg font-bold text-ocean-text">Results for "{searchQuery}"</h2>
 
-                        {searchResults.users?.length > 0 && (
+                        {searchResults.people?.length > 0 && (
                             <div>
                                 <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Voyagers</h3>
                                 <div className="space-y-2">
-                                    {searchResults.users.map(user => (
+                                    {searchResults.people.map(user => (
                                         <Link key={user.id} href={`/users/${user.id}`} className="flex items-center gap-3 p-3 bg-ocean-card border border-ocean-divider rounded-xl hover:border-biolum/30 transition-all group">
                                             <div className="w-10 h-10 rounded-full bg-ocean-surface overflow-hidden shrink-0 ring-1 ring-ocean-divider">
                                                 {user.profile_picture ? <img src={user.profile_picture} alt="" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-sm font-bold text-ocean-text-dim">{user.name?.[0]}</span>}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-semibold text-ocean-text group-hover:text-biolum transition-colors truncate">{user.name}</p>
-                                                <p className="text-xs text-ocean-text-dim truncate">@{user.username}</p>
+                                                <p className="text-xs text-ocean-text-dim truncate">@{user.username}{user.is_friend ? ' · Friend' : user.is_following ? ' · Following' : ''}</p>
                                             </div>
                                         </Link>
                                     ))}
@@ -154,9 +166,22 @@ export default function Explore({
                             </div>
                         )}
 
-                        {!searchResults.users?.length && !searchResults.posts?.length && !searchResults.schools?.length && (
+                        {searchResults.hashtags?.length > 0 && (
+                            <div>
+                                <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Tags</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {searchResults.hashtags.map(tag => (
+                                        <Link key={tag.id} href={`/hashtag/${tag.name.replace('#', '')}`} className="px-4 py-2 bg-ocean-card border border-ocean-divider rounded-full hover:border-biolum/30 text-sm font-bold text-biolum transition-all">
+                                            {tag.name} <span className="text-ocean-text-dim font-normal ml-1">({tag.posts_count} posts)</span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {!searchResults.people?.length && !searchResults.posts?.length && !searchResults.schools?.length && !searchResults.hashtags?.length && (
                             <div className="text-center py-16">
-                                <div className="text-4xl mb-3">🌊</div>
+                                <div className="flex justify-center mb-3 text-ocean-text-dim/30"><Waves size={40} /></div>
                                 <p className="text-ocean-text-dim">No currents found for "{searchQuery}"</p>
                             </div>
                         )}
@@ -268,7 +293,7 @@ export default function Explore({
                                         {secondaryPosts.length < 2 && Array.from({ length: 2 - secondaryPosts.length }).map((_, i) => (
                                             <div key={`empty-${i}`} className="relative rounded-2xl overflow-hidden bg-ocean-card border border-ocean-divider flex-1 flex items-center justify-center" style={{ minHeight: '105px' }}>
                                                 <div className="text-center">
-                                                    <div className="text-3xl mb-1 opacity-30">🌊</div>
+                                                    <div className="flex justify-center mb-1 text-ocean-text-dim/30"><Waves size={32} /></div>
                                                     <p className="text-xs text-ocean-text-dim/50">More currents coming soon</p>
                                                 </div>
                                             </div>
@@ -278,7 +303,7 @@ export default function Explore({
                             ) : (
                                 /* Empty state for featured */
                                 <div className="rounded-2xl bg-ocean-card border border-ocean-divider p-12 text-center">
-                                    <div className="text-5xl mb-3 opacity-40">🌊</div>
+                                    <div className="flex justify-center mb-3 text-ocean-text-dim/40"><Waves size={48} /></div>
                                     <h3 className="text-lg font-bold text-ocean-text mb-1">No featured explorations yet</h3>
                                     <p className="text-sm text-ocean-text-dim">Posts with media and high engagement will appear here.</p>
                                 </div>
@@ -324,7 +349,7 @@ export default function Explore({
                                         <TrendingPostRow key={post.id} post={post} />
                                     )) : (
                                         <div className="text-center py-16">
-                                            <div className="text-4xl mb-3 opacity-40">📊</div>
+                                            <div className="flex justify-center mb-3 text-ocean-text-dim/40"><BarChart2 size={40} /></div>
                                             <p className="text-sm text-ocean-text-dim">No trending posts yet. Be the first to make waves!</p>
                                         </div>
                                     )}

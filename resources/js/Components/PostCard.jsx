@@ -4,6 +4,7 @@ import axios from 'axios';
 import PostActions from '@/Components/PostActions';
 import CommentsSection from '@/Components/Comments/CommentsSection';
 import ShareModal from '@/Components/ShareModal';
+import { Globe2, Users, Lock, Heart } from 'lucide-react';
 
 export default function PostCard({ post }) {
     const currentUser = usePage().props?.auth?.user;
@@ -134,10 +135,10 @@ export default function PostCard({ post }) {
     const isRepost = !!post.repost_of;
 
     const visibilityIcon = {
-        public: '🌍',
-        followers: '👥',
-        private: '🔒',
-        close_friends: '💚',
+        public: <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
+        followers: <Users className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
+        private: <Lock className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
+        close_friends: <Heart className="w-3.5 h-3.5 inline text-green-500/80" />,
     };
 
     // Render post content with @mentions and #hashtags highlighted
@@ -216,7 +217,7 @@ export default function PostCard({ post }) {
                         <p className="text-[11px] text-ocean-text-dim/60 mt-0.5 leading-tight font-normal">
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
-                            {' · '}{visibilityIcon[post.visibility] || '🌍'}
+                            {' · '}{visibilityIcon[post.visibility] || <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />}
                         </p>
                     </div>
                 </div>
@@ -296,10 +297,10 @@ export default function PostCard({ post }) {
                                     onChange={(e) => setEditVisibility(e.target.value)}
                                     className="bg-ocean-surface/60 border border-ocean-border rounded-lg px-3 py-1.5 text-xs text-ocean-text-muted focus:outline-none"
                                 >
-                                    <option value="public">🌍 Public</option>
-                                    <option value="followers">👥 Followers</option>
-                                    <option value="private">🔒 Private</option>
-                                    <option value="close_friends">💚 Close Friends</option>
+                                    <option value="public">Public</option>
+                                    <option value="followers">Followers</option>
+                                    <option value="private">Private</option>
+                                    <option value="close_friends">Close Friends</option>
                                 </select>
                                 <div className="flex-1" />
                                 <button onClick={() => { setIsEditing(false); setEditContent(post.content || ''); }} className="px-3 py-1.5 text-xs font-medium text-ocean-text-muted hover:text-ocean-text bg-ocean-surface border border-ocean-border rounded-lg transition-colors">Cancel</button>

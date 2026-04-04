@@ -19,6 +19,9 @@ class AdminAuthController extends Controller
     {
         // If logged in as admin already, redirect to dashboard
         if (Auth::check() && Auth::user()->isAdmin()) {
+            if (Auth::user()->admin->role === 'moderator') {
+                return redirect()->route('moderator.dashboard');
+            }
             return redirect()->route('admin.dashboard');
         }
 
@@ -62,15 +65,7 @@ class AdminAuthController extends Controller
             ]);
         }
 
-        // 4. Check if user is verified
-        if (!$user->hasVerifiedEmail()) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            return back()->withErrors([
-                'email' => 'Account not verified.',
-            ]);
-        }
+        // Removed email verification check to allow manually promoted admins to log in.
 
         $request->session()->regenerate();
 
@@ -82,6 +77,10 @@ class AdminAuthController extends Controller
             'metadata' => ['user_agent' => $request->userAgent()],
         ]);
 
+        if ($user->admin->role === 'moderator') {
+            return redirect()->route('moderator.dashboard');
+        }
+        
         return redirect()->route('admin.dashboard');
     }
 
@@ -104,6 +103,7 @@ class AdminAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('admin.login');
+        $isModeratorRoute = $request->is('moderator/*') || $request->is('moderator');
+        return redirect()->route($isModeratorRoute ? 'moderator.login' : 'admin.login');
     }
 }

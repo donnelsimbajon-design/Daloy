@@ -4,18 +4,23 @@ import DataTable from '../../Components/Admin/Features/DataTable';
 import StatusBadge from '../../Components/Admin/UI/StatusBadge';
 import Modal from '../../Components/Admin/UI/Modal';
 import { router, Link } from '@inertiajs/react';
+import { AlertTriangle } from 'lucide-react';
 
 export default function Groups({ groups = { data: [] } }) {
     const [selectedItem, setSelectedItem] = useState(null);
     const [modalType, setModalType] = useState(null);
     const [actionMenuId, setActionMenuId] = useState(null);
+    const [deleteReason, setDeleteReason] = useState('');
 
     const groupList = groups.data || [];
 
     const handleAction = (group, action) => {
-        router.post(`/admin/groups/${group.id}/action`, { action }, {
+        router.post(`/admin/groups/${group.id}/action`, {
+            action,
+            reason: deleteReason,
+        }, {
             preserveState: true,
-            onSuccess: () => { setModalType(null); setSelectedItem(null); },
+            onSuccess: () => { setModalType(null); setSelectedItem(null); setDeleteReason(''); },
         });
     };
 
@@ -92,20 +97,39 @@ export default function Groups({ groups = { data: [] } }) {
                 )}
             </Modal>
 
-            {/* Delete Modal */}
+            {/* Delete Modal — now with reason field */}
             <Modal
                 isOpen={modalType === 'deleteGroup'}
-                onClose={() => setModalType(null)}
+                onClose={() => { setModalType(null); setDeleteReason(''); }}
                 title="Delete Group"
                 size="sm"
                 footer={
                     <>
-                        <button className="adm-btn adm-btn-outline" onClick={() => setModalType(null)}>Cancel</button>
-                        <button className="adm-btn adm-btn-danger" onClick={() => handleAction(selectedItem, 'delete')}>Delete</button>
+                        <button className="adm-btn adm-btn-outline" onClick={() => { setModalType(null); setDeleteReason(''); }}>Cancel</button>
+                        <button className="adm-btn adm-btn-danger" onClick={() => handleAction(selectedItem, 'delete')}>Delete & Notify Members</button>
                     </>
                 }
             >
-                {selectedItem && <p style={{ fontSize: '13px' }}>Permanently delete "{selectedItem.name}"? This cannot be undone.</p>}
+                {selectedItem && (
+                    <div>
+                        <p style={{ fontSize: '13px', marginBottom: '16px' }}>
+                            Permanently delete "{selectedItem.name}"? All <strong>{selectedItem.members_count || 0} members</strong> will be notified via a Ripple notification.
+                        </p>
+                        <div className="adm-form-group">
+                            <label className="adm-form-label">Deletion Reason (visible to members)</label>
+                            <textarea
+                                className="adm-form-textarea"
+                                value={deleteReason}
+                                onChange={e => setDeleteReason(e.target.value)}
+                                placeholder="e.g. Violated community guidelines, Inactive group cleanup..."
+                                rows={3}
+                            />
+                        </div>
+                        <div style={{ marginTop: '12px', padding: '8px 12px', background: '#fff3cd', borderRadius: '6px', fontSize: '11px', color: '#856404', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <AlertTriangle size={14} /> This action cannot be undone. All group posts, events, and membership data will be permanently removed.
+                        </div>
+                    </div>
+                )}
             </Modal>
         </>
     );

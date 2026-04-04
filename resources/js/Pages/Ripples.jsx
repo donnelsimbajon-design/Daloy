@@ -1,53 +1,216 @@
-import React from 'react';
-import { Head } from '@inertiajs/react';
-import MainLayout from '@/Layouts/MainLayout';
+import { useState } from 'react';
+import { usePage, Link, router } from '@inertiajs/react';
+import axios from 'axios';
+import { Heart, MessageSquare, AtSign, UserPlus, Waves, Building2, Mail, Users, Bell } from 'lucide-react';
 
-const notifications = [
-    { type: 'like', user: 'Kai Storm', action: 'liked your flow', content: '"Midnight Dive photos..."', time: '2m ago', read: false },
-    { type: 'follow', user: 'Ocean_Lover', action: 'started following you', time: '1h ago', read: false },
-    { type: 'mention', user: 'TechCurrent', action: 'mentioned you in a comment', content: '"@Marina check this out!"', time: '3h ago', read: true },
-    { type: 'system', user: 'DALOY', action: 'System Update', content: 'New features available in Schools', time: '1d ago', read: true },
-];
+export default function Ripples({ ripples = { data: [] }, unreadCount = 0 }) {
+    const { auth } = usePage().props;
+    const [filter, setFilter] = useState('all');
+    const [localRipples, setLocalRipples] = useState(ripples.data || []);
+    const [localUnread, setLocalUnread] = useState(unreadCount);
+    const [selectedRipple, setSelectedRipple] = useState(null);
 
-export default function Ripples() {
+    const typeConfig = {
+        like:          { icon: <Heart size={16} />, color: 'var(--color-coral)', label: 'liked your post' },
+        comment:       { icon: <MessageSquare size={16} />, color: 'var(--color-glow)', label: 'commented on your post' },
+        mention:       { icon: <AtSign size={16} />, color: 'var(--color-ripple)', label: 'mentioned you' },
+        follow:        { icon: <UserPlus size={16} />, color: 'var(--color-tide)', label: 'started following you' },
+        reaction:      { icon: <Waves size={16} />, color: 'var(--color-glow)', label: 'reacted to your post' },
+        group_deleted: { icon: <Building2 size={16} />, color: '#ef4444', label: 'School removed' },
+        message:       { icon: <Mail size={16} />, color: 'var(--color-ripple)', label: 'sent you a message' },
+        friend:        { icon: <Users size={16} />, color: 'var(--color-glow)', label: 'sent you a friend request' },
+    };
+
+    const filters = [
+        { key: 'all', label: 'All' },
+        { key: 'like', label: 'Likes' },
+        { key: 'comment', label: 'Comments' },
+        { key: 'group_deleted', label: 'System' },
+    ];
+
+    const filteredRipples = filter === 'all'
+        ? localRipples
+        : localRipples.filter(r => r.type === filter);
+
+    const markAllRead = async () => {
+        try {
+            await axios.post('/api/ripples/mark-all-read');
+            setLocalRipples(prev => prev.map(r => ({ ...r, read_at: new Date().toISOString() })));
+            setLocalUnread(0);
+        } catch { /* ignore */ }
+    };
+
+    const markOneRead = async (ripple) => {
+        if (ripple.read_at) return;
+        try {
+            // Extract numeric ID from the ripple id
+            const numericId = typeof ripple.id === 'string' && ripple.id.startsWith('rpl_')
+                ? ripple.id.replace('rpl_', '')
+                : ripple.id;
+            await axios.post(`/api/ripples/${numericId}/mark-read`);
+            setLocalRipples(prev => prev.map(r =>
+                r.id === ripple.id ? { ...r, read_at: new Date().toISOString() } : r
+            ));
+            setLocalUnread(prev => Math.max(0, prev - 1));
+        } catch { /* ignore */ }
+    };
+
+    const openGroupDeletedModal = (ripple) => {
+        setSelectedRipple(ripple);
+        markOneRead(ripple);
+    };
+
+    const getTypeDisplay = (type) => typeConfig[type] || { icon: <Bell size={16} />, color: 'var(--color-mist)', label: type };
+
     return (
-        <MainLayout>
-            <Head title="Ripples" />
-
-            <div className="max-w-3xl mx-auto">
-                <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-2xl font-bold text-ocean-text">Ripples</h1>
-                    <button className="text-sm text-biolum hover:text-ocean-text transition-colors">Mark all as read</button>
+        <div className="ripples-page">
+            {/* Header */}
+            <div className="ripples-header">
+                <div className="ripples-header-left">
+                    <h1 className="ripples-title">
+                        <span className="ripples-title-icon flex items-center justify-center"><Bell size={24} /></span>
+                        Ripples
+                    </h1>
+                    {localUnread > 0 && (
+                        <span className="ripples-unread-badge">{localUnread} unread</span>
+                    )}
                 </div>
+                {localUnread > 0 && (
+                    <button className="ripples-mark-all-btn" onClick={markAllRead}>
+                        Mark all as read
+                    </button>
+                )}
+            </div>
 
-                <div className="space-y-2">
-                    {notifications.map((notif, i) => (
-                        <div key={i} className={`p-4 rounded-xl flex gap-4 transition-all ${notif.read ? 'bg-transparent hover:bg-ocean-card/30' : 'bg-ocean-card border-l-2 border-biolum'
-                            }`}>
-                            {/* Icon Type */}
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${notif.type === 'like' ? 'bg-rose-500/20 text-rose-500' :
-                                notif.type === 'follow' ? 'bg-biolum/20 text-biolum' :
-                                    notif.type === 'system' ? 'bg-purple-500/20 text-purple-500' :
-                                        'bg-emerald-500/20 text-emerald-500'
-                                }`}>
-                                {notif.type === 'like' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" /></svg>}
-                                {notif.type === 'follow' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3.75 15a7.125 7.125 0 0114.25 0v.004a3.375 3.375 0 010 6.75v0A3.75 3.75 0 0118 25.5H6a3.75 3.75 0 01-3.75-3.75V15z" /><path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" /></svg>}
-                                {notif.type === 'mention' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" /></svg>}
-                                {notif.type === 'system' && <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" /></svg>}
-                            </div>
+            {/* Filter Tabs */}
+            <div className="ripples-filters">
+                {filters.map(f => (
+                    <button
+                        key={f.key}
+                        className={`ripples-filter-btn ${filter === f.key ? 'active' : ''}`}
+                        onClick={() => setFilter(f.key)}
+                    >
+                        {f.label}
+                    </button>
+                ))}
+            </div>
 
-                            <div className="flex-1">
-                                <p className="text-sm text-ocean-text">
-                                    <span className="font-bold text-ocean-text hover:underline cursor-pointer">{notif.user}</span>{' '}
-                                    {notif.action}
-                                </p>
-                                {notif.content && <p className="text-sm text-ocean-text-dim mt-0.5 font-medium">{notif.content}</p>}
-                                <p className="text-xs text-ocean-text-muted mt-1.5">{notif.time}</p>
+            {/* Notification List */}
+            <div className="ripples-list">
+                {filteredRipples.length === 0 ? (
+                    <div className="ripples-empty">
+                        <div className="ripples-empty-icon flex items-center justify-center text-ocean-text-dim/50"><Waves size={40} /></div>
+                        <p className="ripples-empty-text">The current is calm — no ripples here</p>
+                        <p className="ripples-empty-sub">When voyagers interact with your content, ripples will appear here.</p>
+                    </div>
+                ) : (
+                    filteredRipples.map(ripple => {
+                        const display = getTypeDisplay(ripple.type);
+                        const isUnread = !ripple.read_at;
+                        const isGroupDeleted = ripple.type === 'group_deleted';
+
+                        return (
+                            <div
+                                key={ripple.id}
+                                className={`ripple-item ${isUnread ? 'unread' : ''}`}
+                                onClick={() => isGroupDeleted ? openGroupDeletedModal(ripple) : markOneRead(ripple)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                {isUnread && <div className="ripple-unread-dot" />}
+
+                                <div className="ripple-icon" style={{ background: `${display.color}20`, color: display.color }}>
+                                    {ripple.sender?.profile_picture ? (
+                                        <img src={ripple.sender.profile_picture} alt="" className="ripple-avatar" />
+                                    ) : (
+                                        <span className="ripple-icon-emoji">{display.icon}</span>
+                                    )}
+                                </div>
+
+                                <div className="ripple-content">
+                                    <p className="ripple-text">
+                                        {ripple.sender ? (
+                                            <Link href={`/users/${ripple.sender.id}`} className="ripple-sender" onClick={e => e.stopPropagation()}>
+                                                {ripple.sender.name}
+                                            </Link>
+                                        ) : (
+                                            <span className="ripple-sender">System</span>
+                                        )}
+                                        {' '}
+                                        {isGroupDeleted && ripple.data?.group_name
+                                            ? <span>School "<strong>{ripple.data.group_name}</strong>" was removed</span>
+                                            : display.label
+                                        }
+                                    </p>
+                                    <span className="ripple-time">{ripple.time_ago}</span>
+                                </div>
+
+                                {isGroupDeleted && (
+                                    <span className="ripple-detail-hint">View details →</span>
+                                )}
                             </div>
-                        </div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* Pagination */}
+            {ripples.links && ripples.links.length > 3 && (
+                <div className="ripples-pagination">
+                    {ripples.links.map((link, i) => (
+                        <Link
+                            key={i}
+                            href={link.url || '#'}
+                            className={`ripples-page-btn ${link.active ? 'active' : ''}`}
+                            dangerouslySetInnerHTML={{ __html: link.label }}
+                            preserveState
+                        />
                     ))}
                 </div>
-            </div>
-        </MainLayout>
+            )}
+
+            {/* Group Deleted Detail Modal */}
+            {selectedRipple && selectedRipple.type === 'group_deleted' && (
+                <>
+                    <div className="ripple-modal-overlay" onClick={() => setSelectedRipple(null)} />
+                    <div className="ripple-modal">
+                        <div className="ripple-modal-header">
+                            <h3 className="ripple-modal-title">
+                                <span className="flex items-center justify-center"><Building2 size={24} className="mr-2" /></span> School Removed
+                            </h3>
+                            <button className="ripple-modal-close" onClick={() => setSelectedRipple(null)}>✕</button>
+                        </div>
+                        <div className="ripple-modal-body">
+                            <div className="ripple-modal-field">
+                                <label>School Name</label>
+                                <p>{selectedRipple.data?.group_name || 'Unknown'}</p>
+                            </div>
+                            <div className="ripple-modal-field">
+                                <label>Reason</label>
+                                <p>{selectedRipple.data?.reason || 'No reason provided'}</p>
+                            </div>
+                            <div className="ripple-modal-field">
+                                <label>Removed By</label>
+                                <p>{selectedRipple.data?.admin_name || 'Admin'}</p>
+                            </div>
+                            <div className="ripple-modal-field">
+                                <label>Date</label>
+                                <p>{selectedRipple.data?.deleted_at
+                                    ? new Date(selectedRipple.data.deleted_at).toLocaleDateString('en-US', {
+                                        year: 'numeric', month: 'long', day: 'numeric',
+                                        hour: '2-digit', minute: '2-digit'
+                                    })
+                                    : selectedRipple.time_ago
+                                }</p>
+                            </div>
+                        </div>
+                        <div className="ripple-modal-footer">
+                            <Link href="/schools" className="ripple-modal-action">
+                                Browse Schools →
+                            </Link>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
     );
 }

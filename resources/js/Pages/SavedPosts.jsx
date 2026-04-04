@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/PostCard';
+import { Bookmark, FileText, BarChart2, Image as ImageIcon } from 'lucide-react';
 
 export default function SavedPosts({ bookmarks, collections = [] }) {
     const { auth } = usePage().props;
@@ -9,10 +10,10 @@ export default function SavedPosts({ bookmarks, collections = [] }) {
     const [bookmarkItems, setBookmarkItems] = useState(bookmarks?.data || []);
 
     const filters = [
-        { key: 'all', label: 'All Saved', icon: '📌' },
-        { key: 'posts', label: 'Posts', icon: '📝' },
-        { key: 'polls', label: 'Polls', icon: '📊' },
-        { key: 'media', label: 'Media', icon: '🖼️' },
+        { key: 'all', label: 'All Saved', icon: <Bookmark size={14} /> },
+        { key: 'posts', label: 'Posts', icon: <FileText size={14} /> },
+        { key: 'polls', label: 'Polls', icon: <BarChart2 size={14} /> },
+        { key: 'media', label: 'Media', icon: <ImageIcon size={14} /> },
     ];
 
     const filteredItems = bookmarkItems.filter(item => {

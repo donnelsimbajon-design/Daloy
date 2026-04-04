@@ -36,4 +36,9 @@ class Conversation extends Model
             ->withPivot('last_read_at', 'role')
             ->wherePivot('role', 'admin');
     }
+
+    public function reports()
+    {
+        return $this->morphMany(Report::class, 'reportable');
+    }
 }

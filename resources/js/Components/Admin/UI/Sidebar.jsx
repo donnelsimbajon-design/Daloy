@@ -1,19 +1,20 @@
 import { Link, usePage, router } from '@inertiajs/react';
 
+/* ── Map each nav item to required permission categories ── */
 const navItems = [
-    { id: 'dashboard',     label: 'Dashboard',     page: 'Admin/Dashboard',     route: '/admin/dashboard',     icon: 'grid' },
-    { id: 'users',         label: 'Users',          page: 'Admin/Users',          route: '/admin/users',          icon: 'users' },
-    { id: 'moderation',    label: 'Moderation',     page: 'Admin/Moderation',     route: '/admin/moderation',     icon: 'shield' },
-    { id: 'reports',       label: 'Reports',        page: 'Admin/Reports',        route: '/admin/reports',        icon: 'file' },
-    { id: 'groups',        label: 'Groups',         page: 'Admin/Groups',         route: '/admin/groups',         icon: 'group' },
-    { id: 'messages',      label: 'Messages',       page: 'Admin/Messages',       route: '/admin/messages',       icon: 'message' },
-    { id: 'analytics',     label: 'Analytics',      page: 'Admin/Analytics',      route: '/admin/analytics',      icon: 'chart' },
-    { id: 'activity',      label: 'Activity',       page: 'Admin/Activity',       route: '/admin/activity',       icon: 'activity' },
-    { id: 'live',          label: 'Live Monitor',   page: 'Admin/LiveMonitor',    route: '/admin/live',           icon: 'live' },
-    { id: 'announcements', label: 'Announcements',  page: 'Admin/Announcements',  route: '/admin/announcements',  icon: 'megaphone' },
-    { id: 'roles',         label: 'Roles',          page: 'Admin/Roles',          route: '/admin/roles',          icon: 'key' },
-    { id: 'settings',      label: 'Settings',       page: 'Admin/Settings',       route: '/admin/settings',       icon: 'settings' },
-    { id: 'logs',          label: 'Logs',           page: 'Admin/Logs',           route: '/admin/logs',           icon: 'log' },
+    { id: 'dashboard',     label: 'Dashboard',     page: 'Admin/Dashboard',     route: '/admin/dashboard',     icon: 'grid',      requires: null },
+    { id: 'users',         label: 'Users',          page: 'Admin/Users',          route: '/admin/users',          icon: 'users',     requires: 'users' },
+    { id: 'moderation',    label: 'Moderation',     page: 'Admin/Moderation',     route: '/admin/moderation',     icon: 'shield',    requires: 'content' },
+    { id: 'reports',       label: 'Reports',        page: 'Admin/Reports',        route: '/admin/reports',        icon: 'file',      requires: 'reports' },
+    { id: 'groups',        label: 'Groups',         page: 'Admin/Groups',         route: '/admin/groups',         icon: 'group',     requires: 'groups' },
+    { id: 'messages',      label: 'Messages',       page: 'Admin/Messages',       route: '/admin/messages',       icon: 'message',   requires: 'messages' },
+    { id: 'analytics',     label: 'Analytics',      page: 'Admin/Analytics',      route: '/admin/analytics',      icon: 'chart',     requires: 'analytics' },
+    { id: 'activity',      label: 'Activity',       page: 'Admin/Activity',       route: '/admin/activity',       icon: 'activity',  requires: 'logs' },
+    { id: 'live',          label: 'Live Monitor',   page: 'Admin/LiveMonitor',    route: '/admin/live',           icon: 'live',      requires: 'system' },
+    { id: 'announcements', label: 'Announcements',  page: 'Admin/Announcements',  route: '/admin/announcements',  icon: 'megaphone', requires: 'content' },
+    { id: 'roles',         label: 'Roles',          page: 'Admin/Roles',          route: '/admin/roles',          icon: 'key',       requires: 'system' },
+    { id: 'settings',      label: 'Settings',       page: 'Admin/Settings',       route: '/admin/settings',       icon: 'settings',  requires: 'settings' },
+    { id: 'logs',          label: 'Logs',           page: 'Admin/Logs',           route: '/admin/logs',           icon: 'log',       requires: 'logs' },
 ];
 
 const icons = {
@@ -93,10 +94,29 @@ const icons = {
     ),
 };
 
+/**
+ * Check if an admin has access to a nav item.
+ * - Super admins (permissions = ['*']) see everything.
+ * - `requires: null` means dashboard — always visible.
+ * - Otherwise, check if any permission key starts with the category prefix.
+ */
+function hasAccess(adminContext, requiredCategory) {
+    if (!requiredCategory) return true; // Dashboard always visible
+    if (!adminContext?.permissions) return false;
+    if (adminContext.is_super_admin || adminContext.permissions.includes('*')) return true;
+    // Check if any permission key matches or starts with the category
+    return adminContext.permissions.some(
+        p => p === requiredCategory || p.startsWith(requiredCategory + '.')
+    );
+}
+
 export default function Sidebar({ currentPage, isOpen, onNavClick }) {
-    const { auth } = usePage().props;
+    const { auth, admin_context } = usePage().props;
     const user = auth?.user;
     const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'SA';
+
+    // Filter nav items based on permissions
+    const visibleItems = navItems.filter(item => hasAccess(admin_context, item.requires));
 
     const handleLogout = (e) => {
         e.preventDefault();
@@ -111,7 +131,7 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
             </div>
 
             <nav className="adm-sidebar-nav">
-                {navItems.map((item) => (
+                {visibleItems.map((item) => (
                     <Link
                         key={item.id}
                         href={item.route}
@@ -134,7 +154,9 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
                     </div>
                     <div className="adm-admin-info">
                         <span className="adm-admin-name">{user?.name || 'Admin'}</span>
-                        <span className="adm-admin-role">Super Admin</span>
+                        <span className="adm-admin-role" style={{ color: admin_context?.role_color || '#888' }}>
+                            {admin_context?.role || 'Admin'}
+                        </span>
                     </div>
                 </div>
                 <button
@@ -160,5 +182,3 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
         </aside>
     );
 }
-
-

@@ -8,18 +8,29 @@ use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Report;
+use App\Models\Ripple;
 use App\Models\School;
 use App\Models\SystemSetting;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 
 class AdminController extends Controller
 {
-    // ─── DASHBOARD ───────────────────────────────────────────
-    public function dashboard()
+    private function authorizeAdmin(Request $request, string $permissionKey): void
     {
+        $admin = $request->user()->admin;
+        if (!$admin || !$admin->can($permissionKey)) {
+            abort(403, 'Unauthorized access to this administrative module.');
+        }
+    }
+
+    // ─── DASHBOARD ───────────────────────────────────────────
+    public function dashboard(Request $request)
+    {
+        // Dashboard is accessible to all admins
         $today = Carbon::today();
         $weekAgo = Carbon::now()->subWeek();
         $monthAgo = Carbon::now()->subMonth();
@@ -37,16 +48,31 @@ class AdminController extends Controller
         $totalUsers = User::count();
         $totalPosts = Post::count();
 
-        // Engagement data (last 30 days, grouped by day)
-        $engagementData = [];
-        for ($i = 29; $i >= 0; $i--) {
-            $date = Carbon::today()->subDays($i);
-            $engagementData[] = [
-                'label' => $date->format('M d'),
-                'posts' => Post::whereDate('created_at', $date)->count(),
-                'comments' => Comment::whereDate('created_at', $date)->count(),
-            ];
-        }
+        // Engagement data (last 30 days) — 2 queries instead of 60
+        $engagementData = \Illuminate\Support\Facades\Cache::remember('admin:engagement:30d', 600, function () {
+            $startDate = Carbon::today()->subDays(29);
+
+            $posts = Post::selectRaw("DATE(created_at) as date, COUNT(*) as count")
+                ->where('created_at', '>=', $startDate)
+                ->groupByRaw('DATE(created_at)')
+                ->pluck('count', 'date');
+
+            $comments = Comment::selectRaw("DATE(created_at) as date, COUNT(*) as count")
+                ->where('created_at', '>=', $startDate)
+                ->groupByRaw('DATE(created_at)')
+                ->pluck('count', 'date');
+
+            $data = [];
+            for ($i = 29; $i >= 0; $i--) {
+                $date = Carbon::today()->subDays($i)->format('Y-m-d');
+                $data[] = [
+                    'label' => Carbon::parse($date)->format('M d'),
+                    'posts' => $posts[$date] ?? 0,
+                    'comments' => $comments[$date] ?? 0,
+                ];
+            }
+            return $data;
+        });
 
         // Recent admin actions
         $recentActions = AdminLog::with('admin.user')
@@ -72,6 +98,38 @@ class AdminController extends Controller
                 'level' => 'warning',
             ]);
 
+        // ── Moderation-specific stats (for moderator dashboard) ──
+        $moderationStats = [
+            'pending_reports' => $pendingReports,
+            'resolved_today' => Report::where('status', 'resolved')
+                ->whereDate('updated_at', $today)->count(),
+            'dismissed_today' => Report::where('status', 'dismissed')
+                ->whereDate('updated_at', $today)->count(),
+            'total_reports_week' => Report::where('created_at', '>=', $weekAgo)->count(),
+            'flagged_conversations' => Report::where('status', 'pending')
+                ->where(fn($q) => $q->where('reportable_type', 'App\\Models\\Conversation')
+                    ->orWhere('reportable_type', 'App\\Models\\Message'))
+                ->count(),
+            'flagged_posts' => Report::where('status', 'pending')
+                ->where('reportable_type', 'App\\Models\\Post')
+                ->count(),
+        ];
+
+        // My recent actions (for the logged-in admin)
+        $myActions = [];
+        $admin = $request->user()?->admin;
+        if ($admin) {
+            $myActions = AdminLog::where('admin_id', $admin->id)
+                ->latest()
+                ->take(5)
+                ->get()
+                ->map(fn($log) => [
+                    'action' => $log->action,
+                    'target' => $log->metadata['target'] ?? '—',
+                    'time' => $log->created_at->diffForHumans(),
+                ]);
+        }
+
         return Inertia::render('Admin/Dashboard', [
             'stats' => [
                 'dau' => $dauThisWeek,
@@ -85,13 +143,16 @@ class AdminController extends Controller
             'engagementData' => $engagementData,
             'recentActions' => $recentActions,
             'alerts' => $alerts,
+            'moderationStats' => $moderationStats,
+            'myActions' => $myActions,
         ]);
     }
 
     // ─── USERS ───────────────────────────────────────────────
     public function users(Request $request)
     {
-        $query = User::query()->withCount(['posts', 'comments']);
+        $this->authorizeAdmin($request, 'users');
+        $query = User::query()->withCount(['posts', 'comments'])->with('admin');
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -103,11 +164,22 @@ class AdminController extends Controller
 
         if ($status = $request->input('status')) {
             if ($status === 'banned') {
-                $query->whereHas('admin', function ($q) {
-                    // placeholder: currently no status column on users
-                });
+                $query->whereIn('id', ModerationAction::where('target_type', 'user')
+                    ->where('action_type', 'ban_user')->pluck('target_id'));
+            } elseif ($status === 'suspended') {
+                $query->whereIn('id', ModerationAction::where('target_type', 'user')
+                    ->where('action_type', 'suspend_user')->pluck('target_id'));
             }
         }
+
+        // Batch-load statuses: 2 queries total instead of 2 per user
+        $bannedIds = ModerationAction::where('target_type', 'user')
+            ->where('action_type', 'ban_user')
+            ->pluck('target_id')->toArray();
+
+        $suspendedIds = ModerationAction::where('target_type', 'user')
+            ->where('action_type', 'suspend_user')
+            ->pluck('target_id')->toArray();
 
         $users = $query->latest()->paginate(15)->through(fn($user) => [
             'id' => $user->id,
@@ -115,7 +187,11 @@ class AdminController extends Controller
             'username' => $user->username,
             'email' => $user->email,
             'profile_picture' => $user->profile_picture,
-            'status' => $this->getUserStatus($user),
+            'status' => in_array($user->id, $bannedIds) ? 'banned'
+                      : (in_array($user->id, $suspendedIds) ? 'suspended' : 'active'),
+            'role' => $user->admin
+                ? ($user->admin->role === 'super_admin' ? 'admin' : $user->admin->role)
+                : 'user',
             'verified' => $user->email_verified_at !== null,
             'joined' => $user->created_at->format('M d, Y'),
             'posts_count' => $user->posts_count,
@@ -437,44 +513,230 @@ class AdminController extends Controller
     {
         $request->validate([
             'action' => 'required|in:delete,suspend,activate',
+            'reason' => 'nullable|string|max:500',
         ]);
 
         $admin = $request->user()->admin;
+        $adminName = $request->user()->name;
 
         if ($request->action === 'delete') {
+            // Collect member IDs before deletion
+            $memberIds = $school->members()->pluck('users.id')->toArray();
+            $schoolName = $school->name;
+            $reason = $request->reason ?? 'No reason provided';
+
+            // Create ripple notification for every member
+            $now = now();
+            $rippleRecords = array_map(fn($userId) => [
+                'user_id' => $userId,
+                'sender_id' => null,
+                'type' => 'group_deleted',
+                'notifiable_type' => 'App\\Models\\School',
+                'notifiable_id' => $school->id,
+                'data' => json_encode([
+                    'group_name' => $schoolName,
+                    'reason' => $reason,
+                    'admin_name' => $adminName,
+                    'deleted_at' => $now->toIso8601String(),
+                ]),
+                'read_at' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $memberIds);
+
+            // Batch insert ripples (max 500 at a time)
+            foreach (array_chunk($rippleRecords, 500) as $chunk) {
+                Ripple::insert($chunk);
+            }
+
+            // Delete the school
             $school->delete();
+
+            // Create moderation action
+            ModerationAction::create([
+                'admin_id' => $admin->id,
+                'action_type' => 'delete_group',
+                'target_type' => 'school',
+                'target_id' => $school->id,
+                'reason' => $reason,
+            ]);
         }
 
         AdminLog::create([
             'admin_id' => $admin->id,
             'action' => ucfirst($request->action) . ' Group',
             'ip_address' => $request->ip(),
-            'metadata' => ['target' => $school->name, 'target_id' => $school->id],
+            'metadata' => [
+                'target' => $school->name,
+                'target_id' => $school->id,
+                'reason' => $request->reason,
+                'members_notified' => isset($memberIds) ? count($memberIds) : 0,
+            ],
         ]);
 
         return back()->with('success', 'Group action applied.');
     }
 
     // ─── MESSAGES ────────────────────────────────────────────
-    public function messages()
+    public function messages(Request $request)
     {
+        $status = $request->input('status', 'all');
+
         // Only show reported conversations
-        $reportedConversations = Report::where('reportable_type', 'App\\Models\\Message')
-            ->orWhere('reportable_type', 'App\\Models\\Conversation')
-            ->with('reporter')
+        $query = Report::where(function ($q) {
+                $q->where('reportable_type', 'App\\Models\\Message')
+                  ->orWhere('reportable_type', 'App\\Models\\Conversation');
+            });
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $reportedConversations = $query
+            ->with(['reporter:id,name,username,profile_picture'])
             ->latest()
             ->paginate(15)
-            ->through(fn($r) => [
-                'id' => $r->id,
-                'reporter' => $r->reporter?->name ?? 'Unknown',
-                'reason' => $r->reason,
-                'status' => $r->status,
-                'date' => $r->created_at->format('M d, Y'),
-            ]);
+            ->through(function ($r) {
+                $data = [
+                    'id' => $r->id,
+                    'reporter' => $r->reporter?->name ?? 'Unknown',
+                    'reporter_username' => '@' . ($r->reporter?->username ?? 'unknown'),
+                    'reporter_avatar' => $r->reporter?->profile_picture,
+                    'reason' => $r->reason,
+                    'status' => $r->status,
+                    'date' => $r->created_at->format('M d, Y'),
+                    'time_ago' => $r->created_at->diffForHumans(),
+                    'reportable_type' => class_basename($r->reportable_type ?? ''),
+                    'reportable_id' => $r->reportable_id,
+                    'conversation' => null,
+                    'message_previews' => [],
+                    'participants' => [],
+                ];
+
+                // Load conversation details
+                if ($r->reportable_type === 'App\\Models\\Conversation') {
+                    $convo = \App\Models\Conversation::with('participants:id,name,username,profile_picture')
+                        ->find($r->reportable_id);
+                    if ($convo) {
+                        $data['conversation'] = [
+                            'id' => $convo->id,
+                            'type' => $convo->type,
+                            'name' => $convo->name,
+                        ];
+                        $data['participants'] = $convo->participants->map(fn($p) => [
+                            'id' => $p->id,
+                            'name' => $p->name,
+                            'username' => $p->username,
+                            'profile_picture' => $p->profile_picture,
+                        ])->toArray();
+
+                        // Get last 5 messages for preview
+                        $data['message_previews'] = $convo->messages()
+                            ->with('user:id,name')
+                            ->latest()
+                            ->take(5)
+                            ->get()
+                            ->reverse()
+                            ->values()
+                            ->map(fn($m) => [
+                                'id' => $m->id,
+                                'sender' => $m->user?->name ?? 'Deleted',
+                                'content' => \Illuminate\Support\Str::limit($m->content, 120),
+                                'time' => $m->created_at->format('H:i'),
+                            ])->toArray();
+                    }
+                }
+
+                return $data;
+            });
+
+        $counts = [
+            'total' => Report::where(function ($q) {
+                $q->where('reportable_type', 'App\\Models\\Message')
+                  ->orWhere('reportable_type', 'App\\Models\\Conversation');
+            })->count(),
+            'pending' => Report::where(function ($q) {
+                $q->where('reportable_type', 'App\\Models\\Message')
+                  ->orWhere('reportable_type', 'App\\Models\\Conversation');
+            })->where('status', 'pending')->count(),
+            'resolved' => Report::where(function ($q) {
+                $q->where('reportable_type', 'App\\Models\\Message')
+                  ->orWhere('reportable_type', 'App\\Models\\Conversation');
+            })->where('status', 'resolved')->count(),
+            'dismissed' => Report::where(function ($q) {
+                $q->where('reportable_type', 'App\\Models\\Message')
+                  ->orWhere('reportable_type', 'App\\Models\\Conversation');
+            })->where('status', 'dismissed')->count(),
+        ];
 
         return Inertia::render('Admin/Messages', [
             'reportedConversations' => $reportedConversations,
+            'counts' => $counts,
+            'currentStatus' => $status,
         ]);
+    }
+
+    /**
+     * Take action on a reported conversation.
+     */
+    public function messageReportAction(Request $request, Report $report)
+    {
+        $request->validate([
+            'action' => 'required|in:dismiss,resolve,warn,delete_conversation',
+            'admin_notes' => 'nullable|string|max:1000',
+        ]);
+
+        $admin = $request->user()->admin;
+
+        switch ($request->action) {
+            case 'dismiss':
+                $report->update([
+                    'status' => 'dismissed',
+                    'resolved_by' => $admin->id,
+                    'admin_notes' => $request->admin_notes,
+                ]);
+                break;
+
+            case 'resolve':
+                $report->update([
+                    'status' => 'resolved',
+                    'resolved_by' => $admin->id,
+                    'admin_notes' => $request->admin_notes,
+                ]);
+                break;
+
+            case 'delete_conversation':
+                if ($report->reportable_type === 'App\\Models\\Conversation') {
+                    \App\Models\Conversation::find($report->reportable_id)?->delete();
+                }
+                $report->update([
+                    'status' => 'resolved',
+                    'resolved_by' => $admin->id,
+                    'admin_notes' => $request->admin_notes ?? 'Conversation deleted by admin.',
+                ]);
+                ModerationAction::create([
+                    'admin_id' => $admin->id,
+                    'action_type' => 'delete_conversation',
+                    'target_type' => 'conversation',
+                    'target_id' => $report->reportable_id,
+                    'reason' => $request->admin_notes ?? $report->reason,
+                ]);
+                break;
+        }
+
+        AdminLog::create([
+            'admin_id' => $admin->id,
+            'action' => 'Message Report ' . ucfirst($request->action),
+            'ip_address' => $request->ip(),
+            'metadata' => [
+                'target' => 'Report #' . $report->id,
+                'conversation_id' => $report->reportable_id,
+                'action' => $request->action,
+                'notes' => $request->admin_notes,
+            ],
+        ]);
+
+        return back()->with('success', 'Report action applied.');
     }
 
     // ─── ANALYTICS ───────────────────────────────────────────
@@ -491,33 +753,54 @@ class AdminController extends Controller
         $totalUsers = User::count();
         $totalPosts = Post::count();
 
-        // Monthly user growth (last 12 months)
-        $userGrowth = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $userGrowth[] = [
-                'label' => $date->format('M'),
-                'count' => User::whereYear('created_at', $date->year)
-                    ->whereMonth('created_at', $date->month)
-                    ->count(),
-            ];
-        }
+        // Monthly user growth (last 12 months) — 1 query instead of 12
+        $userGrowth = \Illuminate\Support\Facades\Cache::remember('admin:user_growth:12m', 900, function () {
+            $startDate = Carbon::now()->subMonths(11)->startOfMonth();
 
-        // Report trends (last 12 months)
-        $reportTrends = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
-            $reportTrends[] = [
-                'label' => $date->format('M'),
-                'total' => Report::whereYear('created_at', $date->year)
-                    ->whereMonth('created_at', $date->month)
-                    ->count(),
-                'resolved' => Report::whereYear('created_at', $date->year)
-                    ->whereMonth('created_at', $date->month)
-                    ->where('status', 'resolved')
-                    ->count(),
-            ];
-        }
+            $monthly = User::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+                ->where('created_at', '>=', $startDate)
+                ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+                ->pluck('count', 'month');
+
+            $data = [];
+            for ($i = 11; $i >= 0; $i--) {
+                $date = Carbon::now()->subMonths($i);
+                $key = $date->format('Y-m');
+                $data[] = [
+                    'label' => $date->format('M'),
+                    'count' => $monthly[$key] ?? 0,
+                ];
+            }
+            return $data;
+        });
+
+        // Report trends (last 12 months) — 2 queries instead of 24
+        $reportTrends = \Illuminate\Support\Facades\Cache::remember('admin:report_trends:12m', 900, function () {
+            $startDate = Carbon::now()->subMonths(11)->startOfMonth();
+
+            $totalByMonth = Report::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+                ->where('created_at', '>=', $startDate)
+                ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+                ->pluck('count', 'month');
+
+            $resolvedByMonth = Report::selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count")
+                ->where('created_at', '>=', $startDate)
+                ->where('status', 'resolved')
+                ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+                ->pluck('count', 'month');
+
+            $data = [];
+            for ($i = 11; $i >= 0; $i--) {
+                $date = Carbon::now()->subMonths($i);
+                $key = $date->format('Y-m');
+                $data[] = [
+                    'label' => $date->format('M'),
+                    'total' => $totalByMonth[$key] ?? 0,
+                    'resolved' => $resolvedByMonth[$key] ?? 0,
+                ];
+            }
+            return $data;
+        });
 
         return Inertia::render('Admin/Analytics', [
             'metrics' => [
@@ -617,6 +900,102 @@ class AdminController extends Controller
             'admins' => $admins,
             'filters' => $request->only(['search', 'admin_filter']),
         ]);
+    }
+
+    // ─── ADMIN USER MANAGEMENT ──────────────────────────────
+    public function storeUser(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'username' => 'required|string|max:50|unique:users,username',
+            'password' => 'required|string|min:8',
+            'role' => 'nullable|in:user,moderator,admin',
+        ]);
+
+        $admin = $request->user()->admin;
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'username' => $request->username,
+            'password' => Hash::make($request->password),
+            'email_verified_at' => now(), // Admin-created users are auto-verified
+        ]);
+
+        // If role is admin, create admin record
+        if ($request->role === 'admin' || $request->role === 'moderator') {
+            Admin::create([
+                'user_id' => $user->id,
+                'role' => $request->role === 'admin' ? 'super_admin' : 'moderator',
+            ]);
+        }
+
+        ModerationAction::create([
+            'admin_id' => $admin->id,
+            'action_type' => 'create_user',
+            'target_type' => 'user',
+            'target_id' => $user->id,
+            'reason' => 'Admin-created account',
+        ]);
+
+        AdminLog::create([
+            'admin_id' => $admin->id,
+            'action' => 'Create User',
+            'ip_address' => $request->ip(),
+            'metadata' => [
+                'target' => "@{$user->username}",
+                'target_id' => $user->id,
+                'role' => $request->role ?? 'user',
+            ],
+        ]);
+
+        return back()->with('success', "User {$user->name} created successfully.");
+    }
+
+    public function changeUserRole(Request $request, User $user)
+    {
+        $request->validate([
+            'role' => 'required|in:user,moderator,admin',
+        ]);
+
+        $admin = $request->user()->admin;
+        $newRole = $request->role;
+        $oldRole = $user->admin ? ($user->admin->role === 'super_admin' ? 'admin' : $user->admin->role) : 'user';
+
+        if ($newRole === 'user') {
+            // Remove admin record if exists
+            Admin::where('user_id', $user->id)->delete();
+        } else {
+            // Create or update admin record
+            $adminRecord = Admin::firstOrCreate(
+                ['user_id' => $user->id],
+                ['role' => $newRole === 'admin' ? 'super_admin' : 'moderator']
+            );
+            $adminRecord->update(['role' => $newRole === 'admin' ? 'super_admin' : 'moderator']);
+        }
+
+        ModerationAction::create([
+            'admin_id' => $admin->id,
+            'action_type' => 'change_role',
+            'target_type' => 'user',
+            'target_id' => $user->id,
+            'reason' => "Role changed from {$oldRole} to {$newRole}",
+        ]);
+
+        AdminLog::create([
+            'admin_id' => $admin->id,
+            'action' => 'Change User Role',
+            'ip_address' => $request->ip(),
+            'metadata' => [
+                'target' => "@{$user->username}",
+                'target_id' => $user->id,
+                'old_role' => $oldRole,
+                'new_role' => $newRole,
+            ],
+        ]);
+
+        return back()->with('success', "{$user->name}'s role changed to {$newRole}.");
     }
 
     // ─── HELPER ──────────────────────────────────────────────
