@@ -6,7 +6,9 @@ import { Button } from '@/Components/shadcn/button';
 import { Input } from '@/Components/shadcn/input';
 import { Badge } from '@/Components/shadcn/badge';
 import { FileText, X } from 'lucide-react';
-
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/Components/shadcn/dropdown-menu';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/Components/shadcn/dialog';
+import { ScrollArea } from '@/Components/shadcn/scroll-area';
 function SearchBar({ value, onChange, placeholder }) {
     return (
         <div className="relative">
@@ -206,6 +208,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     const [attachment, setAttachment] = React.useState(null);
     const messagesEndRef = React.useRef(null);
     const fileInputRef = React.useRef(null);
+    const [mediaDrawerType, setMediaDrawerType] = React.useState(null);
     
     // Fetch live messages
     React.useEffect(() => {
@@ -216,6 +219,10 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                 if (isMounted) {
                     setMessages(res.data.data.reverse());
                     setLoading(false);
+                    if (chat.unread) {
+                        router.reload({ only: ['social'] });
+                        chat.unread = false;
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load generic chat:", err);
@@ -274,30 +281,57 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     };
 
     return (
-        <div className="flex flex-col h-[60vh] min-h-[400px] flex-1 animate-[slideInRight_0.2s_ease-out]">
+        <div className="flex flex-col h-[calc(100vh-6.5rem)] min-h-[400px] flex-1 animate-[slideInRight_0.2s_ease-out]">
             {/* Header */}
-            <div className="flex items-center gap-3 pb-4 border-b border-ocean-divider shrink-0">
-                <button 
-                    onClick={onBack}
-                    className="p-2 -ml-2 rounded-full hover:bg-ocean-surface/50 text-ocean-text-dim hover:text-ocean-text transition-colors"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
+            <div className="flex items-center justify-between pb-4 border-b border-ocean-divider shrink-0">
                 <div className="flex items-center gap-3">
-                    {chat.avatar ? (
-                        <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                        <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                            {chat.initial || chat.name.charAt(0)}
+                    <button 
+                        onClick={onBack}
+                        className="p-2 -ml-2 rounded-full hover:bg-ocean-surface/50 text-ocean-text-dim hover:text-ocean-text transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                    </button>
+                    <div className="flex items-center gap-3">
+                        {chat.avatar ? (
+                            <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        ) : (
+                            <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                                {chat.initial || chat.name?.charAt(0) || 'U'}
+                            </div>
+                        )}
+                        <div>
+                            <h3 className="text-sm font-bold text-ocean-text leading-tight">{chat.name}</h3>
+                            <p className="text-[10px] text-biolum font-medium">Active now</p>
                         </div>
-                    )}
-                    <div>
-                        <h3 className="text-sm font-bold text-ocean-text leading-tight">{chat.name}</h3>
-                        <p className="text-[10px] text-biolum font-medium">Active now</p>
                     </div>
                 </div>
+
+                {/* Info Dropdown */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="flex rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors">
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56 bg-ocean-card border border-ocean-border/80 text-ocean-text">
+                        <DropdownMenuLabel className="text-[10px] uppercase font-bold tracking-widest opacity-50">Conversation details</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="bg-ocean-border/50" />
+                        <DropdownMenuItem onClick={() => setMediaDrawerType('images')} className="cursor-pointer text-sm font-semibold hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                            Images
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setMediaDrawerType('videos')} className="cursor-pointer text-sm font-semibold hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                            Videos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setMediaDrawerType('documents')} className="cursor-pointer text-sm font-semibold hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                            Documents
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </div>
 
             {/* Messages Area */}
@@ -313,9 +347,33 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                         const isSelf = msg.user_id === currentUser.id;
                         return (
                             <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
-                                <div className={`max-w-[85%] rounded-[18px] px-4 py-2.5 ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`}>
+                                <div className={`max-w-[85%] relative text-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-ocean-divider-subtle ${isSelf ? 'bg-biolum text-white rounded-[18px] rounded-tr-sm self-end' : 'bg-ocean-card/60 text-ocean-text rounded-[18px] rounded-tl-sm self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
+                                    {msg.story_id && (
+                                        <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
+                                            {msg.story ? (
+                                                <>
+                                                    <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
+                                                        {msg.story.type === 'video' ? (
+                                                            <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
+                                                        ) : (
+                                                            <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}'s story</span>
+                                                        {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="flex-1 py-1 flex items-center gap-1.5">
+                                                    <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                    <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     {msg.media_url && (
-                                        <div className="mb-2 w-full rounded-xl overflow-hidden border border-black/10 bg-black/10">
+                                        <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl border border-black/10' : 'rounded-[14px] ' + (isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
                                             {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
                                                 <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover" alt="attachment" />
                                             ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
@@ -363,27 +421,109 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                         </button>
                     </div>
                 )}
-                <div className="flex items-center gap-2">
-                    <input type="file" ref={fileInputRef} accept="image/*,video/*,.pdf,.doc,.docx,.txt,.zip" className="hidden" onChange={(e) => { if(e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors shrink-0">
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                    </button>
+                <div className="flex items-center gap-1.5 bg-ocean-surface/40 border border-ocean-border rounded-full px-1.5 py-1.5 focus-within:border-biolum/50 focus-within:ring-1 focus-within:ring-biolum/30 transition-all shadow-[0_1px_2px_rgba(0,0,0,0.05)] w-full">
+                    <input type="file" ref={fileInputRef} className="hidden" onChange={(e) => { if(e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="w-8 h-8 rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-black/10 transition-colors shrink-0">
+                                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-48 bg-ocean-card border border-ocean-border/80">
+                            <DropdownMenuLabel className="text-ocean-text text-[10px] uppercase font-bold tracking-widest opacity-50">Attach File</DropdownMenuLabel>
+                            <DropdownMenuSeparator className="bg-ocean-border/50" />
+                            <DropdownMenuItem onClick={() => { fileInputRef.current.accept = 'image/*'; fileInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                <svg className="w-4 h-4 text-ocean-text-dim shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                Photo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { fileInputRef.current.accept = 'video/*'; fileInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                <svg className="w-4 h-4 text-ocean-text-dim shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                Video
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { fileInputRef.current.accept = '.pdf,.doc,.docx,.txt,.zip'; fileInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                <svg className="w-4 h-4 text-ocean-text-dim shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                Document
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <input 
                         type="text" 
                         value={messageText}
                         onChange={e => setMessageText(e.target.value)}
-                        placeholder="Type a message..."
-                        className="flex-1 bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all placeholder:text-ocean-text-dim"
+                        placeholder="Message..."
+                        className="flex-1 min-w-0 bg-transparent border-none px-2 py-1 text-[13px] text-ocean-text focus:outline-none focus:ring-0 placeholder:text-ocean-text-dim"
                     />
                     <button 
                         type="submit"
                         disabled={!messageText.trim() && !attachment}
-                        className="p-2 rounded-full text-biolum hover:bg-biolum/10 disabled:opacity-50 disabled:hover:bg-transparent transition-colors shrink-0"
+                        className="w-8 h-8 rounded-full bg-biolum text-white hover:bg-biolum-bright disabled:opacity-50 disabled:hover:bg-biolum transition-colors flex items-center justify-center shrink-0 shadow-[0_1px_2px_rgba(25,25,112,0.2)]"
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
+                        <svg className="w-3.5 h-3.5 ml-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
                     </button>
                 </div>
             </form>
+
+            <Dialog open={!!mediaDrawerType} onOpenChange={(open) => !open && setMediaDrawerType(null)}>
+                <DialogContent className="max-w-2xl bg-ocean-card border-ocean-border text-ocean-text">
+                    <DialogHeader className="border-b border-ocean-border pb-4">
+                        <DialogTitle className="capitalize font-bold flex items-center gap-2">{mediaDrawerType}</DialogTitle>
+                        <DialogDescription className="text-xs text-ocean-text-dim">Browse shared {mediaDrawerType} in this conversation.</DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-[50vh] pr-4 mt-2">
+                        {(() => {
+                            const sharedMedia = messages.filter(m => m.media_url);
+                            const images = sharedMedia.filter(m => m.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || m.media_url.startsWith('blob:'));
+                            const videos = sharedMedia.filter(m => m.media_url.match(/\.(mp4|webm|mov)$/i));
+                            const docs = sharedMedia.filter(m => !m.media_url.match(/\.(jpeg|jpg|gif|png|webp|mp4|webm|mov)$/i) && !m.media_url.startsWith('blob:'));
+                            
+                            let targetMedia = [];
+                            if (mediaDrawerType === 'images') targetMedia = images;
+                            else if (mediaDrawerType === 'videos') targetMedia = videos;
+                            else if (mediaDrawerType === 'documents') targetMedia = docs;
+
+                            if (targetMedia.length === 0) {
+                                return <div className="py-16 text-center text-sm font-semibold text-ocean-text-dim opacity-50">No {mediaDrawerType} shared yet.</div>;
+                            }
+
+                            if (mediaDrawerType === 'images') {
+                                return (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                        {targetMedia.map(m => (
+                                            <a href={m.media_url} target="_blank" key={m.id} className="aspect-square rounded-xl overflow-hidden bg-black/20 hover:ring-2 hover:ring-biolum transition-all shadow-md group">
+                                                <img src={m.media_url} className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal opacity-80 group-hover:opacity-100 transition-all" />
+                                            </a>
+                                        ))}
+                                    </div>
+                                );
+                            } else if (mediaDrawerType === 'videos') {
+                                return (
+                                    <div className="flex flex-col gap-4">
+                                        {targetMedia.map(m => (
+                                            <video key={m.id} src={m.media_url} controls className="w-full rounded-xl bg-black/20 border border-ocean-border shadow-md" />
+                                        ))}
+                                    </div>
+                                );
+                            } else {
+                                return (
+                                    <div className="flex flex-col gap-2">
+                                        {targetMedia.map(m => (
+                                            <a href={m.media_url} target="_blank" key={m.id} className="flex items-center gap-4 p-4 bg-ocean-surface border border-ocean-border rounded-xl hover:border-biolum/50 shadow-sm transition-all group">
+                                                <div className="p-3 bg-biolum/10 text-biolum rounded-lg group-hover:bg-biolum group-hover:text-white transition-colors shrink-0">
+                                                    <FileText size={20} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-bold text-sm truncate text-ocean-text group-hover:text-biolum transition-colors cursor-pointer">{m.media_url.split('/').pop() || `Document_${m.id}`}</p>
+                                                    <p className="text-[10px] uppercase tracking-widest text-ocean-text-dim mt-0.5">Click to view/download</p>
+                                                </div>
+                                            </a>
+                                        ))}
+                                    </div>
+                                );
+                            }
+                        })()}
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
@@ -521,6 +661,8 @@ function NotificationsPanel() {
         friend: 'bg-blue-500',
         follow: 'bg-emerald-500',
         like: 'bg-rose-500',
+        story_like: 'bg-rose-500',
+        story_reply: 'bg-emerald-600',
         comment: 'bg-amber-500',
         share: 'bg-purple-500',
         mention: 'bg-cyan-500',
@@ -549,17 +691,24 @@ function NotificationsPanel() {
                         onClick={() => navigateToTarget(notif)}
                         className={`flex items-start gap-3 p-3 rounded-xl transition-colors cursor-pointer group/notif ${notif.is_unread ? 'bg-biolum/10 border border-biolum/20' : 'hover:bg-ocean-surface/30'}`}
                     >
-                        <div className="relative shrink-0">
-                            {notif.avatar ? (
-                                <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover mt-0.5" />
-                            ) : (
-                                <div className={`mt-0.5 w-8 h-8 flex justify-center items-center rounded-full ${typeColors[notif.type] || 'bg-biolum'}`} />
-                            )}
-                            {notif.is_unread && (
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-biolum border-2 border-ocean-card rounded-full" />
+                        <div className="relative shrink-0 flex items-center gap-2">
+                            <div className="relative">
+                                {notif.avatar ? (
+                                    <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover mt-0.5" />
+                                ) : (
+                                    <div className={`mt-0.5 w-8 h-8 flex justify-center items-center rounded-full ${typeColors[notif.type] || 'bg-biolum'}`} />
+                                )}
+                                {notif.is_unread && (
+                                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-biolum border-2 border-ocean-card rounded-full" />
+                                )}
+                            </div>
+                            {(notif.type === 'story_like' || notif.type === 'story_reply') && notif.data?.story_image && (
+                                <div className="w-8 h-10 rounded overflow-hidden shadow-sm shrink-0 bg-black/20">
+                                    <img src={notif.data.story_image} alt="Story" className="w-full h-full object-cover" />
+                                </div>
                             )}
                         </div>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-1 flex flex-col justify-center">
                             <p className={`text-xs leading-relaxed ${notif.is_unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim/90'}`}>
                                 <span className={`font-bold ${notif.is_unread ? 'text-ocean-text' : 'text-ocean-text'}`}>{notif.user}</span>{' '}
                                 {notif.action}

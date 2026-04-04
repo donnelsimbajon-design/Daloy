@@ -9,6 +9,8 @@ export default function CreatePostModal({ isOpen, onClose }) {
     const [mediaPreviews, setMediaPreviews] = useState([]);
     const [showPollBuilder, setShowPollBuilder] = useState(false);
     const [showCwInput, setShowCwInput] = useState(false);
+    const [showVisMenu, setShowVisMenu] = useState(false);
+    const [showVelMenu, setShowVelMenu] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm({
         content: '',
@@ -167,9 +169,9 @@ export default function CreatePostModal({ isOpen, onClose }) {
             />
 
             {/* Modal */}
-            <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-6">
+            <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-6" onClick={() => { setShowVisMenu(false); setShowVelMenu(false); }}>
                 <div
-                    className="w-full max-w-[600px] h-full max-h-[85vh] bg-ocean-card border border-ocean-border sm:rounded-3xl rounded-2xl shadow-2xl flex flex-col animate-in"
+                    className="w-full max-w-[600px] h-full max-h-[85vh] bg-ocean-card border border-ocean-border sm:rounded-3xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_0_40px_rgba(255,255,255,0.06)] flex flex-col animate-in"
                     onClick={(e) => e.stopPropagation()}
                     style={{ animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
                 >
@@ -192,7 +194,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                             type="button"
                             onClick={(e) => document.getElementById('actual-submit-btn').click()}
                             disabled={processing || (!data.content.trim() && data.media.length === 0 && !showPollBuilder)}
-                            className="px-5 py-1.5 rounded-full text-[13px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all disabled:opacity-30 disabled:cursor-not-allowed sm:hidden block"
+                            className="px-5 py-1.5 rounded-full text-[13px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent sm:hidden block"
                         >
                             Post
                         </button>
@@ -215,25 +217,38 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 <div className="flex-1 pt-1">
                                     <div className="flex items-center gap-1.5 relative group">
                                         <p className="text-[15px] font-bold text-ocean-text leading-none">{user?.name || 'You'}</p>
-                                        <div className="flex items-center gap-1 bg-ocean-surface/50 hover:bg-ocean-surface/80 rounded-full px-2 py-1 cursor-pointer transition-colors relative">
-                                            {data.visibility === 'public' && <Globe2 className="w-3.5 h-3.5 text-biolum" />}
-                                            {data.visibility === 'friends' && <Users2 className="w-3.5 h-3.5 text-biolum" />}
-                                            {data.visibility === 'close_friends' && <Heart className="w-3.5 h-3.5 text-rose-400" />}
-                                            {data.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-ocean-text-dim" />}
-                                            <select
-                                                value={data.visibility}
-                                                onChange={(e) => setData('visibility', e.target.value)}
-                                                className="bg-transparent border-none text-biolum text-xs font-bold py-0 pl-0 pr-4 focus:ring-0 cursor-pointer appearance-none outline-none leading-none relative z-10"
-                                            >
-                                                <option value="public">Public</option>
-                                                <option value="friends">Friends</option>
-                                                <option value="close_friends">Close</option>
-                                                <option value="private">Private</option>
-                                            </select>
-                                            {/* Custom select arrow */}
-                                            <svg className="w-3 h-3 text-ocean-text-dim absolute right-2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                            </svg>
+                                        <div className="relative" onClick={(e) => { e.stopPropagation(); setShowVisMenu(!showVisMenu); setShowVelMenu(false); }}>
+                                            <div className="flex items-center gap-1 bg-ocean-surface/50 hover:bg-ocean-surface/80 rounded-full px-2 py-1 cursor-pointer transition-colors relative z-10 w-auto">
+                                                {data.visibility === 'public' && <Globe2 className="w-3.5 h-3.5 text-biolum" />}
+                                                {data.visibility === 'followers' && <Users2 className="w-3.5 h-3.5 text-biolum" />}
+                                                {data.visibility === 'close_friends' && <Heart className="w-3.5 h-3.5 text-rose-400" />}
+                                                {data.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-ocean-text-dim" />}
+                                                <span className="text-biolum text-xs font-bold pl-0 pr-1 select-none">
+                                                    {visibilityOptions.find(o => o.value === data.visibility)?.label}
+                                                </span>
+                                                <svg className={`w-3 h-3 text-ocean-text-dim transition-transform ${showVisMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </div>
+
+                                            {showVisMenu && (
+                                                <div className="absolute top-full left-0 mt-1 w-36 bg-ocean-deep border border-ocean-border rounded-xl shadow-xl overflow-hidden z-[100] py-1">
+                                                    {visibilityOptions.map(opt => (
+                                                        <button
+                                                            type="button"
+                                                            key={opt.value}
+                                                            className={`w-full text-left px-3 py-2 hover:bg-ocean-surface transition-colors flex items-center gap-2 ${data.visibility === opt.value ? 'bg-ocean-surface/50 font-bold text-ocean-text' : 'text-ocean-text-dim font-medium'}`}
+                                                            onClick={(e) => { e.stopPropagation(); setData('visibility', opt.value); setShowVisMenu(false); }}
+                                                        >
+                                                            {opt.value === 'public' && <Globe2 className="w-3.5 h-3.5" />}
+                                                            {opt.value === 'followers' && <Users2 className="w-3.5 h-3.5" />}
+                                                            {opt.value === 'close_friends' && <Heart className="w-3.5 h-3.5" />}
+                                                            {opt.value === 'private' && <Lock className="w-3.5 h-3.5" />}
+                                                            <span className="text-[13px]">{opt.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     
@@ -417,23 +432,36 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 </button>
                                 
                                 {/* Flow Velocity Tool */}
-                                <div className="ml-2 relative flex items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-2.5 pr-2 py-1 transition-colors">
-                                    {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-orange-400" />}
-                                    {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-biolum" />}
-                                    {data.flow_velocity === 'low' && <Snail className="w-3.5 h-3.5 text-ocean-text-dim" />}
-                                    <select
-                                        value={data.flow_velocity}
-                                        onChange={(e) => setData('flow_velocity', e.target.value)}
-                                        className="appearance-none bg-transparent hover:bg-transparent border-none text-ocean-text-dim text-[11px] font-bold p-0 pr-3 outline-none focus:ring-0 cursor-pointer relative z-10"
-                                    >
-                                        <option value="high">Fast</option>
-                                        <option value="steady">Steady</option>
-                                        <option value="low">Slow</option>
-                                    </select>
-                                    {/* Custom select arrow */}
-                                    <svg className="w-2.5 h-2.5 text-ocean-text-dim absolute right-1.5 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-                                    </svg>
+                                <div className="ml-2 relative" onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}>
+                                    <div className="flex items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-2.5 pr-2 py-1 transition-colors cursor-pointer relative z-10">
+                                        {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-orange-400" />}
+                                        {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-biolum" />}
+                                        {data.flow_velocity === 'low' && <Snail className="w-3.5 h-3.5 text-ocean-text-dim" />}
+                                        <span className="text-ocean-text-dim text-[11px] font-bold pr-1 select-none">
+                                            {velocityOptions.find(o => o.value === data.flow_velocity)?.label}
+                                        </span>
+                                        <svg className={`w-2.5 h-2.5 text-ocean-text-dim transition-transform ${showVelMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+
+                                    {showVelMenu && (
+                                        <div className="absolute bottom-full left-0 mb-1 w-32 bg-ocean-deep border border-ocean-border rounded-xl shadow-xl overflow-hidden z-[100] py-1">
+                                            {velocityOptions.map(opt => (
+                                                <button
+                                                    type="button"
+                                                    key={opt.value}
+                                                    className={`w-full text-left px-3 py-2 hover:bg-ocean-surface transition-colors flex items-center gap-2 ${data.flow_velocity === opt.value ? 'bg-ocean-surface/50 font-bold text-ocean-text' : 'text-ocean-text-dim font-medium'}`}
+                                                    onClick={(e) => { e.stopPropagation(); setData('flow_velocity', opt.value); setShowVelMenu(false); }}
+                                                >
+                                                    {opt.value === 'high' && <Flame className="w-3 h-3 text-orange-400" />}
+                                                    {opt.value === 'steady' && <Waves className="w-3 h-3 text-biolum" />}
+                                                    {opt.value === 'low' && <Snail className="w-3 h-3 text-ocean-text-dim" />}
+                                                    <span className="text-[12px]">{opt.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             
@@ -448,7 +476,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                     id="actual-submit-btn"
                                     type="submit"
                                     disabled={processing || (!data.content.trim() && data.media.length === 0 && !showPollBuilder)}
-                                    className="px-4 sm:px-6 py-2 rounded-full text-[14px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed shadow-md hidden sm:flex items-center gap-1.5"
+                                    className="px-4 sm:px-6 py-2 rounded-full text-[14px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all duration-200 disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent shadow-md hidden sm:flex items-center gap-1.5"
                                 >
                                     {processing ? '...' : (
                                         <>

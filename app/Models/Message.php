@@ -9,7 +9,7 @@ class Message extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['conversation_id', 'user_id', 'content', 'media_url', 'read_at', 'reply_to_id', 'deleted_for_everyone_at'];
+    protected $fillable = ['conversation_id', 'user_id', 'content', 'media_url', 'read_at', 'reply_to_id', 'deleted_for_everyone_at', 'story_id'];
 
     protected function casts(): array
     {
@@ -17,6 +17,11 @@ class Message extends Model
             'read_at' => 'datetime',
             'deleted_for_everyone_at' => 'datetime',
         ];
+    }
+
+    public function story()
+    {
+        return $this->belongsTo(Story::class);
     }
 
     public function conversation()

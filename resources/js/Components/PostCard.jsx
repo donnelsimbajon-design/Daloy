@@ -167,11 +167,11 @@ export default function PostCard({ post }) {
     };
 
     return (
-        <div className="bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider overflow-hidden hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
+        <div className="bg-ocean-card rounded-2xl border border-ocean-border overflow-hidden transition-all duration-200 group hover:-translate-y-px">
 
             {/* Pinned Badge */}
             {post.is_pinned && (
-                <div className="px-4 pt-2 flex items-center gap-1.5 text-[11px] text-amber-400/80 font-bold">
+                <div className="px-4 pt-2 flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400/80 font-bold">
                     <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                     Pinned Post
                 </div>
@@ -191,7 +191,7 @@ export default function PostCard({ post }) {
             <div className="flex items-center justify-between px-4 pt-3 pb-0">
                 <div className="flex items-center gap-3">
                     <Link href={`/users/${author.id}`} className="shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+                        <div className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text font-bold text-sm ring-1 ring-ocean-border overflow-hidden hover:ring-biolum/20 transition-all">
                             {author.profile_picture ? (
                                 <img src={author.profile_picture} alt={author.name} className="w-full h-full object-cover" />
                             ) : initials}
@@ -234,7 +234,7 @@ export default function PostCard({ post }) {
                     </button>
 
                     {showMenu && (
-                        <div className="absolute right-0 top-full mt-1 w-44 bg-ocean-deep border border-ocean-border rounded-xl overflow-hidden z-20 shadow-xl">
+                        <div className="absolute right-0 top-full mt-1 w-44 bg-ocean-card border border-ocean-border rounded-xl overflow-hidden z-20" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
                             {isOwner && (
                                 <>
                                     <button onClick={() => { setIsEditing(true); setShowMenu(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors">
@@ -245,7 +245,7 @@ export default function PostCard({ post }) {
                                         <svg className="w-4 h-4" fill={post.is_pinned ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
                                         {post.is_pinned ? 'Unpin Post' : 'Pin Post'}
                                     </button>
-                                    <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors">
+                                    <button onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:bg-rose-500/10 transition-colors">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                                         Delete Post
                                     </button>
@@ -264,8 +264,8 @@ export default function PostCard({ post }) {
 
             {/* Content Warning Overlay */}
             {post.has_content_warning && !cwRevealed && (
-                <div className="mx-4 mt-3 mb-1 p-4 bg-ocean-surface/60 border border-amber-500/20 rounded-xl text-center">
-                    <div className="flex items-center justify-center gap-2 text-amber-400 text-sm font-bold mb-1">
+                <div className="mx-4 mt-3 mb-1 p-4 bg-ocean-surface/60 border border-amber-500/30 dark:border-amber-500/20 rounded-xl text-center">
+                    <div className="flex items-center justify-center gap-2 text-amber-600 dark:text-amber-400 text-sm font-bold mb-1">
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
                         Content Warning
                     </div>
@@ -304,7 +304,7 @@ export default function PostCard({ post }) {
                                 </select>
                                 <div className="flex-1" />
                                 <button onClick={() => { setIsEditing(false); setEditContent(post.content || ''); }} className="px-3 py-1.5 text-xs font-medium text-ocean-text-muted hover:text-ocean-text bg-ocean-surface border border-ocean-border rounded-lg transition-colors">Cancel</button>
-                                <button onClick={handleUpdate} className="px-4 py-1.5 text-xs font-bold text-ocean-text bg-biolum rounded-lg transition-all">Save</button>
+                                <button onClick={handleUpdate} className="px-4 py-1.5 text-xs font-bold text-white bg-biolum rounded-lg transition-all">Save</button>
                             </div>
                         </div>
                     ) : (
@@ -390,34 +390,44 @@ export default function PostCard({ post }) {
             {/* Media Gallery */}
             {mediaItems.length > 0 && (!post.has_content_warning || cwRevealed) && (
                 <div className="px-4 pb-3">
-                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1' :
-                            mediaItems.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[4/3] sm:aspect-[16/9]' :
+                    {mediaItems.length === 1 ? (
+                        <div className="rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-deep w-full flex justify-center items-center relative max-h-[600px]">
+                            {mediaItems[0].type === 'video' ? (
+                                <video src={mediaItems[0].url} className="w-full max-h-[600px] object-contain" controls muted />
+                            ) : (
+                                <img src={mediaItems[0].url} alt="Post media" className="w-full h-auto max-h-[600px] object-contain" />
+                            )}
+                            {mediaItems[0].type !== 'video' && <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />}
+                        </div>
+                    ) : (
+                        <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${
+                                mediaItems.length === 2 ? 'grid-cols-2 aspect-[4/3] sm:aspect-[16/9]' :
                                 mediaItems.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3] sm:aspect-[16/9]' :
-                                    'grid-cols-2 grid-rows-2 aspect-[4/3]'
-                        }`}>
-                        {mediaItems.slice(0, 4).map((media, index) => (
-                            <div
-                                key={media.id || index}
-                                className={`relative w-full h-full bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''
-                                    } ${mediaItems.length === 1 ? 'max-h-[600px]' : 'min-h-[120px]'}`}
-                            >
-                                {media.type === 'video' ? (
-                                    <video src={media.url} className={`w-full h-full object-contain ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`} style={{ background: 'linear-gradient(135deg, var(--color-ocean-surface) 0%, var(--color-ocean-deep) 100%)' }} controls muted />
-                                ) : (
-                                    <img src={media.url} alt="Post media" className={`w-full h-full object-cover ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`} />
-                                )}
-                                {media.type !== 'video' && <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />}
-                            </div>
-                        ))}
-                    </div>
+                                'grid-cols-2 grid-rows-2 aspect-[4/3]'
+                            }`}>
+                            {mediaItems.slice(0, 4).map((media, index) => (
+                                <div
+                                    key={media.id || index}
+                                    className={`relative w-full h-full bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''}`}
+                                >
+                                    {media.type === 'video' ? (
+                                        <video src={media.url} className="absolute inset-0 w-full h-full object-cover" controls muted />
+                                    ) : (
+                                        <img src={media.url} alt="Post media" className="absolute inset-0 w-full h-full object-cover" />
+                                    )}
+                                    {media.type !== 'video' && <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-ocean-deep/30 to-transparent pointer-events-none" />}
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
             {/* Fallback: single image from old format */}
             {mediaItems.length === 0 && post.media_urls && post.media_urls.length > 0 && (!post.has_content_warning || cwRevealed) && (
                 <div className="px-4 pb-3">
-                    <div className="rounded-[16px] overflow-hidden border border-ocean-divider relative shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <img src={post.media_urls[0]} alt="Post media" className="w-full h-40 sm:h-56 object-cover group-hover:scale-[1.02] transition-transform duration-500" />
+                    <div className="rounded-[16px] overflow-hidden bg-ocean-deep border border-ocean-divider relative shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex justify-center items-center max-h-[600px]">
+                        <img src={post.media_urls[0]} alt="Post media" className="w-full h-auto max-h-[600px] object-contain group-hover:scale-[1.02] transition-transform duration-500" />
                         <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />
                     </div>
                 </div>
@@ -427,17 +437,17 @@ export default function PostCard({ post }) {
             {showDeleteConfirm && (
                 <div className="px-4 pb-3">
                     <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-                        <p className="text-sm text-rose-300 font-medium mb-2">Delete this post permanently?</p>
+                        <p className="text-sm text-rose-700 dark:text-rose-300 font-medium mb-2">Delete this post permanently?</p>
                         <div className="flex gap-2">
                             <button onClick={() => setShowDeleteConfirm(false)} className="px-3 py-1.5 text-xs font-medium text-ocean-text-muted bg-ocean-surface border border-ocean-border rounded-lg hover:text-ocean-text transition-colors">Cancel</button>
-                            <button onClick={handleDelete} className="px-3 py-1.5 text-xs font-bold text-ocean-text bg-rose-600 border border-rose-500 rounded-lg hover:bg-rose-700 transition-colors">Delete</button>
+                            <button onClick={handleDelete} className="px-3 py-1.5 text-xs font-bold text-white bg-rose-600 border border-rose-500 rounded-lg hover:bg-rose-700 transition-colors">Delete</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
+            <div className="px-4 py-3 border-t border-ocean-divider">
                 <div className="flex items-center justify-between">
                     <PostActions
                         reactionsCount={reactionsCount}

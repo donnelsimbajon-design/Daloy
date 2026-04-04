@@ -17,8 +17,25 @@ class Story extends Model
         'visibility',
     ];
 
+    protected function casts(): array
+    {
+        return [
+            'expires_at' => 'datetime',
+        ];
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function views()
+    {
+        return $this->hasMany(StoryView::class);
+    }
+
+    public function reactions()
+    {
+        return $this->morphMany(Reaction::class, 'reactable');
     }
 }

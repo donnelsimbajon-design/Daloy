@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Admin;
 use App\Models\ModerationAction;
 use App\Models\User;
+use App\Models\Story;
+use App\Models\Post;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +18,7 @@ class UserController extends BaseAdminController
     {
         $this->authorizeAdmin($request, 'users');
 
-        $query = User::query()->withCount(['posts', 'comments'])->with('admin');
+        $query = User::query()->withCount(['posts', 'comments', 'stories'])->with('admin');
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -59,6 +61,7 @@ class UserController extends BaseAdminController
             'joined' => $user->created_at->format('M d, Y'),
             'posts_count' => $user->posts_count,
             'comments_count' => $user->comments_count,
+            'stories_count' => $user->stories_count,
         ]);
 
         $totalUsers = User::count();
@@ -69,6 +72,86 @@ class UserController extends BaseAdminController
             'totalUsers' => $totalUsers,
             'activeConnections' => $activeConnections,
             'filters' => $request->only(['search', 'status']),
+        ]);
+    }
+
+    /**
+     * AJAX endpoint: Load a user's posts + stories for admin content review.
+     * GET /admin/users/{user}/content
+     */
+    public function showContent(Request $request, User $user)
+    {
+        $this->authorizeAdmin($request, 'users');
+
+        // ── Posts with reactions count, comments (with commenter info), and media ──
+        $posts = $user->posts()
+            ->withCount([
+                'reactions',
+                'comments',
+                'reactions as likes_count' => fn($q) => $q->where('type', 'like'),
+            ])
+            ->with([
+                'media:id,post_id,type,url,thumbnail_url',
+                'comments' => function ($q) {
+                    $q->with('user:id,name,username,profile_picture')
+                      ->latest()
+                      ->take(20);
+                },
+            ])
+            ->latest()
+            ->take(50)
+            ->get()
+            ->map(fn($post) => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'media' => $post->media->map(fn($m) => [
+                    'type' => $m->type,
+                    'url' => $m->url,
+                ]),
+                'visibility' => $post->visibility,
+                'created_at' => $post->created_at->format('M d, Y h:i A'),
+                'reactions_count' => $post->reactions_count,
+                'likes_count' => $post->likes_count,
+                'comments_count' => $post->comments_count,
+                'has_content_warning' => $post->has_content_warning,
+                'content_warning_label' => $post->content_warning_label,
+                'comments' => $post->comments->map(fn($c) => [
+                    'id' => $c->id,
+                    'content' => $c->content,
+                    'user' => $c->user ? [
+                        'id' => $c->user->id,
+                        'name' => $c->user->name,
+                        'username' => $c->user->username,
+                        'profile_picture' => $c->user->profile_picture,
+                    ] : null,
+                    'created_at' => $c->created_at->format('M d h:i A'),
+                ]),
+            ]);
+
+        // ── Stories with reaction (like) count and view count ──
+        $stories = $user->stories()
+            ->withCount([
+                'views',
+                'reactions as likes_count' => fn($q) => $q->where('type', 'like'),
+            ])
+            ->latest()
+            ->take(50)
+            ->get()
+            ->map(fn($st) => [
+                'id' => $st->id,
+                'media_type' => $st->type,
+                'media_url' => $st->media_url,
+                'content' => $st->content,
+                'created_at' => $st->created_at->format('M d, Y h:i A'),
+                'expires_at' => $st->expires_at ? $st->expires_at->format('M d, Y h:i A') : null,
+                'is_active' => $st->expires_at ? $st->expires_at->isFuture() : false,
+                'likes_count' => $st->likes_count,
+                'views_count' => $st->views_count,
+            ]);
+
+        return response()->json([
+            'posts' => $posts,
+            'stories' => $stories,
         ]);
     }
 

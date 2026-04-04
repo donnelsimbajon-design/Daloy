@@ -198,6 +198,8 @@ class HandleInertiaRequests extends Middleware
             'follow'        => 'started following you',
             'group_deleted' => 'A school you were in was removed',
             'reaction'      => 'reacted to your post',
+            'story_like'    => 'liked your story',
+            'story_reply'   => 'replied to your story',
         ];
 
         foreach ($ripples as $r) {

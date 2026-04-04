@@ -9,10 +9,10 @@ const trendingCurrents = [
 ];
 
 const suggestedGroups = [
-    { name: 'Coral Designers', members: '12.4k', active: 23, initial: 'C', color: 'bg-cyan-600' },
-    { name: 'Aquatic Arch', members: '8.1k', active: 5, initial: 'A', color: 'bg-blue-600' },
-    { name: 'Tidal Devs', members: '5.2k', active: 12, initial: 'T', color: 'bg-indigo-600' },
-    { name: 'Reef Builders', members: '3.7k', active: 8, initial: 'R', color: 'bg-emerald-600' },
+    { name: 'Coral Designers', members: '12.4k', active: 23, initial: 'C', color: 'bg-ocean-text' },
+    { name: 'Aquatic Arch', members: '8.1k', active: 5, initial: 'A', color: 'bg-ocean-text-muted' },
+    { name: 'Tidal Devs', members: '5.2k', active: 12, initial: 'T', color: 'bg-ocean-text-dim' },
+    { name: 'Reef Builders', members: '3.7k', active: 8, initial: 'R', color: 'bg-ocean-text' },
 ];
 
 /* ── Search Input ────────────────────────────────────────────────────── */
@@ -140,7 +140,7 @@ function GroupsPanel() {
                 {filtered.length > 0 ? filtered.map((group) => (
                     <div key={group.name} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl ${group.color} flex items-center justify-center text-white font-bold text-sm`}>
+                            <div className={`w-10 h-10 rounded-xl ${group.color} flex items-center justify-center text-ocean-deep font-bold text-sm`}>
                                 {group.initial}
                             </div>
                             <div>
@@ -249,7 +249,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                     {chat.avatar ? (
                         <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
                     ) : (
-                        <div className="w-9 h-9 rounded-full bg-cyan-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-ocean-text flex items-center justify-center text-ocean-deep font-bold text-xs shrink-0">
                             {chat.initial || chat.name.charAt(0)}
                         </div>
                     )}
@@ -273,8 +273,43 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                         const isSelf = msg.user_id === currentUser.id;
                         return (
                             <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
-                                <div className={`max-w-[85%] rounded-[18px] px-4 py-2.5 ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'}`}>
-                                    <p className="text-sm break-words">{msg.content}</p>
+                                <div className={`max-w-[85%] rounded-[18px] ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
+                                    {msg.story_id && (
+                                        <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
+                                            {msg.story ? (
+                                                <>
+                                                    <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
+                                                        {msg.story.type === 'video' ? (
+                                                            <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
+                                                        ) : (
+                                                            <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}&apos;s story</span>
+                                                        {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="flex-1 py-1 flex items-center gap-1.5">
+                                                    <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                    <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {msg.media_url && (
+                                        <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl' : 'rounded-[14px]'}`}>
+                                            {msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                                <video src={msg.media_url} className="w-full max-h-48 object-contain bg-black pointer-events-none" />
+                                            ) : (
+                                                <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover pointer-events-none" alt="attachment" />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {msg.content && <p className="text-sm break-words leading-relaxed">{msg.content}</p>}
                                     <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </p>
@@ -322,7 +357,7 @@ function MessagesPanel() {
         m.message.toLowerCase().includes(search.toLowerCase())
     );
 
-    const avatarColors = ['bg-cyan-600', 'bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-rose-600', 'bg-amber-600'];
+    const avatarColors = ['bg-ocean-text', 'bg-ocean-text-muted', 'bg-ocean-text-dim', 'bg-ocean-text', 'bg-ocean-text-muted', 'bg-ocean-text-dim', 'bg-ocean-text'];
 
     if (selectedChat) {
         return <ChatThreadView chat={selectedChat} onBack={() => setSelectedChat(null)} currentUser={auth.user} />;
@@ -354,7 +389,7 @@ function MessagesPanel() {
                         {msg.avatar ? (
                             <img src={msg.avatar} alt={msg.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
                         ) : (
-                            <div className={`w-9 h-9 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-white font-bold text-xs shrink-0`}>
+                            <div className={`w-9 h-9 rounded-full ${avatarColors[i % avatarColors.length]} flex items-center justify-center text-ocean-deep font-bold text-xs shrink-0`}>
                                 {msg.initial}
                             </div>
                         )}
@@ -430,12 +465,14 @@ function NotificationsPanel() {
     };
 
     const typeColors = {
-        friend: 'bg-blue-500',
-        follow: 'bg-emerald-500',
-        like: 'bg-rose-500',
-        comment: 'bg-amber-500',
-        share: 'bg-purple-500',
-        mention: 'bg-cyan-500',
+        friend: 'bg-ocean-text',
+        follow: 'bg-ocean-text-muted',
+        like: 'bg-ocean-text-dim',
+        comment: 'bg-ocean-text',
+        share: 'bg-ocean-text-muted',
+        mention: 'bg-ocean-text-dim',
+        story_like: 'bg-red-400',
+        story_reply: 'bg-blue-400',
     };
 
     return (
@@ -478,7 +515,7 @@ function NotificationsPanel() {
                                     <button
                                         onClick={(e) => handleAction(e, 'accept', notif.id)}
                                         disabled={actionLoading === notif.id}
-                                        className="px-3 py-1 bg-biolum text-white text-[11px] font-medium rounded hover:bg-biolum-bright transition-colors disabled:opacity-50"
+                                        className="px-3 py-1 bg-ocean-text text-ocean-deep text-[11px] font-medium rounded hover:opacity-80 transition-opacity disabled:opacity-50"
                                     >
                                         {actionLoading === notif.id ? '...' : 'Accept'}
                                     </button>
@@ -497,7 +534,7 @@ function NotificationsPanel() {
                                     <button
                                         onClick={(e) => handleAction(e, 'accept', notif.id)}
                                         disabled={actionLoading === notif.id}
-                                        className="px-3 py-1 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                                        className="px-3 py-1 bg-ocean-text text-ocean-deep text-[11px] font-medium rounded hover:opacity-80 transition-opacity disabled:opacity-50"
                                     >
                                         {actionLoading === notif.id ? '...' : 'Accept'}
                                     </button>
@@ -511,6 +548,11 @@ function NotificationsPanel() {
                                 </div>
                             )}
                         </div>
+
+                        {/* Story Image Thumbnail (if present) */}
+                        {notif.data?.story_image && (
+                            <img src={notif.data.story_image} alt="Story" className="w-10 h-14 rounded-md object-cover shrink-0 ml-2 border border-white/10" />
+                        )}
                     </div>
                 )) : (
                     <div className="flex flex-col items-center justify-center py-6 text-center">

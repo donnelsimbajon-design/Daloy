@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import ReefPanel from '@/Components/UI/Panels/ReefPanel';
 
 const DraggableMobileActionMenu = ({
@@ -142,6 +142,18 @@ export default function GlobalRightRailWrapper({ children }) {
         setActivePanel(prev => prev === panel ? null : panel);
         setMobileMenuExpanded(false);
     };
+
+    // Global Background Polling for Live Notifications & Messages
+    useEffect(() => {
+        const interval = setInterval(() => {
+            router.reload({ 
+                only: ['social', 'reef'], 
+                preserveScroll: true, 
+                preserveState: true 
+            });
+        }, 10000); // 10 seconds background heartbeat
+        return () => clearInterval(interval);
+    }, []);
 
     const RailButton = ({ panel, title, icon, badge }) => (
         <button

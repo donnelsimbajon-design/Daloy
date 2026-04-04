@@ -133,6 +133,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/stories', [\App\Http\Controllers\StoryController::class, 'store'])->name('stories.store');
     Route::post('/stories/{story}/view', [\App\Http\Controllers\StoryController::class, 'recordView'])->name('stories.view');
     Route::get('/stories/{story}/viewers', [\App\Http\Controllers\StoryController::class, 'viewers'])->name('stories.viewers');
+    Route::post('/stories/{story}/react', [\App\Http\Controllers\StoryController::class, 'react'])->name('stories.react');
+    Route::post('/stories/{story}/reply', [\App\Http\Controllers\StoryController::class, 'reply'])->name('stories.reply');
+    Route::get('/stories/{story}/live-state', [\App\Http\Controllers\StoryController::class, 'liveState'])->name('stories.live-state');
 
     // Posts
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
@@ -256,6 +259,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
 
     // Users
     Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users');
+    Route::get('/users/{user}/content', [AdminUserController::class, 'showContent'])->name('admin.users.content');
     Route::post('/users/{user}/action', [AdminUserController::class, 'action'])->name('admin.users.action');
     Route::post('/users/store', [AdminUserController::class, 'store'])->name('admin.users.store');
     Route::patch('/users/{user}/role', [AdminUserController::class, 'changeRole'])->name('admin.users.role');

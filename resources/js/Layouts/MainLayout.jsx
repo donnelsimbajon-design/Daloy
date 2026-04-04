@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
 import TopNav from '@/Components/UI/Navigation/TopNav';
-import StatusBar from '@/Components/UI/Badges/StatusBar';
 import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
 import GlobalAnnouncementBanner from '@/Components/Features/Announcements/GlobalAnnouncementBanner';
@@ -45,11 +44,18 @@ export default function MainLayout({ children }) {
     }, [user?.font_size, user?.reduce_motion, user?.high_contrast, user?.dark_mode]);
 
     return (
-        <div className="min-h-screen bg-ocean-deep text-ocean-text">
+        <div className="min-h-screen bg-ocean-deep text-ocean-text relative overflow-hidden">
+            {/* Minimal glass backdrop — barely-visible color washes */}
+            <div className="fixed inset-0 pointer-events-none z-0">
+                <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[160px] opacity-[0.07]" style={{ background: '#A78BFA' }} />
+                <div className="absolute -top-[5%] -right-[15%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.05]" style={{ background: '#60A5FA' }} />
+                <div className="absolute -bottom-[15%] left-[20%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.04]" style={{ background: '#F9A8D4' }} />
+            </div>
+
             <TopNav />
 
             {/* Main Content Area */}
-            <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative">
+            <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative z-10">
                 <GlobalRightRailWrapper>
                     <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300">
                         {/* Inline announcement banner — flows naturally, no extra padding when empty */}
@@ -58,8 +64,6 @@ export default function MainLayout({ children }) {
                     </div>
                 </GlobalRightRailWrapper>
             </main>
-
-            <StatusBar />
         </div>
     );
 }

@@ -27,9 +27,9 @@ export default function Dashboard({ posts }) {
             <Head title="Deep Flow" />
 
             {/* ── Fixed Left Rail: Stories (Desktop only) ── */}
-            <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-24 xl:w-28 border-r border-ocean-border z-20 bg-ocean-deep/50 backdrop-blur-sm shadow-[1px_0_3px_rgba(0,0,0,0.025)]">
+            <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-24 xl:w-28 border-r border-ocean-border z-20 bg-ocean-card/40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
                 <div className="pt-3 px-1.5 h-full flex flex-col items-center w-full overflow-hidden">
-                    <div className="bg-ocean-card rounded-2xl border border-ocean-border w-full h-[calc(100%-8px)] overflow-hidden">
+                    <div className="bg-ocean-card/50 rounded-2xl border border-ocean-border w-full h-[calc(100%-8px)] overflow-hidden">
                         <StoryRail />
                     </div>
                 </div>
@@ -43,7 +43,7 @@ export default function Dashboard({ posts }) {
                     <div className="flex-1 w-full pt-4 md:pt-6 px-2 sm:px-4 md:pl-3 xl:pl-4 md:pr-12 xl:pr-17">
 
                         {/* Mobile/Tablet Stories - shown only on small screens */}
-                        <div className="md:hidden mb-6 bg-ocean-card border border-ocean-border rounded-[20px] py-4 shadow-sm overflow-hidden">
+                        <div className="md:hidden mb-6 bg-ocean-card border border-ocean-border rounded-2xl py-4 overflow-hidden">
                             <StoryRail horizontal={true} />
                         </div>
 

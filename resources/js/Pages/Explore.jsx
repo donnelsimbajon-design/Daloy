@@ -3,7 +3,8 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/PostCard';
 import axios from 'axios';
-import { Waves, BarChart2 } from 'lucide-react';
+import { Waves, BarChart2, Users } from 'lucide-react';
+import UserCard from '@/Components/UserCard';
 
 // ── Helper: relative time ────────────────────────────────────────────
 function getTimeAgo(dateString) {
@@ -119,74 +120,76 @@ export default function Explore({
                 </div>
 
                 {/* ── Search Results overlay ── */}
-                {searchResults && searchQuery ? (
-                    <div className="max-w-3xl mx-auto space-y-6 animate-subtle-in">
-                        <h2 className="text-lg font-bold text-ocean-text">Results for "{searchQuery}"</h2>
-
+                {searchResults && searchQuery && (
+                    <div className="max-w-4xl mx-auto space-y-10 animate-subtle-in mb-12">
+                        {/* Highlights (Top Search Hit) */}
                         {searchResults.people?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Voyagers</h3>
-                                <div className="space-y-2">
-                                    {searchResults.people.map(user => (
-                                        <Link key={user.id} href={`/users/${user.id}`} className="flex items-center gap-3 p-3 bg-ocean-card border border-ocean-divider rounded-xl hover:border-biolum/30 transition-all group">
-                                            <div className="w-10 h-10 rounded-full bg-ocean-surface overflow-hidden shrink-0 ring-1 ring-ocean-divider">
-                                                {user.profile_picture ? <img src={user.profile_picture} alt="" className="w-full h-full object-cover" /> : <span className="flex items-center justify-center w-full h-full text-sm font-bold text-ocean-text-dim">{user.name?.[0]}</span>}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-ocean-text group-hover:text-biolum transition-colors truncate">{user.name}</p>
-                                                <p className="text-xs text-ocean-text-dim truncate">@{user.username}{user.is_friend ? ' · Friend' : user.is_following ? ' · Following' : ''}</p>
-                                            </div>
-                                        </Link>
+                            <section>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <div className="p-2 rounded-lg bg-biolum/10 text-biolum">
+                                        <Users size={18} />
+                                    </div>
+                                    <h2 className="text-lg font-black text-ocean-text tracking-tight uppercase tracking-widest">Matched Voyager</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {searchResults.people.slice(0, 3).map(user => (
+                                        <UserCard key={user.id} user={user} showActions={true} />
                                     ))}
                                 </div>
+                            </section>
+                        )}
+
+                        <div className="flex items-center justify-between border-b border-ocean-divider pb-4">
+                            <h2 className="text-xl sm:text-2xl font-black text-ocean-text tracking-tight">Trending Across the Ocean</h2>
+                            <p className="text-sm text-ocean-text-dim">Results for "{searchQuery}"</p>
+                        </div>
+
+                        {searchResults.posts?.length > 0 ? (
+                            <div className="space-y-1">
+                                {searchResults.posts.map(post => (
+                                    <TrendingPostRow key={post.id} post={post} />
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-20 border border-dashed border-ocean-divider rounded-3xl bg-ocean-card/50">
+                                <Waves className="mx-auto text-ocean-text-dim/20 mb-4" size={48} />
+                                <p className="text-ocean-text-dim font-medium italic">No matching currents found...</p>
                             </div>
                         )}
 
-                        {searchResults.posts?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Posts</h3>
-                                <div className="space-y-4">
-                                    {searchResults.posts.map(post => <PostCard key={post.id} post={post} />)}
-                                </div>
-                            </div>
-                        )}
+                        {/* Other Categories */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-ocean-divider">
+                            {searchResults.schools?.length > 0 && (
+                                <section>
+                                    <h3 className="text-xs font-black text-ocean-text-dim mb-4 uppercase tracking-[0.2em]">Group Currents</h3>
+                                    <div className="space-y-3">
+                                        {searchResults.schools.map(school => (
+                                            <Link key={school.id} href={`/schools/${school.id}`} className="block p-4 bg-ocean-card border border-ocean-divider rounded-2xl hover:border-biolum/30 transition-all hover:bg-ocean-surface group">
+                                                <h4 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors">{school.name}</h4>
+                                                <p className="text-[11px] text-ocean-text-dim mt-1">{formatCount(school.members_count)} members</p>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
-                        {searchResults.schools?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Schools</h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {searchResults.schools.map(school => (
-                                        <Link key={school.id} href={`/schools/${school.id}`} className="p-4 bg-ocean-card border border-ocean-divider rounded-xl hover:border-biolum/30 transition-all group">
-                                            <h4 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors">{school.name}</h4>
-                                            <p className="text-xs text-ocean-text-dim mt-1 line-clamp-2">{school.description}</p>
-                                            <p className="text-[10px] text-ocean-text-dim/70 mt-2">{school.members_count} members</p>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {searchResults.hashtags?.length > 0 && (
-                            <div>
-                                <h3 className="text-xs font-bold text-ocean-text-dim mb-3 uppercase tracking-widest">Tags</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {searchResults.hashtags.map(tag => (
-                                        <Link key={tag.id} href={`/hashtag/${tag.name.replace('#', '')}`} className="px-4 py-2 bg-ocean-card border border-ocean-divider rounded-full hover:border-biolum/30 text-sm font-bold text-biolum transition-all">
-                                            {tag.name} <span className="text-ocean-text-dim font-normal ml-1">({tag.posts_count} posts)</span>
-                                        </Link>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {!searchResults.people?.length && !searchResults.posts?.length && !searchResults.schools?.length && !searchResults.hashtags?.length && (
-                            <div className="text-center py-16">
-                                <div className="flex justify-center mb-3 text-ocean-text-dim/30"><Waves size={40} /></div>
-                                <p className="text-ocean-text-dim">No currents found for "{searchQuery}"</p>
-                            </div>
-                        )}
+                            {searchResults.hashtags?.length > 0 && (
+                                <section>
+                                    <h3 className="text-xs font-black text-ocean-text-dim mb-4 uppercase tracking-[0.2em]">Tag Currents</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {searchResults.hashtags.map(tag => (
+                                            <Link key={tag.id} href={`/hashtag/${tag.name.replace('#', '')}`} className="px-4 py-2 bg-ocean-card border border-ocean-divider rounded-full hover:border-biolum/30 text-sm font-bold text-biolum transition-all">
+                                                {tag.name} <span className="text-ocean-text-dim font-normal ml-1">({tag.posts_count})</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                        </div>
                     </div>
-                ) : (
+                )}
+
+                {(!searchResults || !searchQuery) && (
                     <>
                         {/* ═══════════════════════════════════════════════════
                             FEATURED EXPLORATION — "Deep Tides" Hero

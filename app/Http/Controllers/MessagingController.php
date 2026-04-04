@@ -168,6 +168,8 @@ class MessagingController extends Controller
                 'replyTo:id,content,user_id',
                 'replyTo.user:id,name',
                 'messageReactions.user:id,name,profile_picture',
+                'story',
+                'story.user:id,name',
             ])
             ->latest()
             ->paginate(30);

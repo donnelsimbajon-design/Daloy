@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import StatusBadge from '../../Components/Admin/UI/StatusBadge';
 import Modal from '../../Components/Admin/UI/Modal';
 import { router, Link } from '@inertiajs/react';
+import axios from 'axios';
 
 export default function Users({ users = { data: [] }, totalUsers = 0, activeConnections = 0, filters = {} }) {
     const [search, setSearch] = useState(filters.search || '');
@@ -10,6 +11,14 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
     const [modalType, setModalType] = useState(null);
     const [actionMenuId, setActionMenuId] = useState(null);
     const [actionReason, setActionReason] = useState('');
+    const [activeTab, setActiveTab] = useState('overview');
+
+    // On-demand content for the selected user
+    const [userContent, setUserContent] = useState(null);
+    const [contentLoading, setContentLoading] = useState(false);
+
+    // Expanded comments tracking
+    const [expandedPost, setExpandedPost] = useState(null);
 
     // Create user form
     const [newUser, setNewUser] = useState({ name: '', email: '', username: '', password: '', role: 'user' });
@@ -18,6 +27,25 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
     // Role change
     const [roleChangeUser, setRoleChangeUser] = useState(null);
     const [newRole, setNewRole] = useState('user');
+
+    // Load user content on demand when modal opens or tab switches to posts/stories
+    useEffect(() => {
+        if (selectedUser && modalType === 'view' && (activeTab === 'posts' || activeTab === 'stories') && !userContent) {
+            loadUserContent(selectedUser.id);
+        }
+    }, [selectedUser, modalType, activeTab]);
+
+    const loadUserContent = async (userId) => {
+        setContentLoading(true);
+        try {
+            const res = await axios.get(`/admin/users/${userId}/content`);
+            setUserContent(res.data);
+        } catch (err) {
+            console.error('Failed to load user content:', err);
+        } finally {
+            setContentLoading(false);
+        }
+    };
 
     const handleSearch = (val) => {
         setSearch(val);
@@ -58,11 +86,14 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         });
     };
 
-    const openModal = (user, type) => {
+    const openModal = (user, type, tab = 'overview') => {
         setSelectedUser(user);
         setModalType(type);
+        setActiveTab(tab);
         setActionMenuId(null);
         setActionReason('');
+        setUserContent(null); // Reset content for fresh load
+        setExpandedPost(null);
     };
 
     const openRoleModal = (user) => {
@@ -78,6 +109,8 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         setActionReason('');
         setRoleChangeUser(null);
         setCreateErrors({});
+        setUserContent(null);
+        setExpandedPost(null);
     };
 
     const userList = users.data || [];
@@ -87,6 +120,36 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         moderator: { bg: '#dbeafe', color: '#1e40af', label: 'MOD' },
         user: { bg: '#f3f4f6', color: '#6b7280', label: 'USER' },
     };
+
+    // ── Tab Button Component ──
+    const TabBtn = ({ id, label, count }) => (
+        <button
+            onClick={() => setActiveTab(id)}
+            style={{
+                padding: '8px 4px', fontSize: '13px', fontWeight: 600,
+                color: activeTab === id ? '#111' : '#888',
+                borderBottom: activeTab === id ? '2px solid #111' : '2px solid transparent',
+                background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
+                cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+        >
+            {label}
+            {count !== undefined && (
+                <span style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: '12px', fontSize: '10px', color: '#555' }}>
+                    {count}
+                </span>
+            )}
+        </button>
+    );
+
+    // ── Loading Skeleton ──
+    const LoadingSkeleton = () => (
+        <div style={{ padding: '40px', textAlign: 'center', color: '#aaa' }}>
+            <div style={{ width: '32px', height: '32px', border: '3px solid #e5e5e5', borderTopColor: '#111', borderRadius: '50%', margin: '0 auto 12px', animation: 'spin 0.8s linear infinite' }} />
+            <p style={{ fontSize: '13px' }}>Loading content...</p>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+    );
 
     return (
         <>
@@ -151,13 +214,14 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                                 <th>CONTACT EMAIL</th>
                                 <th>ROLE</th>
                                 <th>SYSTEM STATUS</th>
+                                <th>CONTENT</th>
                                 <th>REGISTERED</th>
                                 <th>ADMINISTRATIVE ACTIONS</th>
                             </tr>
                         </thead>
                         <tbody>
                             {userList.length === 0 ? (
-                                <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>No users found</td></tr>
+                                <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#aaa' }}>No users found</td></tr>
                             ) : (
                                 userList.map(user => {
                                     const rc = roleColors[user.role] || roleColors.user;
@@ -182,14 +246,9 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                                             <td>
                                                 <span
                                                     style={{
-                                                        fontSize: '10px',
-                                                        fontWeight: 700,
-                                                        letterSpacing: '0.5px',
-                                                        padding: '3px 8px',
-                                                        borderRadius: '4px',
-                                                        background: rc.bg,
-                                                        color: rc.color,
-                                                        cursor: 'pointer',
+                                                        fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px',
+                                                        padding: '3px 8px', borderRadius: '4px',
+                                                        background: rc.bg, color: rc.color, cursor: 'pointer',
                                                     }}
                                                     onClick={() => openRoleModal(user)}
                                                     title="Click to change role"
@@ -200,12 +259,22 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                                             <td>
                                                 <StatusBadge status={user.status} />
                                             </td>
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
+                                                    <span style={{ background: '#f0f4ff', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                                        {user.posts_count} posts
+                                                    </span>
+                                                    <span style={{ background: '#fdf4ff', color: '#a855f7', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                                        {user.stories_count || 0} stories
+                                                    </span>
+                                                </div>
+                                            </td>
                                             <td>{user.joined}</td>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                     <button
                                                         className="adm-btn adm-btn-sm adm-btn-outline"
-                                                        onClick={() => openModal(user, 'view')}
+                                                        onClick={() => openModal(user, 'view', 'overview')}
                                                         style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}
                                                     >
                                                         VIEW PROFILE
@@ -220,8 +289,10 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                                                         </button>
                                                         {actionMenuId === user.id && (
                                                             <div className="adm-actions-dropdown open">
-                                                                <button onClick={() => openModal(user, 'view')}>→ View Profile Details</button>
-                                                                <button onClick={() => openRoleModal(user)}>🔑 Change Role</button>
+                                                                <button onClick={() => openModal(user, 'view', 'overview')}>→ View Profile Details</button>
+                                                                <button onClick={() => openModal(user, 'view', 'posts')}>→ View User Posts</button>
+                                                                <button onClick={() => openModal(user, 'view', 'stories')}>→ View User Stories</button>
+                                                                <button onClick={() => openRoleModal(user)}>→ Change Role</button>
                                                                 {user.status === 'active' && (
                                                                     <button className="danger" onClick={() => openModal(user, 'suspend')}>⊘ Suspend Access</button>
                                                                 )}
@@ -263,37 +334,206 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                 )}
             </div>
 
-            {/* ── View Profile Modal ── */}
-            <Modal isOpen={modalType === 'view'} onClose={closeModal} title="User Profile" size="lg">
+            {/* ════════════════════════════════════════════════════════════
+                 VIEW PROFILE MODAL — Tabbed (Overview / Posts / Stories)
+                 ════════════════════════════════════════════════════════════ */}
+            <Modal isOpen={modalType === 'view'} onClose={closeModal} title="User Content Review" size="lg">
                 {selectedUser && (
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #eee' }}>
-                            <div className="adm-admin-avatar" style={{ width: '56px', height: '56px', fontSize: '20px' }}>
-                                {selectedUser.name?.charAt(0)}
+                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '75vh' }}>
+                        {/* User Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', paddingBottom: '14px', borderBottom: '1px solid #eee', flexShrink: 0 }}>
+                            <div className="adm-admin-avatar" style={{ width: '50px', height: '50px', fontSize: '18px' }}>
+                                {selectedUser.profile_picture ? (
+                                    <img src={selectedUser.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                    selectedUser.name?.charAt(0)
+                                )}
                             </div>
-                            <div>
-                                <h4 style={{ fontSize: '16px', fontWeight: 700 }}>{selectedUser.name}</h4>
-                                <p style={{ fontSize: '13px', color: '#888' }}>{selectedUser.email}</p>
-                                <div style={{ marginTop: '4px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                    <StatusBadge status={selectedUser.status} />
-                                    <span style={{
-                                        fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px',
-                                        padding: '2px 6px', borderRadius: '4px',
-                                        background: (roleColors[selectedUser.role] || roleColors.user).bg,
-                                        color: (roleColors[selectedUser.role] || roleColors.user).color,
-                                    }}>
-                                        {(roleColors[selectedUser.role] || roleColors.user).label}
-                                    </span>
-                                </div>
+                            <div style={{ flex: 1 }}>
+                                <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>{selectedUser.name}</h4>
+                                <p style={{ fontSize: '12px', color: '#888', margin: '2px 0 0' }}>@{selectedUser.username} · {selectedUser.email}</p>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                <StatusBadge status={selectedUser.status} />
+                                <span style={{
+                                    fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px',
+                                    padding: '2px 6px', borderRadius: '4px',
+                                    background: (roleColors[selectedUser.role] || roleColors.user).bg,
+                                    color: (roleColors[selectedUser.role] || roleColors.user).color,
+                                }}>
+                                    {(roleColors[selectedUser.role] || roleColors.user).label}
+                                </span>
                             </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>User ID</strong><p>DAL-{String(selectedUser.id).padStart(5, '0')}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Joined</strong><p>{selectedUser.joined}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Posts</strong><p>{selectedUser.posts_count}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Comments</strong><p>{selectedUser.comments_count}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified</strong><p>{selectedUser.verified ? '✓ Yes' : '✗ No'}</p></div>
-                            <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Username</strong><p>@{selectedUser.username || 'N/A'}</p></div>
+
+                        {/* Tab Navigation */}
+                        <div style={{ display: 'flex', gap: '20px', borderBottom: '1px solid #e5e5e5', marginBottom: '16px', flexShrink: 0 }}>
+                            <TabBtn id="overview" label="Overview" />
+                            <TabBtn id="posts" label="Posts" count={selectedUser.posts_count} />
+                            <TabBtn id="stories" label="Stories" count={selectedUser.stories_count || 0} />
+                        </div>
+
+                        {/* Tab Content */}
+                        <div style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+
+                            {/* ── OVERVIEW TAB ── */}
+                            {activeTab === 'overview' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>User ID</strong><p>DAL-{String(selectedUser.id).padStart(5, '0')}</p></div>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Joined</strong><p>{selectedUser.joined}</p></div>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Posts</strong><p>{selectedUser.posts_count}</p></div>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Comments</strong><p>{selectedUser.comments_count}</p></div>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified</strong><p>{selectedUser.verified ? '✓ Yes' : '✗ No'}</p></div>
+                                    <div><strong style={{ fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Username</strong><p>@{selectedUser.username || 'N/A'}</p></div>
+                                </div>
+                            )}
+
+                            {/* ── POSTS TAB ── */}
+                            {activeTab === 'posts' && (
+                                <div>
+                                    {contentLoading ? <LoadingSkeleton /> : !userContent?.posts || userContent.posts.length === 0 ? (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>
+                                            This user has no posts.
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {userContent.posts.map(post => (
+                                                <div key={post.id} style={{ border: '1px solid #e5e5e5', borderRadius: '8px', overflow: 'hidden', background: '#fafafa' }}>
+                                                    {/* Post Header */}
+                                                    <div style={{ padding: '12px 14px', borderBottom: '1px solid #f0f0f0' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                <span style={{ fontSize: '10px', color: '#888' }}>POST #{post.id}</span>
+                                                                <span style={{ fontSize: '10px', color: '#aaa' }}>·</span>
+                                                                <span style={{ fontSize: '10px', color: '#888' }}>{post.created_at}</span>
+                                                                <span style={{ fontSize: '10px', padding: '1px 6px', borderRadius: '4px', background: '#f3f4f6', color: '#6b7280' }}>{post.visibility}</span>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => { setActionReason(`Inappropriate Post #${post.id}`); setSelectedUser(selectedUser); setModalType('suspend'); }}
+                                                                style={{ padding: '3px 10px', fontSize: '10px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}
+                                                            >
+                                                                FLAG
+                                                            </button>
+                                                        </div>
+                                                        {post.has_content_warning && (
+                                                            <div style={{ marginBottom: '6px', padding: '4px 8px', background: '#fef3c7', borderRadius: '4px', fontSize: '10px', color: '#92400e', fontWeight: 600 }}>
+                                                                ⚠ Content Warning: {post.content_warning_label || 'Sensitive'}
+                                                            </div>
+                                                        )}
+                                                        <p style={{ fontSize: '13px', lineHeight: '1.5', margin: 0, color: '#222' }}>{post.content || '(No text content)'}</p>
+                                                    </div>
+
+                                                    {/* Post Media */}
+                                                    {post.media && post.media.length > 0 && (
+                                                        <div style={{ display: 'flex', gap: '4px', padding: '8px', overflowX: 'auto', background: '#f5f5f5' }}>
+                                                            {post.media.map((m, i) => (
+                                                                <div key={i} style={{ width: '100px', height: '100px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', background: '#000' }}>
+                                                                    {m.type === 'video' ? (
+                                                                        <video src={m.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted />
+                                                                    ) : (
+                                                                        <img src={m.url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Post Stats */}
+                                                    <div style={{ padding: '8px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f0f0' }}>
+                                                        <div style={{ display: 'flex', gap: '14px', fontSize: '12px', fontWeight: 600, color: '#555' }}>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="#ef4444" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> {post.likes_count} likes</span>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> {post.comments_count} comments</span>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> {post.reactions_count} reactions</span>
+                                                        </div>
+                                                        {post.comments_count > 0 && (
+                                                            <button
+                                                                onClick={() => setExpandedPost(expandedPost === post.id ? null : post.id)}
+                                                                style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+                                                            >
+                                                                {expandedPost === post.id ? 'Hide Comments ▲' : 'View Comments ▼'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Expanded Comments */}
+                                                    {expandedPost === post.id && post.comments && post.comments.length > 0 && (
+                                                        <div style={{ borderTop: '1px solid #e5e5e5', background: '#f9fafb', maxHeight: '240px', overflowY: 'auto' }}>
+                                                            {post.comments.map(comment => (
+                                                                <div key={comment.id} style={{ display: 'flex', gap: '10px', padding: '10px 14px', borderBottom: '1px solid #f0f0f0' }}>
+                                                                    <div style={{
+                                                                        width: '28px', height: '28px', borderRadius: '50%', background: '#e5e7eb',
+                                                                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700,
+                                                                        flexShrink: 0, overflow: 'hidden'
+                                                                    }}>
+                                                                        {comment.user?.profile_picture ? (
+                                                                            <img src={comment.user.profile_picture} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                                                        ) : (
+                                                                            comment.user?.name?.charAt(0) || '?'
+                                                                        )}
+                                                                    </div>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <div style={{ display: 'flex', gap: '6px', alignItems: 'baseline' }}>
+                                                                            <span style={{ fontSize: '12px', fontWeight: 700 }}>{comment.user?.name || 'Unknown'}</span>
+                                                                            <span style={{ fontSize: '10px', color: '#aaa' }}>@{comment.user?.username || '?'}</span>
+                                                                            <span style={{ fontSize: '10px', color: '#bbb' }}>{comment.created_at}</span>
+                                                                        </div>
+                                                                        <p style={{ fontSize: '12px', margin: '3px 0 0', lineHeight: '1.4', color: '#333' }}>{comment.content}</p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── STORIES TAB ── */}
+                            {activeTab === 'stories' && (
+                                <div>
+                                    {contentLoading ? <LoadingSkeleton /> : !userContent?.stories || userContent.stories.length === 0 ? (
+                                        <div style={{ padding: '40px', textAlign: 'center', color: '#aaa', fontSize: '13px' }}>
+                                            This user has no stories.
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '12px' }}>
+                                            {userContent.stories.map(story => (
+                                                <div key={story.id} style={{ border: '1px solid #e5e5e5', borderRadius: '8px', overflow: 'hidden', background: '#fafafa' }}>
+                                                    <div style={{ height: '220px', backgroundColor: '#000', position: 'relative' }}>
+                                                        {story.media_type === 'video' ? (
+                                                            <video src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} controls controlsList="nodownload nofullscreen noremoteplayback" disablePictureInPicture />
+                                                        ) : story.media_type === 'image' ? (
+                                                            <img src={story.media_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Story" />
+                                                        ) : (
+                                                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', textAlign: 'center', fontSize: '14px', fontWeight: 600 }}>
+                                                                {story.content}
+                                                            </div>
+                                                        )}
+                                                        {!story.is_active && (
+                                                            <div style={{ position: 'absolute', top: '6px', right: '6px', background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 700 }}>EXPIRED</div>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ padding: '8px 10px' }}>
+                                                        <div style={{ fontSize: '10px', color: '#888', marginBottom: '4px' }}>{story.created_at}</div>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 600, marginBottom: '6px', color: '#555' }}>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="#ef4444" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> {story.likes_count}</span>
+                                                            <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg> {story.views_count}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={() => { setActionReason(`Inappropriate Story #${story.id}`); setModalType('suspend'); }}
+                                                            style={{ width: '100%', padding: '4px', fontSize: '10px', background: '#fee2e2', color: '#dc2626', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}
+                                                        >
+                                                            FLAG
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -362,56 +602,27 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <div className="adm-form-group">
                         <label className="adm-form-label">Full Name *</label>
-                        <input
-                            type="text"
-                            className="adm-form-input"
-                            value={newUser.name}
-                            onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))}
-                            placeholder="Enter full name"
-                        />
+                        <input type="text" className="adm-form-input" value={newUser.name} onChange={e => setNewUser(prev => ({ ...prev, name: e.target.value }))} placeholder="Enter full name" />
                         {createErrors.name && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{createErrors.name}</p>}
                     </div>
                     <div className="adm-form-group">
                         <label className="adm-form-label">Username *</label>
-                        <input
-                            type="text"
-                            className="adm-form-input"
-                            value={newUser.username}
-                            onChange={e => setNewUser(prev => ({ ...prev, username: e.target.value }))}
-                            placeholder="Enter username (no spaces)"
-                        />
+                        <input type="text" className="adm-form-input" value={newUser.username} onChange={e => setNewUser(prev => ({ ...prev, username: e.target.value }))} placeholder="Enter username (no spaces)" />
                         {createErrors.username && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{createErrors.username}</p>}
                     </div>
                     <div className="adm-form-group">
                         <label className="adm-form-label">Email Address *</label>
-                        <input
-                            type="email"
-                            className="adm-form-input"
-                            value={newUser.email}
-                            onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))}
-                            placeholder="user@example.com"
-                        />
+                        <input type="email" className="adm-form-input" value={newUser.email} onChange={e => setNewUser(prev => ({ ...prev, email: e.target.value }))} placeholder="user@example.com" />
                         {createErrors.email && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{createErrors.email}</p>}
                     </div>
                     <div className="adm-form-group">
                         <label className="adm-form-label">Password *</label>
-                        <input
-                            type="password"
-                            className="adm-form-input"
-                            value={newUser.password}
-                            onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))}
-                            placeholder="Min 8 characters"
-                        />
+                        <input type="password" className="adm-form-input" value={newUser.password} onChange={e => setNewUser(prev => ({ ...prev, password: e.target.value }))} placeholder="Min 8 characters" />
                         {createErrors.password && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{createErrors.password}</p>}
                     </div>
                     <div className="adm-form-group">
                         <label className="adm-form-label">Role Assignment</label>
-                        <select
-                            className="adm-filter-select"
-                            value={newUser.role}
-                            onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value }))}
-                            style={{ width: '100%', padding: '8px 12px' }}
-                        >
+                        <select className="adm-filter-select" value={newUser.role} onChange={e => setNewUser(prev => ({ ...prev, role: e.target.value }))} style={{ width: '100%', padding: '8px 12px' }}>
                             <option value="user">User (Standard Voyager)</option>
                             <option value="moderator">Moderator</option>
                             <option value="admin">Administrator</option>
@@ -462,12 +673,7 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                         </div>
                         <div className="adm-form-group">
                             <label className="adm-form-label">Assign New Role</label>
-                            <select
-                                className="adm-filter-select"
-                                value={newRole}
-                                onChange={e => setNewRole(e.target.value)}
-                                style={{ width: '100%', padding: '8px 12px' }}
-                            >
+                            <select className="adm-filter-select" value={newRole} onChange={e => setNewRole(e.target.value)} style={{ width: '100%', padding: '8px 12px' }}>
                                 <option value="user">User (Standard Voyager)</option>
                                 <option value="moderator">Moderator</option>
                                 <option value="admin">Administrator</option>

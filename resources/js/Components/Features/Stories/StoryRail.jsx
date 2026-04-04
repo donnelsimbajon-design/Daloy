@@ -11,7 +11,7 @@ export default function StoryRail({ horizontal = false }) {
     const [groupedStories, setGroupedStories] = useState([]);
     const [selectedStory, setSelectedStory] = useState(null);
     const [uploading, setUploading] = useState(false);
-    
+    const [likedStories, setLikedStories] = useState({});
     // Story Creation States
     const [showCreateMenu, setShowCreateMenu] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -20,6 +20,17 @@ export default function StoryRail({ horizontal = false }) {
     const [creationPreview, setCreationPreview] = useState(null);
     const [creationVisibility, setCreationVisibility] = useState('friends');
     const [creationCaption, setCreationCaption] = useState('');
+    
+    // Facebook-style interactions
+    const [replyText, setReplyText] = useState('');
+    const [replySent, setReplySent] = useState(false);
+    const [replyError, setReplyError] = useState(false);
+    const [storyViewers, setStoryViewers] = useState([]);
+    const [showViewers, setShowViewers] = useState(false);
+    // Live state — view count + likers (owner only)
+    const [liveViewCount, setLiveViewCount] = useState(null);
+    const [liveLikers, setLiveLikers] = useState([]);
+    const livePollingRef = useRef(null);
 
     const fileInputRef = useRef(null);
     const scrollContainerRef = useRef(null);
@@ -46,6 +57,96 @@ export default function StoryRail({ horizontal = false }) {
     useEffect(() => {
         fetchStories();
     }, []);
+
+    // Initialize local likes state from fetched stories
+    useEffect(() => {
+        if (stories.length > 0) {
+            const likes = {};
+            stories.forEach(s => likes[s.id] = s.is_liked);
+            setLikedStories(likes);
+        }
+    }, [stories]);
+
+    // Live polling for owner & View recording for non-owners
+    useEffect(() => {
+        // Clear any existing poll
+        if (livePollingRef.current) clearInterval(livePollingRef.current);
+
+        if (selectedStory) {
+            // Record view for non-owners
+            if (!selectedStory.is_owner) {
+                axios.post(`/stories/${selectedStory.id}/view`).catch(err => console.error("Failed to record view", err));
+            }
+
+            if (selectedStory.is_owner) {
+                const poll = async () => {
+                    try {
+                        const res = await axios.get(`/stories/${selectedStory.id}/live-state`);
+                        setLiveViewCount(res.data.view_count);
+                        setLiveLikers(res.data.likers);
+                    } catch (err) {
+                        // silently fail
+                    }
+                };
+                poll(); // immediate first fetch
+                livePollingRef.current = setInterval(poll, 5000);
+            } else {
+                setLiveViewCount(null);
+                setLiveLikers([]);
+            }
+        }
+
+        return () => {
+            if (livePollingRef.current) clearInterval(livePollingRef.current);
+        };
+    }, [selectedStory]);
+
+    // Fetch detailed viewers list (with liked status) when panel is opened
+    const fetchViewers = async () => {
+        if (!selectedStory?.is_owner) return;
+        try {
+            const res = await axios.get(`/stories/${selectedStory.id}/viewers`);
+            setStoryViewers(res.data);
+        } catch (err) { console.error(err); }
+    };
+
+    const handleToggleViewers = (e) => {
+        e.stopPropagation();
+        const next = !showViewers;
+        setShowViewers(next);
+        if (next) fetchViewers();
+    };
+
+    const handleLike = async (e, story) => {
+        e.stopPropagation();
+        const originalLiked = likedStories[story.id];
+        // Optimistic UI update
+        setLikedStories(prev => ({...prev, [story.id]: !originalLiked}));
+
+        try {
+            await axios.post(`/stories/${story.id}/react`);
+        } catch (err) {
+            // Revert on error
+            setLikedStories(prev => ({...prev, [story.id]: originalLiked}));
+        }
+    };
+
+    const handleReplySubmit = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!replyText.trim()) return;
+
+        try {
+            await axios.post(`/stories/${selectedStory.id}/reply`, { content: replyText });
+            setReplyText('');
+            setReplySent(true);
+            setTimeout(() => setReplySent(false), 2500);
+        } catch (err) {
+            console.error(err);
+            setReplyError(true);
+            setTimeout(() => setReplyError(false), 2500);
+        }
+    };
 
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
@@ -125,6 +226,41 @@ export default function StoryRail({ horizontal = false }) {
 
     const currentGroup = selectedStory ? groupedStories.find(g => g.user.id === selectedStory.user.id) : null;
     const currentGroupItems = currentGroup ? currentGroup.items : [];
+
+    const handleNextStory = React.useCallback(() => {
+        if (!selectedStory) return;
+        const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
+        if (currentIndex < stories.length - 1) {
+            setSelectedStory(stories[currentIndex + 1]);
+        } else {
+            setSelectedStory(null); // End of stories
+        }
+    }, [selectedStory, stories]);
+
+    const handlePrevStory = React.useCallback(() => {
+        if (!selectedStory) return;
+        const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
+        if (currentIndex > 0) {
+            setSelectedStory(stories[currentIndex - 1]);
+        }
+    }, [selectedStory, stories]);
+
+    // Auto-advance for photo and text stories
+    useEffect(() => {
+        if (!selectedStory) return;
+        
+        let timer;
+        // Videos handle their own auto-advance via onEnded callback
+        if (selectedStory.type !== 'video') {
+            timer = setTimeout(() => {
+                handleNextStory();
+            }, 5000); // 5 seconds per story
+        }
+        
+        return () => {
+            if (timer) clearTimeout(timer);
+        };
+    }, [selectedStory, handleNextStory]);
 
     return (
         <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-full pt-3'} relative`}>
@@ -211,7 +347,11 @@ export default function StoryRail({ horizontal = false }) {
                                             </span>
                                         </div>
                                     ) : firstStory.image ? (
-                                        <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                        firstStory.type === 'video' ? (
+                                            <video src={firstStory.image} className="w-full h-full object-cover bg-black" muted playsInline />
+                                        ) : (
+                                            <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                        )
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
                                             {group.user.name.charAt(0)}
@@ -253,13 +393,12 @@ export default function StoryRail({ horizontal = false }) {
                     {/* Background Close Click Area */}
                     <div className="absolute inset-0 z-0" onClick={() => setSelectedStory(null)} />
 
-                    {/* Navigation Buttons */}
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 md:px-10 z-[110] pointer-events-none">
+                    {/* Navigation Buttons (Desktop) */}
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 md:px-10 z-[110] pointer-events-none hidden md:flex">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
-                                if (currentIndex > 0) setSelectedStory(stories[currentIndex - 1]);
+                                handlePrevStory();
                             }}
                             className={`p-3 rounded-full bg-ocean-deep/20 hover:bg-ocean-deep/40 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-ocean-border/20 shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${stories.findIndex(s => s.id === selectedStory.id) === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                         >
@@ -268,8 +407,7 @@ export default function StoryRail({ horizontal = false }) {
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                const currentIndex = stories.findIndex(s => s.id === selectedStory.id);
-                                if (currentIndex < stories.length - 1) setSelectedStory(stories[currentIndex + 1]);
+                                handleNextStory();
                             }}
                             className={`p-3 rounded-full bg-ocean-deep/20 hover:bg-ocean-deep/40 text-ocean-text transition-all pointer-events-auto backdrop-blur-md border border-ocean-border/20 shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${stories.findIndex(s => s.id === selectedStory.id) === stories.length - 1 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
                         >
@@ -318,15 +456,14 @@ export default function StoryRail({ horizontal = false }) {
                         </div>
 
                         {/* Story Content Media */}
-                        <div className="flex-1 bg-transparent relative flex items-center justify-center">
+                        <div className="flex-1 bg-transparent relative flex items-center justify-center pointer-events-auto">
                             {selectedStory.type === 'video' ? (
                                 <video 
                                     src={selectedStory.image} 
                                     className="w-full h-full object-contain bg-black/50" 
                                     autoPlay 
-                                    loop 
                                     playsInline
-                                    controls 
+                                    onEnded={handleNextStory}
                                 />
                             ) : (
                                 <img
@@ -335,19 +472,134 @@ export default function StoryRail({ horizontal = false }) {
                                     className="w-full h-full object-contain md:object-cover"
                                 />
                             )}
+                            
+                            {/* Mobile/Tap Navigation Areas */}
+                            <div className="absolute inset-0 z-10 flex">
+                                <div className="w-[30%] h-full cursor-pointer mix-blend-overlay" onClick={(e) => { e.stopPropagation(); handlePrevStory(); }} />
+                                <div className="w-[70%] h-full cursor-pointer mix-blend-overlay" onClick={(e) => { e.stopPropagation(); handleNextStory(); }} />
+                            </div>
                         </div>
 
                         {/* Bottom Overlay with Caption */}
-                        <div className="absolute inset-x-0 bottom-0 p-6 md:p-10 bg-black/80 pt-32">
-                            <p className="text-ocean-text text-base md:text-xl font-medium leading-relaxed text-center">
-                                {selectedStory.content}
-                            </p>
+                        <div className="absolute inset-x-0 bottom-0 pointer-events-none flex flex-col justify-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pb-6 md:p-8 md:pb-8 pt-32 z-30">
+                            {selectedStory.content && (
+                                <p className="text-white text-base md:text-lg font-medium leading-relaxed drop-shadow-md text-center max-h-[30vh] overflow-y-auto no-scrollbar pointer-events-auto mb-4">
+                                    {selectedStory.content}
+                                </p>
+                            )}
 
-                            {/* Drop-down indicator */}
-                            <div className="mt-8 flex flex-col items-center gap-1 opacity-50">
-                                <span className="text-[10px] font-bold text-biolum uppercase tracking-widest">More</span>
-                                <svg className="w-4 h-4 text-ocean-text animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                            </div>
+                            {/* Story Viewers & Interactive Bottom */}
+                            {selectedStory.is_owner ? (
+                                <div className="mt-auto pointer-events-auto flex flex-col w-full">
+                                    {/* Live likers row — shows up to 3 recent avatar hearts */}
+                                    {liveLikers.length > 0 && (
+                                        <div className="flex items-center justify-center gap-1 mb-2" onClick={e => e.stopPropagation()}>
+                                            <div className="flex -space-x-2">
+                                                {liveLikers.slice(0, 3).map(liker => (
+                                                    <div key={liker.id} className="w-6 h-6 rounded-full border-2 border-black/40 overflow-hidden bg-slate-700 shrink-0">
+                                                        {liker.profile_picture
+                                                            ? <img src={liker.profile_picture} className="w-full h-full object-cover" />
+                                                            : <div className="w-full h-full flex items-center justify-center text-white text-[8px] font-bold">{liker.name?.charAt(0)}</div>
+                                                        }
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <svg className="w-4 h-4 text-red-400 fill-red-400 ml-1" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                            <span className="text-white/80 text-xs font-medium">{liveLikers.length}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Viewer count button */}
+                                    <button
+                                        className="flex items-center justify-center gap-2 text-white/90 hover:text-white pb-3 font-medium transition-colors"
+                                        onClick={handleToggleViewers}
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                        <span>{liveViewCount ?? selectedStory.view_count ?? 0} Viewers</span>
+                                        <svg className={`w-3 h-3 transition-transform ${showViewers ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7"/></svg>
+                                    </button>
+
+                                    {showViewers && (
+                                        <div className="bg-black/60 backdrop-blur-md rounded-t-2xl p-4 max-h-[40vh] overflow-y-auto no-scrollbar border-t border-white/10" onClick={e => e.stopPropagation()}>
+                                            <h4 className="text-white font-bold mb-3 mx-1 text-sm">Viewed by</h4>
+                                            {storyViewers.length === 0 ? (
+                                                <p className="text-white/50 text-sm italic mx-1">No views yet.</p>
+                                            ) : (
+                                                <div className="space-y-3">
+                                                    {storyViewers.map(view => (
+                                                        <div key={view.id} className="flex items-center gap-3">
+                                                            <div className="w-9 h-9 rounded-full overflow-hidden bg-white/20 shrink-0 border border-white/10">
+                                                                {view.viewer?.profile_picture
+                                                                    ? <img src={view.viewer.profile_picture} className="w-full h-full object-cover" />
+                                                                    : <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs bg-slate-700">{view.viewer?.name?.charAt(0)}</div>
+                                                                }
+                                                            </div>
+                                                            <span className="text-white text-sm font-medium flex-1">{view.viewer?.name}</span>
+                                                            {/* Heart indicator if they liked */}
+                                                            {view.liked && (
+                                                                <svg className="w-4 h-4 text-red-400 fill-red-400 shrink-0" viewBox="0 0 24 24">
+                                                                    <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="mt-auto pointer-events-auto w-full flex flex-col gap-2">
+                                    {/* Success / error feedback toast */}
+                                    {replySent && (
+                                        <div className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-400/30 backdrop-blur-sm rounded-full px-4 py-2 text-emerald-300 text-xs font-semibold self-center animate-in fade-in zoom-in">
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
+                                            Reply sent to Messages!
+                                        </div>
+                                    )}
+                                    {replyError && (
+                                        <div className="flex items-center gap-2 bg-red-500/20 border border-red-400/30 backdrop-blur-sm rounded-full px-4 py-2 text-red-300 text-xs font-semibold self-center animate-in fade-in zoom-in">
+                                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                            Failed to send. Try again.
+                                        </div>
+                                    )}
+                                    <form onSubmit={handleReplySubmit} className="flex items-center gap-2 w-full max-w-full">
+                                        <input
+                                            type="text"
+                                            placeholder={`Reply to ${selectedStory.user.name.split(' ')[0]}...`}
+                                            className="flex-1 w-full min-w-0 bg-white/10 hover:bg-white/15 border border-white/20 text-white placeholder-white/80 rounded-full px-5 py-2.5 text-sm backdrop-blur-xl focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all font-medium drop-shadow-sm"
+                                            value={replyText}
+                                            onChange={e => setReplyText(e.target.value)}
+                                            onKeyDown={e => e.stopPropagation()}
+                                            onClick={e => e.stopPropagation()}
+                                        />
+
+                                        {/* Like Button */}
+                                        <button
+                                            type="button"
+                                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 hover:scale-110 active:scale-95 transition-transform"
+                                            onClick={e => handleLike(e, selectedStory)}
+                                        >
+                                            <svg className={`w-7 h-7 drop-shadow-md transition-colors ${likedStories[selectedStory.id] ? 'text-red-500 fill-red-500' : 'text-white hover:text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={likedStories[selectedStory.id] ? 1 : 2}>
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                                            </svg>
+                                        </button>
+
+                                        {/* Send Reply Button — only appears when text is typed */}
+                                        {replyText.trim() && (
+                                            <button
+                                                type="submit"
+                                                className="w-10 h-10 rounded-full bg-biolum text-white flex items-center justify-center shrink-0 hover:bg-biolum-bright transition-colors shadow-lg"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <svg className="w-[18px] h-[18px] ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </form>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>,

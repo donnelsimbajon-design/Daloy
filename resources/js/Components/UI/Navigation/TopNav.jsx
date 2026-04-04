@@ -73,7 +73,7 @@ export default function TopNav() {
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-40 bg-ocean-deep/95 backdrop-blur-md border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_6px_rgba(0,0,0,0.015)]">
+            <nav className="fixed top-0 left-0 right-0 z-40 bg-ocean-card border-b border-ocean-divider shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]" style={{ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' }}>
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center h-16 relative w-full">
 
@@ -108,13 +108,13 @@ export default function TopNav() {
                                     onChange={handleSearch}
                                     onFocus={() => { if (searchQuery.trim() && liveResults) setShowDropdown(true); }}
                                     placeholder={t('Maghanap sa alon...')}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-ocean-surface border border-ocean-border rounded-full text-sm text-ocean-text placeholder-ocean-text-dim/60 focus:outline-none focus:border-opacity-50 transition-all font-medium"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-ocean-surface/60 border border-ocean-border rounded-full text-sm text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:bg-ocean-surface transition-all font-medium"
                                 />
                             </form>
 
                             {/* Live Search Dropdown */}
                             {showDropdown && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-ocean-deep/95 backdrop-blur-md border border-ocean-border rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.15)] max-h-[80vh] overflow-y-auto z-50">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-ocean-card border border-ocean-border rounded-2xl max-h-[80vh] overflow-y-auto z-50" style={{ backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)' }}>
                                     {isSearching ? (
                                         <div className="p-4 text-center text-sm text-ocean-text-dim animate-pulse">Searching...</div>
                                     ) : liveResults ? (() => {

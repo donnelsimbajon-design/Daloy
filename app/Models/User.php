@@ -172,6 +172,11 @@ class User extends Authenticatable
 
     // --- New Relationships ---
 
+    public function stories()
+    {
+        return $this->hasMany(Story::class);
+    }
+
     public function bookmarks()
     {
         return $this->hasMany(Bookmark::class);

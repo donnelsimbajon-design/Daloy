@@ -8,33 +8,59 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* ═══════ DALOY · Minimal White Glass ═══════ */
+    --color-ocean-deep: #F0F1F5;                      /* Cool neutral canvas */
+    --color-ocean-card: rgba(255, 255, 255, 0.65);    /* Frosted panel */
+    --color-ocean-surface: rgba(255, 255, 255, 0.40); /* Inner glass layer */
+    --color-ocean-border: rgba(0, 0, 0, 0.06);        /* Barely-there edge */
+    --color-ocean-hover: rgba(0, 0, 0, 0.02);         /* Ghost hover */
 
-    /* DALOY Color Palette (Mist Gray & Midnight Blue) */
-    --color-ocean-deep: #ECEFF1;
-    --color-ocean-card: #FFFFFF;
-    --color-ocean-surface: #FAFAFA;
-    /* Zinc-50 */
-    --color-ocean-border: #E4E4E7;
-    /* Zinc-200 */
-    --color-ocean-hover: #F4F4F5;
+    --color-ocean-divider: rgba(0, 0, 0, 0.05);
+    --color-ocean-divider-subtle: rgba(0, 0, 0, 0.025);
 
-    /* Proper subtle dividers */
-    --color-ocean-divider: #E4E4E7;
-    --color-ocean-divider-subtle: #F4F4F5;
+    /* Accent — pure black for maximum contrast on white glass */
+    --color-biolum: #111111;
+    --color-biolum-bright: #000000;
+    --color-biolum-dim: #6B7280;
+    --color-biolum-glow: rgba(0, 0, 0, 0.08);
+    --color-biolum-foreground: #FFFFFF;
 
-    /* Accents (Minimalist Monochrome) */
-    --color-biolum: #0A0A0A;
-    --color-biolum-bright: #262626;
-    --color-biolum-dim: #171717;
-    --color-biolum-glow: #0A0A0A;
-    --color-biolum-foreground: #FAFAFA;
+    /* Typography — slate tones */
+    --color-ocean-text: #1E293B;
+    --color-ocean-text-muted: #475569;
+    --color-ocean-text-dim: #94A3B8;
 
-    /* Text Colors */
-    --color-ocean-text: #263238;
-    --color-ocean-text-muted: #455A64;
-    --color-ocean-text-dim: #78909C;
+    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ═══════ DALOY · Modern Minimalist Dark Mode ═══════ */
+/* Applying high-end dark mode variables when the class .dark or data-theme="dark" is active */
+html.dark, html[data-theme="dark"] {
+    --color-ocean-deep: #000000;                      /* True black canvas for maximum depth */
+    --color-ocean-card: rgba(24, 24, 27, 0.45);       /* Deep gray frosted glass */
+    --color-ocean-surface: rgba(39, 39, 42, 0.35);    /* Slightly brighter for inner layers */
+    --color-ocean-border: rgba(255, 255, 255, 0.08);  /* Very subtle light border reflecting off glass */
+    --color-ocean-hover: rgba(255, 255, 255, 0.03);   /* Subtle light hover */
+
+    --color-ocean-divider: rgba(255, 255, 255, 0.05); /* Faint structural lines */
+    --color-ocean-divider-subtle: rgba(255, 255, 255, 0.02);
+
+    /* Accents (Inverting for dark mode) */
+    --color-biolum: #E4E4E7;
+    --color-biolum-bright: #FFFFFF;
+    --color-biolum-dim: #A1A1AA;
+    --color-biolum-glow: rgba(255, 255, 255, 0.08);
+    --color-biolum-foreground: #000000;
+
+    /* Typography — inverted slate tones */
+    --color-ocean-text: #F8FAFC;
+    --color-ocean-text-muted: #94A3B8;
+    --color-ocean-text-dim: #64748B;
+}
+
+/* Base Body Styles */
+body {
+    font-family: var(--font-sans);
 }
 
 /* DALOY Global Styles */
@@ -70,6 +96,14 @@
 }
 
 /* ═══════ Global UI Polish ═══════ */
+@keyframes story-progress-frames {
+    0% { width: 0%; }
+    100% { width: 100%; }
+}
+
+.animate-story-progress {
+    animation: story-progress-frames 5s linear forwards;
+}
 
 /* Smooth transitions for all interactive elements */
 a,
@@ -107,11 +141,47 @@ img {
     background: linear-gradient(135deg, var(--color-ocean-surface) 0%, var(--color-ocean-deep) 100%);
 }
 
-/* Smooth page rendering */
+/* ═══════ Minimal Glassmorphism Core ═══════ */
+
+/* Frosted glass — subtle blur, featherweight shadow */
+[class*="bg-ocean-card"] {
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    box-shadow:
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.6),
+        0 1px 2px rgba(0, 0, 0, 0.03),
+        0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+html.dark [class*="bg-ocean-card"], html[data-theme="dark"] [class*="bg-ocean-card"] {
+    box-shadow:
+        inset 0 0 0 0.5px rgba(255, 255, 255, 0.08),
+        0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+[class*="bg-ocean-surface"] {
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* Body — very gentle color washes behind the glass */
 body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    background-color: var(--color-ocean-deep);
+    background-image:
+        radial-gradient(ellipse at 10% 0%, rgba(180, 160, 255, 0.10) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 15%, rgba(120, 190, 255, 0.08) 0%, transparent 45%),
+        radial-gradient(ellipse at 40% 90%, rgba(255, 180, 210, 0.06) 0%, transparent 45%);
+    background-attachment: fixed;
+}
+
+html.dark body, html[data-theme="dark"] body {
+    background-image:
+        radial-gradient(ellipse at 10% 0%, rgba(120, 90, 255, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 15%, rgba(60, 140, 255, 0.03) 0%, transparent 45%),
+        radial-gradient(ellipse at 40% 90%, rgba(255, 120, 160, 0.02) 0%, transparent 45%);
 }
 
 /* ═══════ Crisp Line Rendering & Subtle Depth ═══════ */
@@ -261,28 +331,27 @@ html[data-high-contrast="true"] select {
 
 /* ═══════ Dark Mode ═══════ */
 html[data-theme="dark"].dark {
-    /* Backgrounds (Softer Monochrome) */
-    --color-ocean-deep: #121212;
-    --color-ocean-card: #18181B;
-    --color-ocean-surface: #27272A;
-    --color-ocean-border: #3F3F46;
-    --color-ocean-hover: #27272A;
+    /* Deep oceanic darks */
+    --color-ocean-deep: #050505; 
+    --color-ocean-card: rgba(18, 18, 18, 0.6); 
+    --color-ocean-surface: rgba(23, 23, 23, 0.4);
+    --color-ocean-border: rgba(255, 255, 255, 0.08); 
+    --color-ocean-hover: rgba(255, 255, 255, 0.03);
 
-    /* Subtle dividers for dark mode */
-    --color-ocean-divider: #3F3F46;
-    --color-ocean-divider-subtle: #27272A;
+    --color-ocean-divider: rgba(255, 255, 255, 0.05);
+    --color-ocean-divider-subtle: rgba(255, 255, 255, 0.02);
 
-    /* Accents (Minimalist Monochrome - Dark grays so white text is readable) */
-    --color-biolum: #3F3F46; /* Lighter than background so it pops, but dark enough for white text */
-    --color-biolum-bright: #52525B;
-    --color-biolum-dim: #27272A;
-    --color-biolum-glow: #3F3F46;
-    --color-biolum-foreground: #FAFAFA;
+    /* Ocean accents */
+    --color-biolum: #E4E4E7; 
+    --color-biolum-bright: #FFFFFF;
+    --color-biolum-dim: #71717A;
+    --color-biolum-glow: rgba(255, 255, 255, 0.15);
+    --color-biolum-foreground: #000000;
 
-    /* Text Colors (Crisp White for readability) */
-    --color-ocean-text: #FFFFFF;
-    --color-ocean-text-muted: #E4E4E7;
-    --color-ocean-text-dim: #A1A1AA;
+    /* Text Colors */
+    --color-ocean-text: #FAFAFA;
+    --color-ocean-text-muted: #D1D5DB;
+    --color-ocean-text-dim: #9CA3AF;
 }
 
 /* ═══════ Ripples Page ═══════ */
@@ -620,3 +689,9 @@ html[data-theme="dark"].dark {
     color: var(--color-biolum-foreground);
 }
 
+@layer utilities {
+    .bg-biolum {
+        background-color: var(--color-biolum) !important;
+        color: var(--color-biolum-foreground) !important;
+    }
+}
