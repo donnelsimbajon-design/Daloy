@@ -3,8 +3,9 @@ import AdminLayout from '../../Layouts/AdminLayout';
 import StatusBadge from '../../Components/Admin/UI/StatusBadge';
 import Modal from '../../Components/Admin/UI/Modal';
 import { router } from '@inertiajs/react';
+import { AlertTriangle, Music, EyeOff } from 'lucide-react';
 
-export default function Moderation({ posts = { data: [] }, comments = { data: [] }, modLogs = [], todayStats = {}, tab = 'posts' }) {
+export default function Moderation({ posts = { data: [] }, comments = { data: [] }, lives = { data: [] }, modLogs = [], todayStats = {}, tab = 'posts' }) {
     const [activeTab, setActiveTab] = useState(tab);
     const [modalType, setModalType] = useState(null);
     const [selectedItem, setSelectedItem] = useState(null);
@@ -12,21 +13,24 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
 
     const allPosts = posts.data || [];
     const allComments = comments.data || [];
-    const flaggedItems = [...allPosts.filter(p => p.flagged), ...allComments.filter(c => c.flagged)];
+    const allLives = lives.data || [];
+    const flaggedItems = [...allPosts.filter(p => p.flagged), ...allComments.filter(c => c.flagged), ...allLives.filter(l => l.flagged)];
 
     const contentData = activeTab === 'flagged' ? flaggedItems :
-                        activeTab === 'comments' ? allComments : allPosts;
+                        activeTab === 'comments' ? allComments : 
+                        activeTab === 'lives' ? allLives : allPosts;
 
     const tabs = [
-        { key: 'posts', label: 'ALL ITEMS', count: allPosts.length + allComments.length },
+        { key: 'posts', label: 'ALL ITEMS', count: allPosts.length + allComments.length + allLives.length },
         { key: 'flagged', label: 'FLAGGED', count: flaggedItems.length },
         { key: 'comments', label: 'COMMENTS', count: allComments.length },
+        { key: 'lives', label: 'ACTIVE LIVES', count: allLives.length },
     ];
 
     const handleModAction = (action) => {
         if (!selectedItem) return;
         router.post('/admin/moderation/action', {
-            content_type: selectedItem.type === 'Post' ? 'post' : 'comment',
+            content_type: selectedItem.type.toLowerCase(),
             content_id: selectedItem.id,
             action: action,
             reason: actionReason,
@@ -65,8 +69,12 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
                                     {/* Author Row */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                                         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                            <div className="adm-table-cell-user-avatar" style={{ width: '40px', height: '40px', fontSize: '16px' }}>
-                                                {item.author?.charAt(0)?.toUpperCase() || '?'}
+                                            <div className="adm-table-cell-user-avatar" style={{ width: '40px', height: '40px', fontSize: '16px', overflow: 'hidden' }}>
+                                                {item.profile_picture ? (
+                                                    <img src={item.profile_picture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                ) : (
+                                                    item.author?.charAt(0)?.toUpperCase() || '?'
+                                                )}
                                             </div>
                                             <div>
                                                 <div style={{ fontWeight: 700, fontSize: '14px' }}>{item.username || item.author}</div>
@@ -77,7 +85,7 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
                                         </div>
                                         {item.flagged && (
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#fef2f2', border: '1px solid #fecaca', padding: '4px 10px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                ⚡ AI FLAG: {item.reports_count || 0} REPORTS
+                                                <AlertTriangle size={12} strokeWidth={2.5} /> AI FLAG: {item.reports_count || 0} REPORTS
                                             </span>
                                         )}
                                     </div>
@@ -85,6 +93,26 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
                                     {/* Content */}
                                     <div style={{ padding: '12px 0', fontSize: '14px', lineHeight: '1.6', color: '#333' }}>
                                         {item.content}
+                                        {item.type === 'Live' && (
+                                            <div style={{ marginTop: '12px', background: '#f8fafc', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
+                                                <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                    <Music size={12} /> CURRENTLY PLAYING
+                                                </div>
+                                                <div style={{ fontSize: '14px', fontWeight: 500, color: '#0f172a', marginBottom: '8px' }}>{item.music_played || 'No track playing'}</div>
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                                                    <div>
+                                                        <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>SESSION STARTED</div>
+                                                        <div style={{ fontSize: '12px', color: '#334155' }}>{item.uptime}</div>
+                                                    </div>
+                                                    {item.track_started && (
+                                                    <div>
+                                                        <div style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase' }}>TRACK STARTED</div>
+                                                        <div style={{ fontSize: '12px', color: '#334155' }}>{item.track_started}</div>
+                                                    </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Media Preview */}
@@ -109,9 +137,20 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
                                             {item.date} {item.location && `· ${item.location}`}
                                         </div>
                                         <div style={{ display: 'flex', gap: '8px' }}>
-                                            <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('hide'); }}>HIDE</button>
-                                            <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('flag'); }}>FLAG</button>
-                                            <button className="adm-btn adm-btn-sm adm-btn-primary" style={{ background: '#111' }} onClick={() => { setSelectedItem(item); setModalType('delete'); }}>DELETE</button>
+                                            {item.type === 'Live' ? (
+                                                <>
+                                                    <a href={`/schools/${item.school_id}?ghost=true`} target="_blank" rel="noreferrer" className="adm-btn adm-btn-sm adm-btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <EyeOff size={14} /> GHOST
+                                                    </a>
+                                                    <button className="adm-btn adm-btn-sm adm-btn-primary" style={{ background: '#111' }} onClick={() => { setSelectedItem(item); setModalType('terminate'); }}>TERMINATE</button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('hide'); }}>HIDE</button>
+                                                    <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(item); setModalType('flag'); }}>FLAG</button>
+                                                    <button className="adm-btn adm-btn-sm adm-btn-primary" style={{ background: '#111' }} onClick={() => { setSelectedItem(item); setModalType('delete'); }}>DELETE</button>
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -169,15 +208,15 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
 
             {/* Action Modals */}
             <Modal
-                isOpen={['delete', 'hide', 'flag'].includes(modalType)}
+                isOpen={['delete', 'hide', 'flag', 'terminate'].includes(modalType)}
                 onClose={() => setModalType(null)}
-                title={modalType === 'delete' ? 'Delete Content' : modalType === 'hide' ? 'Hide Content' : 'Flag Content'}
+                title={modalType === 'delete' ? 'Delete Content' : modalType === 'hide' ? 'Hide Content' : modalType === 'flag' ? 'Flag Content' : 'Terminate Live'}
                 size="sm"
                 footer={
                     <>
                         <button className="adm-btn adm-btn-outline" onClick={() => setModalType(null)}>Cancel</button>
-                        <button className={`adm-btn ${modalType === 'delete' ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => handleModAction(modalType)}>
-                            {modalType === 'delete' ? 'DELETE' : modalType === 'hide' ? 'HIDE' : 'FLAG'}
+                        <button className={`adm-btn ${['delete', 'terminate'].includes(modalType) ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => handleModAction(modalType)}>
+                            {modalType ? modalType.toUpperCase() : ''}
                         </button>
                     </>
                 }
@@ -188,6 +227,7 @@ export default function Moderation({ posts = { data: [] }, comments = { data: []
                             {modalType === 'delete' && `Permanently delete this ${selectedItem.type?.toLowerCase()} by ${selectedItem.author}?`}
                             {modalType === 'hide' && `Hide this ${selectedItem.type?.toLowerCase()} from public view?`}
                             {modalType === 'flag' && `Flag this ${selectedItem.type?.toLowerCase()} for review?`}
+                            {modalType === 'terminate' && `Instantly terminate this live session? Evaluated as harassment or inappropriate.`}
                         </p>
                         <div className="adm-form-group">
                             <label className="adm-form-label">Admin Note</label>

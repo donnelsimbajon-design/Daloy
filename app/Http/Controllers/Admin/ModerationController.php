@@ -26,6 +26,7 @@ class ModerationController extends BaseAdminController
                 'type' => 'Post',
                 'author' => $post->user->name,
                 'username' => '@' . $post->user->username,
+                'profile_picture' => $post->user->profile_picture,
                 'content' => \Illuminate\Support\Str::limit($post->content, 200),
                 'full_content' => $post->content,
                 'media_urls' => $post->media_urls,
@@ -46,11 +47,33 @@ class ModerationController extends BaseAdminController
                 'type' => 'Comment',
                 'author' => $c->user->name,
                 'username' => '@' . $c->user->username,
+                'profile_picture' => $c->user->profile_picture,
                 'content' => $c->content,
                 'post_id' => $c->post_id,
                 'reports_count' => $c->reports_count,
                 'flagged' => $c->reports_count > 0,
                 'date' => $c->created_at->diffForHumans(),
+            ]);
+
+        $lives = \App\Models\SchoolCurrent::with(['school', 'admin'])
+            ->withCount('reports')
+            ->where('is_active', true)
+            ->latest()
+            ->paginate(10, ['*'], 'lives_page')
+            ->through(fn($l) => [
+                'id' => $l->id,
+                'type' => 'Live',
+                'author' => $l->admin->name ?? 'Unknown',
+                'username' => '@' . ($l->admin->username ?? 'unknown'),
+                'profile_picture' => $l->admin->profile_picture ?? null,
+                'content' => 'Live session: ' . ($l->session_name ?? 'Untitled') . ' in ' . ($l->school->name ?? 'Deleted School'),
+                'music_played' => $l->current_track_title,
+                'uptime' => $l->created_at->diffForHumans(),
+                'track_started' => $l->track_started_at ? \Carbon\Carbon::parse($l->track_started_at)->diffForHumans() : null,
+                'school_id' => $l->school_id,
+                'reports_count' => $l->reports_count,
+                'flagged' => $l->reports_count > 0,
+                'date' => $l->created_at->diffForHumans(),
             ]);
 
         $modLogs = ModerationAction::with('admin.user')
@@ -68,12 +91,13 @@ class ModerationController extends BaseAdminController
         $today = Carbon::today();
         $scannedToday = Post::whereDate('created_at', $today)->count() + Comment::whereDate('created_at', $today)->count();
         $removedToday = ModerationAction::whereDate('created_at', $today)
-            ->whereIn('action_type', ['delete_post', 'delete_comment', 'hide_post'])
+            ->whereIn('action_type', ['delete_post', 'delete_comment', 'hide_post', 'terminate_live'])
             ->count();
 
         return Inertia::render('Admin/Moderation', [
             'posts' => $posts,
             'comments' => $comments,
+            'lives' => $lives,
             'modLogs' => $modLogs,
             'todayStats' => [
                 'scanned' => $scannedToday,
@@ -88,9 +112,9 @@ class ModerationController extends BaseAdminController
         $this->authorizeAdmin($request, 'content');
 
         $request->validate([
-            'content_type' => 'required|in:post,comment',
+            'content_type' => 'required|in:post,comment,live',
             'content_id' => 'required|integer',
-            'action' => 'required|in:delete,hide,flag',
+            'action' => 'required|in:delete,hide,flag,terminate',
             'reason' => 'nullable|string',
         ]);
 
@@ -101,10 +125,16 @@ class ModerationController extends BaseAdminController
             if ($request->action === 'delete') {
                 $post->delete();
             }
-        } else {
+        } elseif ($request->content_type === 'comment') {
             $comment = Comment::findOrFail($request->content_id);
             if ($request->action === 'delete') {
                 $comment->delete();
+            }
+        } elseif ($request->content_type === 'live') {
+            $live = \App\Models\SchoolCurrent::findOrFail($request->content_id);
+            if ($request->action === 'terminate' || $request->action === 'delete') {
+                $live->update(['is_active' => false]);
+                // Broadcasting termination to websocket could be done here
             }
         }
 

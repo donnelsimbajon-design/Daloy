@@ -45,7 +45,8 @@ class SchoolCallController extends Controller
                 'current_track_title' => $trackTitle,
                 'track_url' => $trackUrl,
                 'track_type' => $trackType,
-                'is_active' => true
+                'is_active' => true,
+                'track_started_at' => time()
             ]
         );
 
@@ -205,9 +206,12 @@ class SchoolCallController extends Controller
                 'created_at' => $m->created_at->diffForHumans(),
             ]);
 
+        $elapsed = $session->track_started_at ? time() - $session->track_started_at : 0;
+
         return response()->json([
             'active' => true,
             'session' => $session->load('tracks.addedBy'),
+            'track_elapsed' => $elapsed,
             'participants' => $participants,
             'listener_count' => $participants->count(),
             'votes' => [
@@ -299,6 +303,7 @@ class SchoolCallController extends Controller
             'current_track_title' => $track->track_title,
             'track_url' => $track->track_url,
             'track_type' => $track->track_type,
+            'track_started_at' => time()
         ]);
 
         // Clear votes for new track

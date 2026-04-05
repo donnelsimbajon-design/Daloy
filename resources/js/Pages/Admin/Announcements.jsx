@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import Modal from '../../Components/Admin/UI/Modal';
+import { Pencil, Radio, BarChart3, Archive, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 /* ── Type & Status configuration ── */
 const TYPE_CONFIG = {
@@ -75,9 +76,14 @@ export default function Announcements({ announcements, stats = {}, schools = [],
         router.post(`/admin/announcements/${id}/broadcast`, {}, { preserveScroll: true });
     };
 
-    const handleDeactivate = (id) => {
-        if (!confirm('Deactivate this announcement?')) return;
+    const handleArchive = (id) => {
+        if (!confirm('Archive this announcement? It will stop showing to users.')) return;
         router.delete(`/admin/announcements/${id}`, { preserveScroll: true });
+    };
+
+    const handleDelete = (id) => {
+        if (!confirm('Permanently delete this announcement? This completely removes it.')) return;
+        router.delete(`/admin/announcements/${id}/force`, { preserveScroll: true });
     };
 
     const handleViewStats = async (announcement) => {
@@ -113,6 +119,7 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                     { label: 'ACTIVE NOW',          value: stats.active },
                     { label: 'SCHEDULED',           value: stats.scheduled },
                     { label: 'AVG OPEN RATE',       value: `${stats.avgOpenRate ?? 0}%` },
+                    { label: 'APPROVAL RATE',       value: `${stats.approval_rate ?? 0}%` },
                 ].map((s) => (
                     <div key={s.label} className="adm-stat-card">
                         <div className="adm-stat-label">{s.label}</div>
@@ -154,6 +161,8 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                                 <th>SENT</th>
                                 <th>READ</th>
                                 <th>OPEN RATE</th>
+                                <th><ThumbsUp size={14} color="#15803d" /></th>
+                                <th><ThumbsDown size={14} color="#dc2626" /></th>
                                 <th>STATUS</th>
                                 <th>SCHEDULED</th>
                                 <th>ACTIONS</th>
@@ -161,7 +170,7 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                         </thead>
                         <tbody>
                             {list.length === 0 ? (
-                                <tr><td colSpan={10} className="adm-empty-state">No announcements found</td></tr>
+                                <tr><td colSpan={12} className="adm-empty-state">No announcements found</td></tr>
                             ) : list.map((a) => (
                                 <tr key={a.id}>
                                     <td style={{ maxWidth: 200 }}>
@@ -181,22 +190,33 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                                             <span style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{a.open_rate || 0}%</span>
                                         </div>
                                     </td>
+                                    <td style={{ fontWeight: 700, color: '#15803d' }}>{a.upvote_count || 0}</td>
+                                    <td style={{ fontWeight: 700, color: '#dc2626' }}>{a.downvote_count || 0}</td>
                                     <td><StatusBadge status={a.status} /></td>
                                     <td className="adm-table-cell-sub">{a.scheduled_at || '—'}</td>
                                     <td>
-                                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                             {a.sent_count === 0 && a.is_active && (
                                                 <>
-                                                    <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => openEdit(a)}>Edit</button>
-                                                    <button className="adm-btn adm-btn-sm adm-btn-primary" onClick={() => handleBroadcast(a.id)}>Broadcast</button>
+                                                    <button title="Edit" onClick={() => openEdit(a)} style={{ background: 'none', border: '1.5px solid var(--adm-border)', borderRadius: 8, padding: '6px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--adm-border-light)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}>
+                                                        <Pencil size={15} color="var(--adm-text-muted)" />
+                                                    </button>
+                                                    <button title="Broadcast" onClick={() => handleBroadcast(a.id)} style={{ background: 'var(--adm-black)', border: 'none', borderRadius: 8, padding: '6px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.opacity = '0.8'; }} onMouseLeave={e => { e.currentTarget.style.opacity = '1'; }}>
+                                                        <Radio size={15} color="#fff" />
+                                                    </button>
                                                 </>
                                             )}
-                                            {a.sent_count > 0 && (
-                                                <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleViewStats(a)}>Stats</button>
-                                            )}
+                                            <button title="Stats" onClick={() => handleViewStats(a)} style={{ background: 'none', border: '1.5px solid var(--adm-border)', borderRadius: 8, padding: '6px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--adm-border-light)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}>
+                                                <BarChart3 size={15} color="var(--adm-text-muted)" />
+                                            </button>
                                             {a.is_active && (
-                                                <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => handleDeactivate(a.id)}>Deactivate</button>
+                                                <button title="Archive" onClick={() => handleArchive(a.id)} style={{ background: 'none', border: '1.5px solid var(--adm-border)', borderRadius: 8, padding: '6px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.background = 'var(--adm-border-light)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}>
+                                                    <Archive size={15} color="var(--adm-text-muted)" />
+                                                </button>
                                             )}
+                                            <button title="Delete" onClick={() => handleDelete(a.id)} style={{ background: 'none', border: '1.5px solid #fecaca', borderRadius: 8, padding: '6px 7px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }} onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; }} onMouseLeave={e => { e.currentTarget.style.background = 'none'; }}>
+                                                <Trash2 size={15} color="#dc2626" />
+                                            </button>
                                         </div>
                                     </td>
                                 </tr>
@@ -228,6 +248,7 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                     <div className="adm-empty-state">Loading...</div>
                 ) : (
                     <div>
+                        {/* Delivery Stats */}
                         <div className="adm-stats-mini-grid" style={{ marginBottom: 20 }}>
                             {[
                                 { label: 'Sent To', value: statsData.sent_count },
@@ -240,9 +261,66 @@ export default function Announcements({ announcements, stats = {}, schools = [],
                                 </div>
                             ))}
                         </div>
-                        <div style={{ height: 8, background: 'var(--adm-border-light)', borderRadius: 4, marginBottom: 20 }}>
+                        <div style={{ height: 8, background: 'var(--adm-border-light)', borderRadius: 4, marginBottom: 24 }}>
                             <div style={{ height: '100%', borderRadius: 4, background: 'var(--adm-black)', width: `${Math.min(100, statsData.open_rate)}%`, transition: 'width 0.4s' }} />
                         </div>
+
+                        {/* ── Vote Breakdown ── */}
+                        <div className="adm-permission-category-label">User Votes</div>
+                        <div className="adm-stats-mini-grid" style={{ marginBottom: 12 }}>
+                            <div className="adm-stat-card" style={{ textAlign: 'center', padding: 16, borderLeft: '4px solid #15803d' }}>
+                                <div className="adm-stat-value" style={{ fontSize: 28, color: '#15803d' }}>{statsData.upvotes ?? 0}</div>
+                                <div className="adm-stat-sub" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><ThumbsUp size={13} /> Upvotes</div>
+                            </div>
+                            <div className="adm-stat-card" style={{ textAlign: 'center', padding: 16, borderLeft: '4px solid #dc2626' }}>
+                                <div className="adm-stat-value" style={{ fontSize: 28, color: '#dc2626' }}>{statsData.downvotes ?? 0}</div>
+                                <div className="adm-stat-sub" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}><ThumbsDown size={13} /> Downvotes</div>
+                            </div>
+                            <div className="adm-stat-card" style={{ textAlign: 'center', padding: 16, borderLeft: '4px solid #2563eb' }}>
+                                <div className="adm-stat-value" style={{ fontSize: 28, color: '#2563eb' }}>
+                                    {statsData.approval_rate !== null ? `${statsData.approval_rate}%` : '—'}
+                                </div>
+                                <div className="adm-stat-sub">Approval Rate</div>
+                            </div>
+                        </div>
+
+                        {/* Visual vote bar */}
+                        {(statsData.total_votes ?? 0) > 0 && (
+                            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', height: 12, marginBottom: 24 }}>
+                                <div style={{ width: `${(statsData.upvotes / statsData.total_votes) * 100}%`, background: '#22c55e', transition: 'width 0.4s' }} />
+                                <div style={{ width: `${(statsData.downvotes / statsData.total_votes) * 100}%`, background: '#ef4444', transition: 'width 0.4s' }} />
+                            </div>
+                        )}
+
+                        {/* ── User Feedback ── */}
+                        <div className="adm-permission-category-label" style={{ marginTop: 8 }}>User Feedback</div>
+                        {(!statsData.feedback || statsData.feedback.length === 0) ? (
+                            <p className="adm-table-cell-sub" style={{ padding: '8px 0' }}>No feedback submitted yet</p>
+                        ) : (
+                            <div style={{ maxHeight: 280, overflowY: 'auto', marginBottom: 20 }}>
+                                {statsData.feedback.map((f, i) => (
+                                    <div key={i} className="adm-location-item" style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--adm-border-light)' }}>
+                                        {f.avatar ? (
+                                            <img src={f.avatar.startsWith('http') ? f.avatar : `/storage/${f.avatar}`} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                                        ) : (
+                                            <div className="adm-table-cell-user-avatar" style={{ flexShrink: 0 }}>{f.name?.charAt(0)?.toUpperCase()}</div>
+                                        )}
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                                <span className="adm-table-cell-bold" style={{ fontSize: 13 }}>{f.name}</span>
+                                                <span className="adm-table-cell-sub" style={{ fontSize: 11 }}>@{f.username}</span>
+                                                {f.vote === 'upvote' && <ThumbsUp size={13} color="#15803d" />}
+                                                {f.vote === 'downvote' && <ThumbsDown size={13} color="#dc2626" />}
+                                            </div>
+                                            <p style={{ fontSize: 13, color: 'var(--adm-text-muted)', margin: 0, lineHeight: 1.5 }}>{f.feedback}</p>
+                                            <span className="adm-table-cell-sub" style={{ fontSize: 10 }}>{f.time}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* ── Recent Readers ── */}
                         <div className="adm-permission-category-label">Recent Readers</div>
                         {(statsData.recent_readers || []).length === 0 ? (
                             <p className="adm-table-cell-sub">No reads yet</p>

@@ -178,6 +178,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/conversations/start', [MessagingController::class, 'start'])->name('api.conversations.start');
     Route::post('/api/conversations/send', [MessagingController::class, 'sendMessage'])->name('api.conversations.send');
     Route::get('/api/conversations/{conversation}/messages', [MessagingController::class, 'messages'])->name('api.conversations.messages');
+    Route::post('/api/conversations/{conversation}/call', [App\Http\Controllers\MessagingCallController::class, 'startCall'])->name('api.conversations.call');
+    Route::get('/api/calls/incoming', [App\Http\Controllers\MessagingCallController::class, 'checkIncoming'])->name('api.calls.incoming');
+    Route::get('/api/calls/status', [App\Http\Controllers\MessagingCallController::class, 'checkStatus'])->name('api.calls.status');
+    Route::post('/api/calls/action', [App\Http\Controllers\MessagingCallController::class, 'action'])->name('api.calls.action');
     Route::post('/api/messages/{message}/react', [MessagingController::class, 'reactToMessage'])->name('api.messages.react');
     Route::delete('/api/messages/{message}', [MessagingController::class, 'deleteMessage'])->name('api.messages.delete');
     Route::post('/api/conversations/{conversation}/typing', [MessagingController::class, 'typing'])->name('api.conversations.typing');
@@ -196,6 +200,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/ripples/{ripple}/mark-read', [RippleController::class, 'markRead'])->name('api.ripples.mark-read');
     Route::post('/api/ripples/snooze', [RippleController::class, 'snooze'])->name('api.ripples.snooze');
     Route::post('/api/ripples/unsnooze', [RippleController::class, 'unsnooze'])->name('api.ripples.unsnooze');
+
+    // Live Announcements Poller
+    Route::get('/api/announcements/live', [\App\Http\Controllers\AnnouncementInteractionController::class, 'live'])->name('api.announcements.live');
+    Route::post('/api/announcements/{announcement}/interact', [\App\Http\Controllers\AnnouncementInteractionController::class, 'interact'])->name('api.announcements.interact');
 
     // Close Friends (Prompt 2)
     Route::get('/api/close-friends', [CloseFriendController::class, 'index'])->name('api.close-friends');
@@ -309,7 +317,12 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     Route::get('/live/stats', [LiveMonitorController::class, 'stats'])->name('admin.live.stats');
 
     Route::get('/announcements', [AnnouncementController::class, 'index'])->name('admin.announcements');
-    Route::post('/announcements/store', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    Route::post('/announcements', [AnnouncementController::class, 'store'])->name('admin.announcements.store');
+    Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update'])->name('admin.announcements.update');
+    Route::delete('/announcements/{id}/force', [AnnouncementController::class, 'forceDelete'])->name('admin.announcements.forceDelete');
+    Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy'])->name('admin.announcements.destroy');
+    Route::post('/announcements/{announcement}/broadcast', [AnnouncementController::class, 'broadcast'])->name('admin.announcements.broadcast');
+    Route::get('/announcements/{announcement}/stats', [AnnouncementController::class, 'stats'])->name('admin.announcements.stats');
 
     Route::get('/roles', [RolesController::class, 'index'])->name('admin.roles');
     Route::post('/roles', [RolesController::class, 'store'])->name('admin.roles.store');

@@ -42,4 +42,9 @@ class Announcement extends Model
         if ($this->expires_at && $this->expires_at->isPast()) return 'expired';
         return 'active';
     }
+
+    public function interactions()
+    {
+        return $this->hasMany(AnnouncementInteraction::class);
+    }
 }

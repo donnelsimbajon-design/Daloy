@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SchoolCurrent extends Model
 {
-    protected $fillable = ['school_id', 'admin_id', 'channel_name', 'session_name', 'current_track_title', 'track_url', 'track_type', 'is_active'];
+    protected $fillable = ['school_id', 'admin_id', 'channel_name', 'session_name', 'current_track_title', 'track_url', 'track_type', 'is_active', 'track_started_at'];
 
     public function school()
     {
@@ -42,5 +42,10 @@ class SchoolCurrent extends Model
     public function messages()
     {
         return $this->hasMany(SchoolCurrentMessage::class);
+    }
+
+    public function reports()
+    {
+        return $this->morphMany(Report::class, 'reportable');
     }
 }

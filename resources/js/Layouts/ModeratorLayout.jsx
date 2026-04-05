@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import '../../css/admin.css';
 import Sidebar from '../Components/Moderator/UI/Sidebar';
 import Topbar from '../Components/Moderator/UI/Topbar';
+import GlobalAnnouncementPopup from '../Components/Features/Announcements/GlobalAnnouncementPopup';
 
 const pageTitles = {
     'Moderator/Dashboard':  'Dashboard Overview',
@@ -82,6 +83,8 @@ export default function ModeratorLayout({ children, currentPage }) {
                     }}
                 />
             )}
+            
+            <GlobalAnnouncementPopup />
         </div>
     );
 }

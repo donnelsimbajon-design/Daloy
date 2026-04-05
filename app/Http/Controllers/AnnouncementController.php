@@ -19,7 +19,12 @@ class AnnouncementController extends Controller
     // ─── Index ───────────────────────────────────────────────────
     public function index(Request $request)
     {
-        $query = Announcement::with('admin.user:id,name')->latest();
+        $query = Announcement::with('admin.user:id,name')
+            ->withCount([
+                'interactions as upvote_count' => fn($q) => $q->where('vote', 'upvote'),
+                'interactions as downvote_count' => fn($q) => $q->where('vote', 'downvote'),
+            ])
+            ->latest();
 
         if ($type = $request->input('type')) {
             $query->where('type', $type);
@@ -44,12 +49,18 @@ class AnnouncementController extends Controller
 
         $announcements = $query->paginate(15)->through(fn($a) => $this->formatAnnouncement($a));
 
+        // ── Global stats ──
+        $totalInteractions = \App\Models\AnnouncementInteraction::count();
+        $totalUpvotes = \App\Models\AnnouncementInteraction::where('vote', 'upvote')->count();
+        $globalApproval = $totalInteractions > 0 ? round(($totalUpvotes / $totalInteractions) * 100, 1) : 0;
+
         $stats = [
-            'total'      => Announcement::count(),
-            'active'     => Announcement::where('is_active', true)->where('sent_count', '>', 0)->count(),
-            'scheduled'  => Announcement::where('is_active', true)->where('sent_count', 0)
-                                        ->whereNotNull('scheduled_at')->where('scheduled_at', '>', now())->count(),
-            'avgOpenRate'=> $this->computeAvgOpenRate(),
+            'total'          => Announcement::count(),
+            'active'         => Announcement::where('is_active', true)->where('sent_count', '>', 0)->count(),
+            'scheduled'      => Announcement::where('is_active', true)->where('sent_count', 0)
+                                            ->whereNotNull('scheduled_at')->where('scheduled_at', '>', now())->count(),
+            'avgOpenRate'    => $this->computeAvgOpenRate(),
+            'approval_rate'  => $globalApproval,
         ];
 
         $schools = School::select('id', 'name')->orderBy('name')->get();
@@ -126,7 +137,23 @@ class AnnouncementController extends Controller
     {
         $announcement->update(['is_active' => false]);
         AnnouncementService::bustCache();
-        return back()->with('success', 'Announcement deactivated.');
+        return back()->with('success', 'Announcement archived and will no longer be shown.');
+    }
+
+    // ─── Force Delete ────────────────────────────────────────────
+    public function forceDelete($id)
+    {
+        $announcement = Announcement::find($id);
+        if (!$announcement) {
+            return back()->with('error', 'Announcement not found (may already be deleted).');
+        }
+
+        // Remove all interactions first (votes, feedback)
+        $announcement->interactions()->delete();
+
+        $announcement->delete();
+        AnnouncementService::bustCache();
+        return back()->with('success', 'Announcement permanently deleted.');
     }
 
     // ─── Broadcast Now ───────────────────────────────────────────
@@ -169,11 +196,39 @@ class AnnouncementController extends Controller
             ? round(($announcement->read_count / $announcement->sent_count) * 100, 1)
             : 0;
 
+        // ── Vote breakdown ──
+        $upvotes   = $announcement->interactions()->where('vote', 'upvote')->count();
+        $downvotes = $announcement->interactions()->where('vote', 'downvote')->count();
+        $totalVotes = $upvotes + $downvotes;
+        $approvalRate = $totalVotes > 0 ? round(($upvotes / $totalVotes) * 100, 1) : null;
+
+        // ── User feedback (only those who actually wrote something) ──
+        $feedbackEntries = $announcement->interactions()
+            ->whereNotNull('feedback')
+            ->where('feedback', '!=', '')
+            ->with('user:id,name,username,profile_picture')
+            ->latest()
+            ->limit(50)
+            ->get()
+            ->map(fn($i) => [
+                'name'     => $i->user?->name ?? 'Unknown',
+                'username' => $i->user?->username ?? '',
+                'avatar'   => $i->user?->profile_picture,
+                'vote'     => $i->vote,
+                'feedback' => $i->feedback,
+                'time'     => $i->created_at->diffForHumans(),
+            ]);
+
         return response()->json([
             'sent_count'     => $announcement->sent_count,
             'read_count'     => $announcement->read_count,
             'open_rate'      => $openRate,
+            'upvotes'        => $upvotes,
+            'downvotes'      => $downvotes,
+            'total_votes'    => $totalVotes,
+            'approval_rate'  => $approvalRate,
             'recent_readers' => $recentReaders,
+            'feedback'       => $feedbackEntries,
         ]);
     }
 
@@ -197,6 +252,8 @@ class AnnouncementController extends Controller
             'sent_count'       => $a->sent_count,
             'read_count'       => $a->read_count,
             'open_rate'        => $openRate,
+            'upvote_count'     => $a->upvote_count ?? 0,
+            'downvote_count'   => $a->downvote_count ?? 0,
             'status'           => $a->status,
             'created_by'       => $a->admin?->user?->name ?? 'System',
             'created_at'       => $a->created_at->format('M d, Y'),

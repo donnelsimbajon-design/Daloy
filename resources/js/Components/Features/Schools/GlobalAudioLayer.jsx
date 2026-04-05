@@ -1,25 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useCurrents } from '@/Contexts/CurrentsContext';
 
-/**
- * GlobalAudioLayer — Renders the hidden audio embeds at the MainLayout level
- * so they persist across ALL navigation and panel switches.
- * This component is invisible but keeps the music playing.
- */
 export default function GlobalAudioLayer() {
     const ctx = useCurrents();
+    const audioRef = useRef(null);
+    const lastUrlRef = useRef(null);
 
-    if (!ctx?.isInSession || !ctx.session) return null;
+    const isInSession = ctx?.isInSession && ctx.session;
+    const session = ctx?.session;
+    const trackElapsed = ctx?.trackElapsed || 0;
+    const isHost = ctx?.isHost;
 
-    const { session } = ctx;
+    const [syncedYtUrl, setSyncedYtUrl] = useState('');
+
+    // We only force-sync if the URL changes OR we are newly joining
+    useEffect(() => {
+        if (!isInSession || !session?.track_url) return;
+
+        if (lastUrlRef.current !== session.track_url) {
+            // A new track has loaded! 
+            lastUrlRef.current = session.track_url;
+
+            if (session.track_type === 'youtube') {
+                const id = getYouTubeID(session.track_url);
+                // We set the URL ONCE with the current elapsed time so it starts perfectly,
+                // but doesn't re-render every second when trackElapsed ticks up!
+                setSyncedYtUrl(`https://www.youtube.com/embed/${id}?autoplay=1&controls=0&fs=0&start=${Math.floor(trackElapsed)}`);
+            } else if (session.track_type === 'mp3' && audioRef.current) {
+                audioRef.current.currentTime = trackElapsed;
+            }
+        } else {
+            // Routine sync for MP3s if they drift too far out of phase
+            if (session.track_type === 'mp3' && audioRef.current) {
+                // TIGHT SYNC: Correct EVERYONE (even the host) if they are more than 1.5 seconds off the global server live time.
+                // This acts like true Live Radio.
+                if (Math.abs(audioRef.current.currentTime - trackElapsed) > 1.5) {
+                    audioRef.current.currentTime = trackElapsed;
+                }
+            }
+        }
+    }, [isInSession, session?.track_url, trackElapsed, isHost, session?.track_type]);
+
+    if (!isInSession) return null;
 
     return (
         <div className="fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true">
-            {session.track_type === 'youtube' && session.track_url && (
+            {session.track_type === 'youtube' && syncedYtUrl && (
                 <iframe
                     key={`yt-${session.track_url}`}
                     width="1" height="1"
-                    src={`https://www.youtube.com/embed/${getYouTubeID(session.track_url)}?autoplay=1&controls=0&fs=0`}
+                    src={syncedYtUrl}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -35,7 +65,7 @@ export default function GlobalAudioLayer() {
                 />
             )}
             {session.track_type === 'mp3' && session.track_url && (
-                <audio key={`mp3-${session.track_url}`} autoPlay>
+                <audio ref={audioRef} key={`mp3-${session.track_url}`} autoPlay>
                     <source src={session.track_url} type="audio/mpeg" />
                 </audio>
             )}

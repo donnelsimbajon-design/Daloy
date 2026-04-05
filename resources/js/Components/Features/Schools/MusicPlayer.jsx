@@ -15,10 +15,8 @@ import { SkipForward, Volume2, VolumeX, Mic, MicOff, Send, MessageCircle, Users,
 export default function MusicPlayer() {
     const { auth } = usePage().props;
     const ctx = useCurrents();
-    const [activeTab, setActiveTab] = useState('music');
     const [chatInput, setChatInput] = useState('');
     const [newTrackUrl, setNewTrackUrl] = useState('');
-    const [isExpanded, setIsExpanded] = useState(false);
     const [isChatPopout, setIsChatPopout] = useState(false);
     const chatEndRef = useRef(null);
     const chatPopoutEndRef = useRef(null);
@@ -26,7 +24,8 @@ export default function MusicPlayer() {
     if (!ctx?.isInSession || !ctx.session) return null;
 
     const { session, participants, listenerCount, votes, myVote, chatMessages,
-        isMicEnabled, isMicMuted, locallyMutedUsers,
+        isMicEnabled, isMicMuted, locallyMutedUsers, trackElapsed,
+        activeTab, setActiveTab, isExpanded, setIsExpanded,
         leaveSession, endSession, toggleMic, toggleLocalMute,
         sendChat, castVote, addTrack, playNext } = ctx;
 
@@ -106,8 +105,15 @@ export default function MusicPlayer() {
                             <Music className="w-5 h-5 text-biolum" />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <p className="text-[10px] font-black text-biolum uppercase tracking-wider">Now Playing</p>
-                            <p className="text-sm font-bold text-ocean-text truncate">{session.current_track_title || 'Untitled'}</p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-biolum uppercase tracking-wider">Now Playing</p>
+                                <span className="text-[10px] font-mono font-bold text-biolum/80 bg-biolum/10 px-1.5 py-0.5 rounded-md">
+                                    {formatTime(trackElapsed)}
+                                </span>
+                            </div>
+                            <p className="text-sm font-bold text-ocean-text truncate" title={session.current_track_title || 'Untitled'}>
+                                {session.current_track_title || 'Untitled'}
+                            </p>
                         </div>
                     </div>
                     {/* Votes */}
@@ -410,6 +416,9 @@ export default function MusicPlayer() {
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-[10px] font-black text-biolum uppercase tracking-widest">Live</span>
+                        <span className="text-[10px] font-mono font-bold text-ocean-text-dim/80 bg-ocean-surface px-1 rounded-sm">
+                            {formatTime(trackElapsed)}
+                        </span>
                         <span className="text-xs text-ocean-text-dim flex items-center gap-1"><Users className="w-3 h-3" /> {listenerCount}</span>
                     </div>
                 </div>
@@ -426,6 +435,13 @@ export default function MusicPlayer() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+function formatTime(seconds) {
+    if (!seconds || isNaN(seconds) || seconds < 0) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 function getSpotifyEmbed(url) {
     if (!url) return '';
     return url.replace('open.spotify.com/', 'open.spotify.com/embed/');

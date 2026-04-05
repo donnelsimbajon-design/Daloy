@@ -3,7 +3,9 @@ import { usePage } from '@inertiajs/react';
 import TopNav from '@/Components/UI/Navigation/TopNav';
 import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
-import GlobalAnnouncementBanner from '@/Components/Features/Announcements/GlobalAnnouncementBanner';
+
+import GlobalAnnouncementPopup from '@/Components/Features/Announcements/GlobalAnnouncementPopup';
+import GlobalCallManager from '@/Components/Features/Messaging/GlobalCallManager';
 
 export default function MainLayout({ children }) {
     const { auth } = usePage().props;
@@ -43,6 +45,16 @@ export default function MainLayout({ children }) {
         }
     }, [user?.font_size, user?.reduce_motion, user?.high_contrast, user?.dark_mode]);
 
+    // Listen for locally initiated calls
+    const [activeCallParam, setActiveCallParam] = React.useState(null);
+    useEffect(() => {
+        const handleStartCall = (e) => {
+            setActiveCallParam(e.detail);
+        };
+        window.addEventListener('daloy:start-call', handleStartCall);
+        return () => window.removeEventListener('daloy:start-call', handleStartCall);
+    }, []);
+
     return (
         <div className="min-h-screen bg-ocean-deep text-ocean-text relative overflow-hidden">
             {/* Minimal glass backdrop — barely-visible color washes */}
@@ -58,12 +70,17 @@ export default function MainLayout({ children }) {
             <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative z-10">
                 <GlobalRightRailWrapper>
                     <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300">
-                        {/* Inline announcement banner — flows naturally, no extra padding when empty */}
-                        <GlobalAnnouncementBanner />
+
                         {children}
                     </div>
                 </GlobalRightRailWrapper>
             </main>
+
+            <GlobalCallManager 
+                activeCallParam={activeCallParam} 
+                onClearActiveCallParam={() => setActiveCallParam(null)} 
+            />
+            <GlobalAnnouncementPopup />
         </div>
     );
 }

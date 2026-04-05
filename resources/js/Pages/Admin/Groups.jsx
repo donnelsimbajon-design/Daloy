@@ -4,7 +4,7 @@ import DataTable from '../../Components/Admin/Features/DataTable';
 import StatusBadge from '../../Components/Admin/UI/StatusBadge';
 import Modal from '../../Components/Admin/UI/Modal';
 import { router, Link } from '@inertiajs/react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Eye, Trash2, MoreHorizontal } from 'lucide-react';
 
 export default function Groups({ groups = { data: [] } }) {
     const [selectedItem, setSelectedItem] = useState(null);
@@ -40,16 +40,15 @@ export default function Groups({ groups = { data: [] } }) {
         { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
         { key: 'created', label: 'Created' },
         {
-            key: 'id', label: 'Actions', width: '80px',
+            key: 'id', label: 'Actions', width: '100px',
             render: (val, row) => (
-                <div className="adm-actions-menu">
-                    <button className="adm-actions-trigger" onClick={(e) => { e.stopPropagation(); setActionMenuId(actionMenuId === val ? null : val); }}>⋯</button>
-                    {actionMenuId === val && (
-                        <div className="adm-actions-dropdown open">
-                            <button onClick={() => { setSelectedItem(row); setModalType('viewGroup'); setActionMenuId(null); }}>👁 View Details</button>
-                            <button className="danger" onClick={() => { setSelectedItem(row); setModalType('deleteGroup'); setActionMenuId(null); }}>🗑 Delete</button>
-                        </div>
-                    )}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button className="adm-btn adm-btn-sm adm-btn-outline" onClick={() => { setSelectedItem(row); setModalType('viewGroup'); }} style={{ padding: '6px 10px' }} title="View Details">
+                        <Eye size={16} />
+                    </button>
+                    <button className="adm-btn adm-btn-sm adm-btn-danger" onClick={() => { setSelectedItem(row); setModalType('deleteGroup'); }} style={{ padding: '6px 10px' }} title="Delete Group">
+                        <Trash2 size={16} />
+                    </button>
                 </div>
             )
         }

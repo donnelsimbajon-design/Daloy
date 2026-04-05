@@ -227,6 +227,10 @@ export default function Messages({ reportedConversations = { data: [] }, counts 
                                                             onClick={(e) => { e.stopPropagation(); setSelectedReport(conv); setModalType('delete_conversation'); }}>
                                                         <Trash2 size={13} /> DELETE CHAT
                                                     </button>
+                                                    <button className="adm-btn adm-btn-outline" style={{ justifyContent: 'center', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px', color: '#ea580c', borderColor: '#ea580c' }}
+                                                            onClick={(e) => { e.stopPropagation(); setSelectedReport(conv); setModalType('restrict_calling'); }}>
+                                                        <Ban size={13} /> RESTRICT CALLING
+                                                    </button>
                                                     <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px', padding: '8px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                                                             onClick={(e) => { e.stopPropagation(); setSelectedReport(conv); setModalType('dismiss'); }}>
                                                         <XCircle size={13} /> DISMISS
@@ -292,6 +296,22 @@ export default function Messages({ reportedConversations = { data: [] }, counts 
                                                         <p style={{ fontSize: '12px', color: '#888' }}>No messages</p>
                                                     )}
                                                 </div>
+                                                
+                                                {/* Evidence Media if available */}
+                                                {conv.evidence_url && (
+                                                    <div style={{ gridColumn: '1 / -1', background: '#111', border: '1px solid #000', borderRadius: '8px', padding: '16px', color: '#fff' }}>
+                                                        <h4 style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#aaa', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            <ShieldAlert size={12} style={{ color: '#dc2626' }} /> Reported Call Evidence (30s buffer)
+                                                        </h4>
+                                                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                                                            {conv.evidence_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                                                <video controls src={conv.evidence_url} style={{ maxWidth: '100%', maxHeight: '300px', borderRadius: '4px' }}></video>
+                                                            ) : (
+                                                                <audio controls src={conv.evidence_url} style={{ width: '100%', maxWidth: '400px' }}></audio>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
 
                                             {/* Full Reason */}
@@ -332,18 +352,19 @@ export default function Messages({ reportedConversations = { data: [] }, counts 
 
             {/* Action Modals */}
             <Modal
-                isOpen={['dismiss', 'resolve', 'delete_conversation'].includes(modalType)}
+                isOpen={['dismiss', 'resolve', 'delete_conversation', 'restrict_calling'].includes(modalType)}
                 onClose={() => { setModalType(null); setAdminNotes(''); }}
                 title={
                     modalType === 'dismiss' ? 'Dismiss Report' :
                     modalType === 'resolve' ? 'Resolve Report' :
+                    modalType === 'restrict_calling' ? 'Restrict Calling' :
                     'Delete Conversation'
                 }
                 size="sm"
                 footer={
                     <>
                         <button className="adm-btn adm-btn-outline" onClick={() => setModalType(null)}>Cancel</button>
-                        <button className={`adm-btn ${modalType === 'delete_conversation' ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => handleAction(modalType)}>
+                        <button className={`adm-btn ${['delete_conversation', 'restrict_calling'].includes(modalType) ? 'adm-btn-danger' : 'adm-btn-primary'}`} onClick={() => handleAction(modalType)}>
                             Confirm
                         </button>
                     </>
@@ -355,6 +376,7 @@ export default function Messages({ reportedConversations = { data: [] }, counts 
                             {modalType === 'dismiss' && `Dismiss this report from ${selectedReport.reporter}? It will be marked as reviewed with no action taken.`}
                             {modalType === 'resolve' && `Mark this report as resolved? The conversation will remain but the report will be closed.`}
                             {modalType === 'delete_conversation' && `Permanently delete this conversation? All messages will be removed. This cannot be undone.`}
+                            {modalType === 'restrict_calling' && `Restrict the author of this message from initiating any future audio/video calls across the platform?`}
                         </p>
                         <div className="adm-form-group">
                             <label className="adm-form-label">Admin Notes</label>

@@ -77,6 +77,8 @@ class ReportController extends BaseAdminController
                     Post::find($report->reportable_id)?->delete();
                 } elseif ($report->reportable_type === 'App\\Models\\Comment') {
                     Comment::find($report->reportable_id)?->delete();
+                } elseif ($report->reportable_type === 'App\\Models\\SchoolCurrent') {
+                    \App\Models\SchoolCurrent::find($report->reportable_id)?->update(['is_active' => false]);
                 }
                 $report->update([
                     'status' => 'resolved',

@@ -63,6 +63,8 @@ export function CurrentsProvider({ children }) {
     const [appId, setAppId] = useState(null);
     const [blockedIds, setBlockedIds] = useState([]);
     const [isInSession, setIsInSession] = useState(false);
+    const [activeTab, setActiveTab] = useState('music');
+    const [isExpanded, setIsExpanded] = useState(false);
 
     // ── Live state (polled) ──────────────────────────────────────────────
     const [participants, setParticipants] = useState([]);
@@ -70,6 +72,7 @@ export function CurrentsProvider({ children }) {
     const [votes, setVotes] = useState({ good: [], bad: [] });
     const [myVote, setMyVote] = useState(null);
     const [chatMessages, setChatMessages] = useState([]);
+    const [trackElapsed, setTrackElapsed] = useState(0);
     const lastMessageIdRef = useRef(0);
 
     // ── Agora voice state ────────────────────────────────────────────────
@@ -150,6 +153,7 @@ export function CurrentsProvider({ children }) {
         setVotes({ good: [], bad: [] });
         setMyVote(null);
         setChatMessages([]);
+        setTrackElapsed(0);
         setIsMicEnabled(false);
         setIsMicMuted(true);
         setLocallyMutedUsers([]);
@@ -188,6 +192,7 @@ export function CurrentsProvider({ children }) {
                 setSession(res.data.session);
                 setParticipants(res.data.participants.filter(u => !blockedIds.includes(u.id)));
                 setListenerCount(res.data.listener_count);
+                setTrackElapsed(res.data.track_elapsed || 0);
 
                 const filterBlocked = (arr) => (arr || []).filter(v => !blockedIds.includes(v.id));
                 setVotes({
@@ -209,7 +214,16 @@ export function CurrentsProvider({ children }) {
 
         poll();
         pollIntervalRef.current = setInterval(poll, 4000);
-        return () => clearInterval(pollIntervalRef.current);
+        
+        // Fast local tick so the UI updates smoothly between polls
+        const fastTick = setInterval(() => {
+            setTrackElapsed(prev => prev + 1);
+        }, 1000);
+        
+        return () => {
+            clearInterval(pollIntervalRef.current);
+            clearInterval(fastTick);
+        };
     }, [isInSession, currentSchool?.id, blockedIds]);
 
     // ── Agora Connection (join channel in listen-only, mic is opt-in) ────
@@ -323,6 +337,9 @@ export function CurrentsProvider({ children }) {
         // State
         isInSession, currentSchool, session, participants, listenerCount,
         votes, myVote, chatMessages, isMicEnabled, isMicMuted, locallyMutedUsers,
+        activeTab, setActiveTab,
+        isExpanded, setIsExpanded,
+        trackElapsed,
         isHost: session?.admin_id === userId,
         // Actions
         joinSession, startSession, leaveSession, endSession,

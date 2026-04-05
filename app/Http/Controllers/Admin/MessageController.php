@@ -41,6 +41,7 @@ class MessageController extends BaseAdminController
                     'time_ago' => $r->created_at->diffForHumans(),
                     'reportable_type' => class_basename($r->reportable_type ?? ''),
                     'reportable_id' => $r->reportable_id,
+                    'evidence_url' => $r->evidence_file_path ? asset('storage/' . $r->evidence_file_path) : null,
                     'conversation' => null,
                     'message_previews' => [],
                     'participants' => [],
@@ -103,7 +104,7 @@ class MessageController extends BaseAdminController
         $this->authorizeAdmin($request, 'messages');
 
         $request->validate([
-            'action' => 'required|in:dismiss,resolve,warn,delete_conversation',
+            'action' => 'required|in:dismiss,resolve,warn,delete_conversation,restrict_calling',
             'admin_notes' => 'nullable|string|max:1000',
         ]);
 
@@ -139,6 +140,25 @@ class MessageController extends BaseAdminController
                     'admin_id' => $admin->id,
                     'action_type' => 'delete_conversation',
                     'target_type' => 'conversation',
+                    'target_id' => $report->reportable_id,
+                    'reason' => $request->admin_notes ?? $report->reason,
+                ]);
+                break;
+
+            case 'restrict_calling':
+                if ($report->reportable_type === 'App\\Models\\Message') {
+                    $msg = \App\Models\Message::find($report->reportable_id);
+                    $msg?->user?->update(['can_initiate_calls' => false]);
+                }
+                $report->update([
+                    'status' => 'resolved',
+                    'resolved_by' => $admin->id,
+                    'admin_notes' => $request->admin_notes ?? 'User calling privileges restricted.',
+                ]);
+                ModerationAction::create([
+                    'admin_id' => $admin->id,
+                    'action_type' => 'restrict_calling',
+                    'target_type' => 'message',
                     'target_id' => $report->reportable_id,
                     'reason' => $request->admin_notes ?? $report->reason,
                 ]);

@@ -21,6 +21,8 @@ return [
     'agora' => [
         'app_id' => env('AGORA_APP_ID'),
         'app_certificate' => env('AGORA_APP_CERTIFICATE'),
+        'message_app_id' => env('AGORA_APP_ID_FOR_MESSAGE'),
+        'message_app_certificate' => env('AGORA_APP_CERTIFICATE_FOR_MESSAGE'),
     ],
 
     'resend' => [

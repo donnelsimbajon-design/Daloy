@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import axios from 'axios';
-import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText } from 'lucide-react';
+import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { ScrollArea } from '@/Components/shadcn/scroll-area';
 import { Input } from '@/Components/shadcn/input';
@@ -213,6 +213,27 @@ export default function Conversations() {
         }
     };
 
+    const handleStartCall = async (type) => {
+        if (!selectedConversation) return;
+        try {
+            const res = await axios.post(`/api/conversations/${selectedConversation.id}/call`, { type });
+            
+            // Dispatch a global event so MainLayout's GlobalCallManager can run the UI
+            window.dispatchEvent(new CustomEvent('daloy:start-call', { detail: res.data }));
+            
+            // Drop a system tip in chat to notify the other person
+            const formData = new FormData();
+            formData.append('conversation_id', selectedConversation.id);
+            formData.append('content', `SYSTEM_CALL_${type.toUpperCase()}`);
+            await axios.post('/api/messages/send', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Failed to initialize call. Please check credentials or try again.');
+        }
+    };
+
     const getParticipantName = (conversation) => {
         if (conversation.type === 'group') return conversation.name || 'Group Chat';
         if (!conversation.participants || !Array.isArray(conversation.participants)) return 'Loading...';
@@ -300,7 +321,14 @@ export default function Conversations() {
                                             {!isBlocked && otherUser?.is_online && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
                                         </h3>
                                     </div>
-                                    <DropdownMenu>
+                                    <div className="flex items-center gap-1">
+                                        <Button variant="ghost" size="icon" onClick={() => handleStartCall('audio')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors">
+                                            <Phone className="w-4 h-4" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleStartCall('video')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors mr-2">
+                                            <Video className="w-4 h-4" />
+                                        </Button>
+                                        <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="flex rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors">
                                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
@@ -340,6 +368,7 @@ export default function Conversations() {
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
+                                    </div>
                                 </div>
                                 <ScrollArea className="flex-1 bg-ocean-deep">
                                     <div className="p-4 md:p-6 flex flex-col space-y-4">
@@ -390,7 +419,34 @@ export default function Conversations() {
                                                             )}
                                                         </div>
                                                     )}
-                                                    {msg.content && <p className="break-words whitespace-pre-wrap">{msg.content}</p>}
+                                                    {msg.content && (
+                                                        <div className="break-words whitespace-pre-wrap">
+                                                            {(() => {
+                                                                let text = msg.content;
+                                                                let callType = null;
+                                                                
+                                                                if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
+                                                                    text = "Started a Video call. Click the Video icon to join!";
+                                                                    callType = 'video';
+                                                                } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
+                                                                    text = "Started an Audio call. Click the Phone icon to join!";
+                                                                    callType = 'audio';
+                                                                }
+                                                                
+                                                                if (callType) {
+                                                                    return (
+                                                                        <div className="flex items-center gap-2.5 opacity-90">
+                                                                            <div className="p-1.5 rounded-full bg-black/10 shrink-0">
+                                                                                {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                                                                            </div>
+                                                                            <span className="italic font-medium text-sm">{text}</span>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return <p>{text}</p>;
+                                                            })()}
+                                                        </div>
+                                                    )}
                                                     <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
                                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         {isMe && msg.id && msg.id > 100000000000 && ( // Just an optimistic ID check

@@ -33,6 +33,7 @@ class User extends Authenticatable
         'featured_post_id',
         'profile_accent',
         'notifications_snoozed_until',
+        'can_initiate_calls',
     ];
 
     protected $hidden = [
@@ -50,6 +51,7 @@ class User extends Authenticatable
             'high_contrast' => 'boolean',
             'dark_mode' => 'boolean',
             'show_activity_status' => 'boolean',
+            'can_initiate_calls' => 'boolean',
             'notifications_snoozed_until' => 'datetime',
         ];
     }

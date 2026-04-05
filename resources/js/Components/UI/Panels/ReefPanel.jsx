@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Com
 import { Button } from '@/Components/shadcn/button';
 import { Input } from '@/Components/shadcn/input';
 import { Badge } from '@/Components/shadcn/badge';
-import { FileText, X } from 'lucide-react';
+import { FileText, X, Video, Phone } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/Components/shadcn/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/Components/shadcn/dialog';
 import { ScrollArea } from '@/Components/shadcn/scroll-area';
@@ -386,7 +386,30 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                                             )}
                                         </div>
                                     )}
-                                    {msg.content && <p className="text-sm break-words whitespace-pre-wrap">{msg.content}</p>}
+                                    {msg.content && (
+                                        <div className="text-sm break-words whitespace-pre-wrap">
+                                            {(() => {
+                                                let text = msg.content;
+                                                let callType = null;
+                                                if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
+                                                    text = "Started a Video call";
+                                                    callType = 'video';
+                                                } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
+                                                    text = "Started an Audio call";
+                                                    callType = 'audio';
+                                                }
+                                                if (callType) {
+                                                    return (
+                                                        <div className="flex items-center gap-2 opacity-90">
+                                                            {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                                                            <span className="italic font-medium">{text}</span>
+                                                        </div>
+                                                    );
+                                                }
+                                                return <p>{text}</p>;
+                                            })()}
+                                        </div>
+                                    )}
                                     <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                     </p>
@@ -581,7 +604,28 @@ function MessagesPanel() {
                                 <p className={`text-xs font-semibold ${msg.unread ? 'text-ocean-text' : 'text-ocean-text-dim'}`}>{msg.name}</p>
                                 <span className="text-[10px] text-ocean-text-dim shrink-0">{msg.time}</span>
                             </div>
-                            <p className={`text-[11px] mt-0.5 truncate ${msg.unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim'}`}>{msg.message}</p>
+                            <div className={`text-[11px] mt-0.5 truncate ${msg.unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim'}`}>
+                                {(() => {
+                                    let text = msg.message;
+                                    let callType = null;
+                                    if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
+                                        text = "Video call";
+                                        callType = 'video';
+                                    } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
+                                        text = "Audio call";
+                                        callType = 'audio';
+                                    }
+                                    if (callType) {
+                                        return (
+                                            <div className="flex items-center gap-1.5 opacity-80">
+                                                {callType === 'video' ? <Video className="w-3 h-3" /> : <Phone className="w-3 h-3" />}
+                                                <span>{text}</span>
+                                            </div>
+                                        );
+                                    }
+                                    return <p className="truncate">{text}</p>;
+                                })()}
+                            </div>
                         </div>
                         {msg.unread && <div className="w-2 h-2 rounded-full bg-biolum shrink-0 mt-2" />}
                     </button>

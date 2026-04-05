@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import '../../css/admin.css';
 import Sidebar from '../Components/Admin/UI/Sidebar';
 import Topbar from '../Components/Admin/UI/Topbar';
+import GlobalAnnouncementPopup from '../Components/Features/Announcements/GlobalAnnouncementPopup';
 
 const pageTitles = {
     'Admin/Dashboard':     'Dashboard Overview',
@@ -86,6 +87,8 @@ export default function AdminLayout({ children, currentPage }) {
                     }}
                 />
             )}
+            
+            <GlobalAnnouncementPopup />
         </div>
     );
 }
