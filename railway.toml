@@ -1,8 +1,8 @@
 [build]
-buildCommand = "npm ci && php artisan storage:link && npm run build"
+buildCommand = "npm ci && npm run build"
 
 [deploy]
-startCommand = "mkdir -p /app/storage/framework/sessions /app/storage/framework/views /app/storage/framework/cache/data /app/storage/logs /app/storage/app/public && chmod -R 775 /app/storage && php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
+startCommand = "mkdir -p /app/storage/framework/sessions /app/storage/framework/views /app/storage/framework/cache/data /app/storage/logs /app/storage/app/public && chmod -R 775 /app/storage && php artisan storage:link && php artisan config:clear && php artisan migrate --force && php-fpm -y /assets/php-fpm.conf & exec nginx -c /assets/nginx.conf -g 'daemon off;'"
 
 [nixpacks]
 [nixpacks.variables]
