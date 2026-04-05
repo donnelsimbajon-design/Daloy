@@ -33,6 +33,8 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+
+            // ── Always loaded (cheap, no DB queries) ──
             'auth' => [
                 'user' => $user ? $user->only([
                     'id', 'name', 'username', 'email', 'profile_picture', 'background_picture',
@@ -42,7 +44,9 @@ class HandleInertiaRequests extends Middleware
                 ]) : null,
             ],
             'status' => session('status'),
-            'social' => $user ? [
+
+            // ── Deferred: only resolved when the frontend reads these props ──
+            'social' => $user ? fn () => [
                 'unread_messages'        => $this->getUnreadMessageCount($user),
                 'unread_notifications'   => $this->getUnreadNotificationCount($user),
                 'pending_friend_requests' => $user->receivedFriendRequests()
@@ -52,14 +56,17 @@ class HandleInertiaRequests extends Middleware
                 'recent_conversations'   => $this->getRecentConversations($user),
                 'recent_notifications'   => $this->getRecentNotifications($user),
             ] : null,
-            'announcements' => \App\Services\AnnouncementService::getActiveForUser(),
-            'reef' => [
+
+            'announcements' => fn () => \App\Services\AnnouncementService::getActiveForUser(),
+
+            'reef' => fn () => [
                 'trending_hashtags' => \App\Services\ReefPanelService::getTrendingHashtags(),
                 'popular_today'     => \App\Services\ReefPanelService::getPopularToday(),
                 'suggested_groups'  => \App\Services\ReefPanelService::getSuggestedGroups($user?->id),
                 'my_groups'         => \App\Services\ReefPanelService::getMyGroups($user?->id),
             ],
-            'admin_context' => $user && $user->isAdmin() ? $this->getAdminContext($user) : null,
+
+            'admin_context' => $user && $user->isAdmin() ? fn () => $this->getAdminContext($user) : null,
         ];
     }
 
