@@ -904,20 +904,277 @@ function AnnouncementsPanel() {
     );
 }
 
+
+import { useCurrents } from '@/Contexts/CurrentsContext';
+
+import MusicPlayer from '@/Components/Features/Schools/MusicPlayer';
+import { Radio, ArrowLeft, Headphones, Play } from 'lucide-react';
+
+function CurrentsPanel() {
+    const { reef } = usePage().props;
+    const currents = useCurrents();
+    const myGroups = reef?.my_groups || [];
+
+    // Multi-view state: 'list' | 'detail'
+    const [view, setView] = useState('list');
+    const [selectedGroup, setSelectedGroup] = useState(null);
+    const [joining, setJoining] = useState(false);
+
+    // Create session form state (admin only)
+    const [sessionName, setSessionName] = useState('');
+    const [trackUrl, setTrackUrl] = useState('');
+    const [creating, setCreating] = useState(false);
+
+    const handleSelectGroup = (group) => {
+        setSelectedGroup(group);
+        setView('detail');
+    };
+
+    const handleBack = () => {
+        setView('list');
+        setSelectedGroup(null);
+        setSessionName('');
+        setTrackUrl('');
+    };
+
+    const handleJoinSession = async () => {
+        if (!selectedGroup) return;
+        try {
+            setJoining(true);
+            await currents.joinSession(selectedGroup, []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setJoining(false);
+        }
+    };
+
+    const handleCreateSession = async (e) => {
+        e.preventDefault();
+        if (!selectedGroup || !trackUrl.trim()) return;
+        try {
+            setCreating(true);
+            await currents.startSession(selectedGroup, trackUrl, sessionName || 'Live Broadcast', []);
+            setSessionName('');
+            setTrackUrl('');
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // ── VIEW: Groups List ─────────────────────────────────────────────
+    if (view === 'list') {
+        return (
+            <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none flex-1 min-h-0 flex flex-col overflow-hidden relative">
+                <CardHeader className="pb-3 border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] shrink-0">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
+                            <Radio className="w-4 h-4 text-biolum" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-sm">Live Currents</CardTitle>
+                            <CardDescription className="text-[10px]">Select a group to tune in</CardDescription>
+                        </div>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {myGroups.length === 0 ? (
+                        <div className="text-center py-12">
+                            <div className="w-14 h-14 mx-auto rounded-2xl bg-ocean-surface flex items-center justify-center mb-3">
+                                <Headphones className="w-7 h-7 text-ocean-text-dim" />
+                            </div>
+                            <p className="text-sm font-semibold text-ocean-text mb-1">No Groups Yet</p>
+                            <p className="text-xs text-ocean-text-dim">Join a group to see their live streams here.</p>
+                        </div>
+                    ) : (
+                        myGroups.map(group => (
+                            <div key={group.id} onClick={() => handleSelectGroup(group)}
+                                className="flex items-center gap-3 p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-biolum/30 hover:bg-ocean-card/80 transition-all cursor-pointer shadow-sm group">
+                                {group.profile_image ? (
+                                    <img src={`/storage/${group.profile_image}`} alt={group.name} className="w-11 h-11 rounded-xl object-cover shrink-0" />
+                                ) : (
+                                    <div className="w-11 h-11 rounded-xl bg-ocean-deep border border-ocean-divider flex items-center justify-center font-bold text-ocean-text-dim text-base shrink-0">
+                                        {group.initial}
+                                    </div>
+                                )}
+                                <div className="flex-1 min-w-0">
+                                    <span className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors block truncate">{group.name}</span>
+                                    {group.has_active_current ? (
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className="w-2 h-2 rounded-full bg-biolum animate-pulse" />
+                                            <span className="text-xs font-bold text-biolum">{group.active_session?.session_name}</span>
+                                            <span className="text-[10px] text-ocean-text-dim">· {group.active_session?.listener_count || 0} listening</span>
+                                        </div>
+                                    ) : (
+                                        <span className="text-xs text-ocean-text-dim mt-0.5 block">
+                                            {group.is_admin ? 'You can start a broadcast' : 'No active broadcast'}
+                                        </span>
+                                    )}
+                                </div>
+                                <svg className="w-4 h-4 text-ocean-text-dim group-hover:text-biolum transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </div>
+                        ))
+                    )}
+                </CardContent>
+
+                {/* Docked player bar if in session */}
+                {currents?.isInSession && <MusicPlayer />}
+            </Card>
+        );
+    }
+
+    // ── VIEW: Group Detail ────────────────────────────────────────────
+    const group = selectedGroup;
+    const isConnectedHere = currents.isInSession && currents.currentSchool?.id === group?.id;
+
+    return (
+        <Card className="animate-[fadeIn_0.2s_ease-out] shadow-none flex-1 min-h-0 flex flex-col overflow-hidden relative">
+            {/* Header with back button */}
+            <CardHeader className="pb-3 border-b border-ocean-divider shrink-0">
+                <div className="flex items-center gap-2">
+                    <button onClick={handleBack} className="p-1.5 rounded-lg hover:bg-ocean-surface transition-colors text-ocean-text-dim hover:text-ocean-text">
+                        <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    {group?.profile_image ? (
+                        <img src={`/storage/${group.profile_image}`} className="w-7 h-7 rounded-lg object-cover" />
+                    ) : (
+                        <div className="w-7 h-7 rounded-lg bg-ocean-deep border border-ocean-divider flex items-center justify-center text-xs font-bold text-ocean-text-dim">{group?.initial}</div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                        <CardTitle className="text-sm truncate">{group?.name}</CardTitle>
+                        <CardDescription className="text-[10px]">
+                            {group?.is_admin ? 'Admin' : 'Member'}
+                        </CardDescription>
+                    </div>
+                </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 overflow-y-auto p-4">
+                {isConnectedHere ? (
+                    /* ── Connected State ── */
+                    <div className="text-center py-8">
+                        <div className="w-16 h-16 mx-auto rounded-2xl bg-biolum/10 border border-biolum/30 flex items-center justify-center mb-4 relative">
+                            <span className="absolute inset-0 rounded-2xl bg-biolum/10 animate-ping" />
+                            <Radio className="w-7 h-7 text-biolum relative z-10" />
+                        </div>
+                        <h3 className="text-lg font-bold text-ocean-text mb-1">You're Connected</h3>
+                        <p className="text-sm text-ocean-text-dim mb-1">Playing: {currents.session?.current_track_title || 'Untitled'}</p>
+                        <p className="text-xs text-ocean-text-dim/60">Use the player below to control audio, chat, and view participants.</p>
+                    </div>
+                ) : group?.has_active_current ? (
+                    /* ── Active Session — Join ── */
+                    <div className="space-y-4">
+                        <div className="text-center py-6">
+                            <div className="w-16 h-16 mx-auto rounded-2xl bg-biolum/10 border border-biolum/20 flex items-center justify-center mb-4 relative">
+                                <div className="absolute inset-0 rounded-2xl bg-biolum/10 animate-pulse" />
+                                <Radio className="w-7 h-7 text-biolum relative z-10" />
+                            </div>
+                            <h3 className="text-lg font-bold text-ocean-text mb-1">{group.active_session?.session_name}</h3>
+                            <p className="text-sm text-ocean-text-dim mb-1">Now Playing: {group.active_session?.track_title || 'Music'}</p>
+                        </div>
+
+                        {/* Host info */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-ocean-surface/40 border border-ocean-border/30">
+                            <img src={group.active_session?.host_avatar || '/images/default-avatar.png'} className="w-9 h-9 rounded-full object-cover border border-ocean-border" />
+                            <div>
+                                <p className="text-xs font-bold text-ocean-text">Hosted by {group.active_session?.host_name}</p>
+                                <p className="text-[11px] text-ocean-text-dim">{group.active_session?.listener_count || 0} listeners tuned in</p>
+                            </div>
+                        </div>
+
+                        {/* Join button */}
+                        <button
+                            onClick={handleJoinSession}
+                            disabled={joining}
+                            className="w-full py-3 bg-biolum text-biolum-foreground font-bold text-sm rounded-xl hover:bg-biolum-bright transition-all shadow-[0_4px_16px_rgba(0,255,240,0.25)] hover:shadow-[0_6px_24px_rgba(0,255,240,0.35)] flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            <Headphones className="w-4 h-4" />
+                            {joining ? 'Connecting...' : 'Join This Current'}
+                        </button>
+                    </div>
+                ) : group?.is_admin ? (
+                    /* ── No Session — Admin Can Create ── */
+                    <div className="space-y-4">
+                        <div className="text-center py-4">
+                            <div className="w-14 h-14 mx-auto rounded-2xl bg-ocean-surface flex items-center justify-center mb-3">
+                                <Radio className="w-7 h-7 text-ocean-text-dim" />
+                            </div>
+                            <h3 className="text-base font-bold text-ocean-text mb-1">No Active Broadcast</h3>
+                            <p className="text-xs text-ocean-text-dim">Start a new session and invite members to listen.</p>
+                        </div>
+
+                        <form onSubmit={handleCreateSession} className="space-y-3">
+                            <div>
+                                <label className="text-xs font-bold text-ocean-text block mb-1.5">Session Name</label>
+                                <input
+                                    type="text"
+                                    value={sessionName}
+                                    onChange={(e) => setSessionName(e.target.value)}
+                                    className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-3.5 py-2.5 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 transition-all placeholder:text-ocean-text-dim"
+                                    placeholder="e.g. Chill Vibes Friday"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-ocean-text block mb-1.5">Music Link</label>
+                                <input
+                                    type="url"
+                                    value={trackUrl}
+                                    onChange={(e) => setTrackUrl(e.target.value)}
+                                    className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-3.5 py-2.5 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/20 transition-all placeholder:text-ocean-text-dim"
+                                    placeholder="YouTube, Spotify, or MP3 URL..."
+                                    required
+                                />
+                                <p className="text-[10px] text-ocean-text-dim/60 mt-1 pl-1">Supports YouTube, Spotify, and direct MP3 links</p>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={creating || !trackUrl.trim()}
+                                className="w-full py-3 bg-biolum text-biolum-foreground font-bold text-sm rounded-xl hover:bg-biolum-bright transition-all shadow-[0_4px_16px_rgba(0,255,240,0.25)] flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <Play className="w-4 h-4" />
+                                {creating ? 'Starting...' : 'Start Broadcasting'}
+                            </button>
+                        </form>
+                    </div>
+                ) : (
+                    /* ── No Session — Member View ── */
+                    <div className="text-center py-12">
+                        <div className="w-14 h-14 mx-auto rounded-2xl bg-ocean-surface flex items-center justify-center mb-3">
+                            <Radio className="w-7 h-7 text-ocean-text-dim" />
+                        </div>
+                        <h3 className="text-base font-bold text-ocean-text mb-1">No Active Broadcast</h3>
+                        <p className="text-xs text-ocean-text-dim">Waiting for an admin to start a session.</p>
+                        <p className="text-[10px] text-ocean-text-dim/60 mt-2">You'll be notified when a broadcast goes live.</p>
+                    </div>
+                )}
+            </CardContent>
+
+            {/* Docked player bar if in session */}
+            {currents?.isInSession && <MusicPlayer />}
+        </Card>
+    );
+}
+
 /* ── Main ReefPanel ──────────────────────────────────────────────────── */
 export default function ReefPanel({ activePanel }) {
     if (!activePanel) return null;
 
+    const isCurrents = activePanel === 'currents';
+
     return (
-        <div>
+        <div className={isCurrents ? 'h-[calc(100vh-5.5rem)] flex flex-col' : 'h-full'}>
             {/* Panel content */}
-            <div key={activePanel}>
+            <div key={activePanel} className={isCurrents ? 'flex-1 flex flex-col min-h-0' : 'h-full'}>
                 {activePanel === 'trending' && <TrendingPanel />}
                 {activePanel === 'groups' && <GroupsPanel />}
                 {activePanel === 'messages' && <MessagesPanel />}
                 {activePanel === 'notifications' && <NotificationsPanel />}
                 {activePanel === 'announcements' && <AnnouncementsPanel />}
                 {activePanel === 'language' && <LanguagePanel />}
+                {activePanel === 'currents' && <CurrentsPanel />}
             </div>
             
             <style dangerouslySetInnerHTML={{

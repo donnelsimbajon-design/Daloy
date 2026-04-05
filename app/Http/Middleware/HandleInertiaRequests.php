@@ -57,6 +57,7 @@ class HandleInertiaRequests extends Middleware
                 'trending_hashtags' => \App\Services\ReefPanelService::getTrendingHashtags(),
                 'popular_today'     => \App\Services\ReefPanelService::getPopularToday(),
                 'suggested_groups'  => \App\Services\ReefPanelService::getSuggestedGroups($user?->id),
+                'my_groups'         => \App\Services\ReefPanelService::getMyGroups($user?->id),
             ],
             'admin_context' => $user && $user->isAdmin() ? $this->getAdminContext($user) : null,
         ];

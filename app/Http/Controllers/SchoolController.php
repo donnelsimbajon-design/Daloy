@@ -121,6 +121,15 @@ class SchoolController extends Controller
                 return $event;
             });
 
+        // Current active audio session
+        $activeSession = \App\Models\SchoolCurrent::where('school_id', $school->id)
+            ->where('is_active', true)
+            ->with('tracks.addedBy')
+            ->first();
+
+        // Pass blocked IDs for the frontend to use in real-time filtering
+        $blockedIds = $allBlockedIds;
+
         return Inertia::render('SchoolProfile', [
             'school' => array_merge($school->toArray(), [
                 'is_member'   => $isMember,
@@ -131,6 +140,8 @@ class SchoolController extends Controller
             'posts'   => $posts,
             'members' => $members,
             'events'  => $events,
+            'activeSession' => $activeSession,
+            'blockedIds' => $blockedIds,
         ]);
     }
 

@@ -30,6 +30,11 @@ class School extends Model
         return $this->hasMany(Event::class);
     }
 
+    public function currents()
+    {
+        return $this->hasMany(SchoolCurrent::class);
+    }
+
     public function scopePublic($query)
     {
         return $query->where('privacy', 'public');

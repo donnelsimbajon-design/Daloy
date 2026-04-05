@@ -2,6 +2,8 @@ import React, { useState, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/UI/Cards/PostCard';
+import { useCurrents } from '@/Contexts/CurrentsContext';
+import CurrentsTabContent from '@/Components/Features/Schools/CurrentsTabContent';
 import axios from 'axios';
 
 /* ── Event helpers ───────────────────────────────────────────────────── */
@@ -41,12 +43,14 @@ const SpinnerIcon = () => (
 );
 
 export default function SchoolProfile() {
-    const { school: initialSchool, posts: initialPosts, members: initialMembers, events: initialEvents, auth } = usePage().props;
+    const { school: initialSchool, posts: initialPosts, members: initialMembers, events: initialEvents, auth, activeSession, blockedIds } = usePage().props;
     const [school, setSchool] = useState(initialSchool);
     const [posts] = useState(initialPosts?.data || []);
     const [members] = useState(initialMembers?.data || []);
     const [events, setEvents] = useState(initialEvents || []);
     const [activeTab, setActiveTab] = useState('posts');
+    const [joiningCall, setJoiningCall] = useState(false);
+    const currents = useCurrents();
 
     // Post composer state
     const [showPostForm, setShowPostForm] = useState(false);
@@ -225,10 +229,42 @@ export default function SchoolProfile() {
         } catch (err) { console.error(err); }
     };
 
+    const handleStartSession = async (e) => {
+        if(e) e.preventDefault();
+        try {
+            setJoiningCall(true);
+            await currents.startSession(school, currentSettings.url, blockedIds);
+            setShowCurrentsModal(false);
+            setCurrentSettings({ title: '', url: '' });
+        } catch (err) {
+            console.error(err);
+        }
+        setJoiningCall(false);
+    };
+
+    const handleJoinSession = async () => {
+        try {
+            setJoiningCall(true);
+            await currents.joinSession(school, blockedIds);
+        } catch (err) {
+            console.error(err);
+        }
+        setJoiningCall(false);
+    };
+
+    const handleEndSession = async () => {
+        try {
+            await currents.endSession();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     // ── Tab config ───────────────────────────────────────────────────────
     const tabs = [
         { key: 'posts',   label: 'Posts',   count: school.posts_count,   icon: 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 011.037-.443 48.282 48.282 0 005.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z' },
         { key: 'events',  label: 'Events',  count: school.events_count,  icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5' },
+        { key: 'currents', label: 'Currents', icon: 'M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z' },
         { key: 'members', label: 'Members', count: school.members_count, icon: 'M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z' },
         { key: 'about',   label: 'About',                                 icon: 'M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z' },
     ];
@@ -691,6 +727,16 @@ export default function SchoolProfile() {
                     </div>
                 )}
 
+                {/* ── CURRENTS TAB ── */}
+                {activeTab === 'currents' && (
+                    <CurrentsTabContent 
+                        school={school} 
+                        activeSession={activeSession} 
+                        isAdmin={isAdmin} 
+                        blockedIds={blockedIds} 
+                    />
+                )}
+
                 {/* ── ABOUT TAB ── */}
                 {activeTab === 'about' && (
                     <div className="max-w-2xl mx-auto space-y-5">
@@ -961,10 +1007,18 @@ export default function SchoolProfile() {
                 </div>
             )}
 
+            {/* Player is now rendered globally in app.jsx via CurrentsContext */}
+
+
+
             {/* Animation */}
             <style>{`
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(8px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }
                 }
             `}</style>

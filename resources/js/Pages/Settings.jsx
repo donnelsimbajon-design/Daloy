@@ -569,6 +569,23 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
                                     </div>
                                     <Toggle on={accessibilityForm.data.high_contrast} onChange={() => accessibilityForm.setData('high_contrast', !accessibilityForm.data.high_contrast)} />
                                 </div>
+                                <div className="flex items-center justify-between py-4 border-t border-ocean-border">
+                                    <div>
+                                        <p className="text-sm font-medium text-ocean-text">Show Now Playing Bar</p>
+                                        <p className="text-[12px] text-ocean-text-dim">Display floating track info at the top of the screen.</p>
+                                    </div>
+                                    <Toggle 
+                                        on={localStorage.getItem('daloy_hide_now_playing') !== 'true'} 
+                                        onChange={() => {
+                                            const curr = localStorage.getItem('daloy_hide_now_playing') === 'true';
+                                            localStorage.setItem('daloy_hide_now_playing', !curr ? 'true' : 'false');
+                                            window.dispatchEvent(new Event('storage'));
+                                            // Force a small state update to rerender toggle
+                                            setSavingAccent(prev => !prev);
+                                            setTimeout(() => setSavingAccent(prev => !prev), 10);
+                                        }} 
+                                    />
+                                </div>
                             </div>
                             <div className="flex justify-end mt-5 pt-4 border-t border-ocean-border">
                                 <SaveBtn processing={accessibilityForm.processing} label="Save preferences" />
@@ -622,6 +639,8 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
                             {savingInterests ? 'Saving…' : 'Save Interests'}
                         </button>
                     </Card>
+
+
 
                     {/* Profile Accent */}
                     <Card>

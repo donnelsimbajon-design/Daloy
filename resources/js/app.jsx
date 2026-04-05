@@ -5,6 +5,10 @@ import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { LanguageProvider } from '@/Contexts/LanguageContext';
+import { CurrentsProvider } from '@/Contexts/CurrentsContext';
+import GlobalAudioLayer from '@/Components/Features/Schools/GlobalAudioLayer';
+import PersistentMiniPlayer from '@/Components/Features/Schools/PersistentMiniPlayer';
+import NowPlayingBar from '@/Components/Features/Schools/NowPlayingBar';
 
 const appName = import.meta.env.VITE_APP_NAME || 'DALOY';
 
@@ -19,7 +23,14 @@ createInertiaApp({
         const root = createRoot(el);
         root.render(
             <LanguageProvider>
-                <App {...props} />
+                <CurrentsProvider>
+                    <App {...props} />
+
+                    {/* These render at the ROOT level — never unmount on navigation */}
+                    <GlobalAudioLayer />
+                    <PersistentMiniPlayer />
+                    <NowPlayingBar />
+                </CurrentsProvider>
             </LanguageProvider>
         );
     },

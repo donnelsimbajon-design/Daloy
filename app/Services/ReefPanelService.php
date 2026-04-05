@@ -63,6 +63,52 @@ class ReefPanelService
     }
 
     /**
+     * Get groups the user has already joined, including active currents status,
+     * user role, and active session details.
+     * Non-cached to make sure active currents state is fresh.
+     */
+    public static function getMyGroups(?int $userId = null): array
+    {
+         if (!$userId) return [];
+
+         return School::whereHas('members', fn($q) => $q->where('user_id', $userId))
+             ->with([
+                 'currents' => function($q) {
+                     $q->where('is_active', true)
+                       ->withCount('activeParticipants as listener_count')
+                       ->with('admin:id,name,profile_picture');
+                 },
+                 'members' => function($q) use ($userId) {
+                     $q->where('user_id', $userId)->select('users.id');
+                 },
+             ])
+             ->get(['id', 'name', 'profile_image'])
+             ->map(function($g) {
+                 $activeCurrent = $g->currents->first();
+                 $userRole = $g->members->first()?->pivot?->role ?? 'member';
+
+                 return [
+                     'id' => $g->id,
+                     'name' => $g->name,
+                     'profile_image' => $g->profile_image,
+                     'initial' => strtoupper(substr($g->name, 0, 1)),
+                     'user_role' => $userRole,
+                     'is_admin' => in_array($userRole, ['admin', 'moderator']),
+                     'has_active_current' => $activeCurrent !== null,
+                     'active_session' => $activeCurrent ? [
+                         'id' => $activeCurrent->id,
+                         'session_name' => $activeCurrent->session_name ?? 'Live Broadcast',
+                         'track_title' => $activeCurrent->current_track_title,
+                         'listener_count' => $activeCurrent->listener_count ?? 0,
+                         'host_name' => $activeCurrent->admin?->name ?? 'Unknown',
+                         'host_avatar' => $activeCurrent->admin?->profile_picture,
+                     ] : null,
+                 ];
+             })
+             ->toArray();
+    }
+
+    /**
      * Get top 3 trending hashtags for the "Popular Today" section.
      * Uses a shorter cache (5 minutes).
      */

@@ -83,6 +83,17 @@ Route::middleware('auth')->group(function () {
     Route::put('/schools/{school}/members/{user}/role', [SchoolController::class, 'changeMemberRole'])->name('schools.members.role');
     Route::delete('/schools/{school}/members/{user}', [SchoolController::class, 'removeMember'])->name('schools.members.remove');
 
+    // ── School Currents (Audio Events) ──────────────────────────
+    Route::post('/schools/{school}/currents/start', [\App\Http\Controllers\SchoolCallController::class, 'start'])->name('schools.currents.start');
+    Route::get('/schools/{school}/currents/join', [\App\Http\Controllers\SchoolCallController::class, 'join'])->name('schools.currents.join');
+    Route::post('/schools/{school}/currents/leave', [\App\Http\Controllers\SchoolCallController::class, 'leave'])->name('schools.currents.leave');
+    Route::get('/schools/{school}/currents/live-state', [\App\Http\Controllers\SchoolCallController::class, 'liveState'])->name('schools.currents.live-state');
+    Route::post('/schools/{school}/currents/vote', [\App\Http\Controllers\SchoolCallController::class, 'vote'])->name('schools.currents.vote');
+    Route::post('/schools/{school}/currents/end', [\App\Http\Controllers\SchoolCallController::class, 'end'])->name('schools.currents.end');
+    Route::post('/schools/{school}/currents/add-track', [\App\Http\Controllers\SchoolCallController::class, 'addTrack'])->name('schools.currents.add-track');
+    Route::post('/schools/{school}/currents/play-next', [\App\Http\Controllers\SchoolCallController::class, 'playNext'])->name('schools.currents.play-next');
+    Route::post('/schools/{school}/currents/chat', [\App\Http\Controllers\SchoolCallController::class, 'sendMessage'])->name('schools.currents.chat');
+
     // ── Join via invite link ─────────────────────────────────────
     Route::get('/join/{token}', [SchoolController::class, 'joinViaToken'])->name('schools.join');
 
