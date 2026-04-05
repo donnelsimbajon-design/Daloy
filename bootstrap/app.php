@@ -4,6 +4,27 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 
+// Create critical storage directories if they get wiped by a Railway volume mount
+$storageFrameworkDirs = [
+    __DIR__.'/../storage/framework/sessions',
+    __DIR__.'/../storage/framework/views',
+    __DIR__.'/../storage/framework/cache/data',
+    __DIR__.'/../storage/logs',
+    __DIR__.'/../storage/app/public',
+];
+
+foreach ($storageFrameworkDirs as $dir) {
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+}
+
+// Ensure the storage symlink exists at runtime
+$publicStorage = __DIR__.'/../public/storage';
+if (!is_link($publicStorage)) {
+    @symlink(__DIR__.'/../storage/app/public', $publicStorage);
+}
+
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
