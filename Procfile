@@ -1,1 +1,1 @@
-web: bash ./railway-start.sh
+web: bash -c 'mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache/data storage/logs storage/app/public && php artisan config:clear && php artisan cache:clear && php artisan view:clear && php artisan migrate --force; php-fpm -y /assets/php-fpm.conf & exec nginx -c /assets/nginx.conf -g "daemon off;"'
