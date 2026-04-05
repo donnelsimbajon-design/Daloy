@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# 0. Recreate storage folders that get wiped when mounting an empty Railway Volume!
+mkdir -p storage/framework/{sessions,views,cache/data}
+mkdir -p storage/logs
+mkdir -p storage/app/public
+
 # 1. Prepare Laravel Cache
 php artisan config:clear
 php artisan cache:clear
