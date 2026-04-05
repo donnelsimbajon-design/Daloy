@@ -15,12 +15,36 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        // ── Regular Test User ──
+        User::updateOrCreate(
+            ['email' => 'test@example.com'],
+            [
+                'name' => 'Test User',
+                'username' => 'testuser',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            ]
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'username' => 'testuser',
-            'email' => 'test@example.com',
+        // ── Super Admin User ──
+        $adminUser = User::updateOrCreate(
+            ['email' => 'admin@daloy.com'],
+            [
+                'name' => 'System Admin',
+                'username' => 'admin',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+            ]
+        );
+
+        // Ensure Admin Record exists
+        \App\Models\Admin::updateOrCreate(
+            ['user_id' => $adminUser->id],
+            ['role' => 'super_admin']
+        );
+
+        // ── Setup Roles & Permissions ──
+        $this->call([
+            AdminRolesPermissionsSeeder::class,
+            DaloyFeaturesSeeder::class,
         ]);
     }
 }
