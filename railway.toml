@@ -2,8 +2,9 @@
 buildCommand = "npm ci && npm run build"
 
 [deploy]
-startCommand = "mkdir -p /app/storage/framework/sessions /app/storage/framework/views /app/storage/framework/cache/data /app/storage/logs /app/storage/app/public && chmod -R 775 /app/storage && php artisan storage:link && php artisan config:clear && php artisan migrate --force && php-fpm -y /assets/php-fpm.conf & exec nginx -c /assets/nginx.conf -g 'daemon off;'"
+startCommand = "mkdir -p /app/storage/framework/sessions /app/storage/framework/views /app/storage/framework/cache/data /app/storage/logs /app/storage/app/public && chmod -R 775 /app/storage && php artisan storage:link && php artisan config:clear && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
 
 [nixpacks]
 [nixpacks.variables]
 NODE_VERSION = "20"
+PHP_CLI_SERVER_WORKERS = "4"
