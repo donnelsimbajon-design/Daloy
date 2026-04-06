@@ -181,8 +181,8 @@ class SchoolController extends Controller
 
         $coverPath = null;
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('schools/covers', 'public');
-            $coverPath = '/storage/' . $path;
+            $path = $request->file('cover_image')->store('schools/covers');
+            $coverPath = Storage::url($path);
         }
 
         $school = School::create([
@@ -212,12 +212,12 @@ class SchoolController extends Controller
 
         // Delete old cover
         if ($school->cover_image) {
-            $oldPath = str_replace('/storage/', '', $school->cover_image);
+            $oldPath = $school->cover_image;
             Storage::disk('public')->delete($oldPath);
         }
 
-        $path = $request->file('cover_image')->store('schools/covers', 'public');
-        $school->update(['cover_image' => '/storage/' . $path]);
+        $path = $request->file('cover_image')->store('schools/covers');
+        $school->update(['cover_image' => Storage::url($path)]);
 
         return back()->with('status', 'cover-updated');
     }
@@ -235,12 +235,12 @@ class SchoolController extends Controller
 
         // Delete old profile image
         if ($school->profile_image) {
-            $oldPath = str_replace('/storage/', '', $school->profile_image);
+            $oldPath = $school->profile_image;
             Storage::disk('public')->delete($oldPath);
         }
 
-        $path = $request->file('profile_image')->store('schools/profiles', 'public');
-        $school->update(['profile_image' => '/storage/' . $path]);
+        $path = $request->file('profile_image')->store('schools/profiles');
+        $school->update(['profile_image' => Storage::url($path)]);
 
         return back()->with('status', 'profile-updated');
     }
@@ -296,8 +296,8 @@ class SchoolController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id, 'public');
-                $url = '/storage/' . $path;
+                $path = $file->store('posts/' . $post->id);
+                $url = Storage::url($path);
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Storage;
+
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageReaction;
@@ -121,7 +123,7 @@ class MessagingController extends Controller
 
         $mediaUrl = null;
         if ($request->hasFile('file')) {
-            $mediaUrl = '/storage/' . $request->file('file')->store('message_attachments', 'public');
+            $mediaUrl = Storage::url($request->file('file')->store('message_attachments'));
         } elseif ($request->filled('media_url')) {
             $mediaUrl = $request->input('media_url');
         }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Storage;
+
 use App\Models\Story;
 use App\Models\StoryView;
 use App\Models\Reaction;
@@ -81,8 +83,8 @@ class StoryController extends Controller
             'visibility' => 'required|in:public,friends,private,close_friends',
         ]);
 
-        $path      = $request->file('media')->store('stories', 'public');
-        $url       = '/storage/' . $path;
+        $path      = $request->file('media')->store('stories');
+        $url       = Storage::url($path);
         $extension = strtolower($request->file('media')->getClientOriginalExtension());
         $type      = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
 

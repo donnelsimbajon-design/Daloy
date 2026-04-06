@@ -173,8 +173,8 @@ class EventController extends Controller
 
         $coverPath = null;
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('events/covers', 'public');
-            $coverPath = '/storage/' . $path;
+            $path = $request->file('cover_image')->store('events/covers');
+            $coverPath = Storage::url($path);
         }
 
         $event = Event::create([
@@ -282,8 +282,8 @@ class EventController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id, 'public');
-                $url = '/storage/' . $path;
+                $path = $file->store('posts/' . $post->id);
+                $url = Storage::url($path);
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
 
@@ -321,7 +321,7 @@ class EventController extends Controller
 
         // Delete cover image
         if ($event->cover_image) {
-            $oldPath = str_replace('/storage/', '', $event->cover_image);
+            $oldPath = $event->cover_image;
             Storage::disk('public')->delete($oldPath);
         }
 

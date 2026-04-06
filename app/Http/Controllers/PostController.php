@@ -223,8 +223,8 @@ class PostController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id, 'public');
-                $url = '/storage/' . $path;
+                $path = $file->store('posts/' . $post->id);
+                $url = Storage::url($path);
 
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
@@ -376,7 +376,7 @@ class PostController extends Controller
         }
 
         foreach ($post->media as $media) {
-            $storagePath = str_replace('/storage/', '', $media->url);
+            $storagePath = $media->url;
             Storage::disk('public')->delete($storagePath);
         }
 

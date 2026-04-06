@@ -111,12 +111,12 @@ class SettingsController extends Controller
         $user = $request->user();
 
         if ($user->profile_picture) {
-            $oldPath = str_replace('/storage/', '', $user->profile_picture);
+            $oldPath = $user->profile_picture;
             Storage::disk('public')->delete($oldPath);
         }
 
-        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
-        $user->update(['profile_picture' => '/storage/' . $path]);
+        $path = $request->file('profile_picture')->store('profile-pictures');
+        $user->update(['profile_picture' => Storage::url($path)]);
 
         return back()->with('status', 'profile-picture-updated');
     }
@@ -130,12 +130,12 @@ class SettingsController extends Controller
         $user = $request->user();
 
         if ($user->background_picture) {
-            $oldPath = str_replace('/storage/', '', $user->background_picture);
+            $oldPath = $user->background_picture;
             Storage::disk('public')->delete($oldPath);
         }
 
-        $path = $request->file('background_picture')->store('background-pictures', 'public');
-        $user->update(['background_picture' => '/storage/' . $path]);
+        $path = $request->file('background_picture')->store('background-pictures');
+        $user->update(['background_picture' => Storage::url($path)]);
 
         return back()->with('status', 'background-updated');
     }
