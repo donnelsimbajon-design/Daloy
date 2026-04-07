@@ -301,7 +301,7 @@ class MessagingController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:100',
-            'member_ids' => 'required|array|min:1|max:9', // max 9 + creator = 10
+            'member_ids' => 'required|array|min:1|max:10', // up to 10 invited + creator = 11 total
             'member_ids.*' => 'exists:users,id',
             'avatar' => 'nullable|file|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
@@ -332,7 +332,7 @@ class MessagingController extends Controller
             'type' => 'group',
             'name' => $request->name,
             'avatar_url' => $avatarUrl,
-            'max_members' => 10,
+            'max_members' => 11,
         ]);
 
         // Add creator as admin

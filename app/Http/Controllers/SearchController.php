@@ -162,13 +162,13 @@ class SearchController extends Controller
         $results = [];
 
         if (in_array($type, ['all', 'people'])) {
-            $people = User::select('id', 'name', 'username', 'profile_picture', 'bio', 'location', 'privacy_setting', 'background_picture')
-                ->where('id', '!=', $user->id)
+            $people = User::where('id', '!=', $user->id)
                 ->whereNotIn('id', $allBlockedIds)
                 ->when($query, function ($q) use ($query) {
                     $q->where(function ($sub) use ($query) {
-                        $sub->where('name', 'like', "%{$query}%")
-                            ->orWhere('username', 'like', "%{$query}%");
+                        $lowerQuery = strtolower($query);
+                        $sub->whereRaw('LOWER(name) LIKE ?', ["%{$lowerQuery}%"])
+                            ->orWhereRaw('LOWER(username) LIKE ?', ["%{$lowerQuery}%"]);
                     });
                 })
                 ->limit(20)
@@ -188,7 +188,9 @@ class SearchController extends Controller
             $posts = Post::with(['user:id,name,username,profile_picture', 'media'])
                 ->whereNotIn('user_id', $allBlockedIds)
                 ->where('visibility', 'public')
-                ->when($query, fn($q) => $q->where('content', 'like', "%{$query}%"))
+                ->when($query, function ($q) use ($query) {
+                    $q->where('content', 'LIKE', '%' . addcslashes($query, '%_\\') . '%');
+                })
                 ->withCount(['comments', 'reactions'])
                 ->latest()
                 ->limit(20)
@@ -199,7 +201,9 @@ class SearchController extends Controller
 
         if (in_array($type, ['all', 'schools'])) {
             $schools = School::withCount('members')
-                ->when($query, fn($q) => $q->where('name', 'like', "%{$query}%"))
+                ->when($query, function ($q) use ($query) {
+                    $q->where('name', 'LIKE', '%' . addcslashes($query, '%_\\') . '%');
+                })
                 ->limit(20)
                 ->get();
 
@@ -208,7 +212,9 @@ class SearchController extends Controller
 
         if (in_array($type, ['all', 'events'])) {
             $events = Event::with(['school:id,name', 'creator:id,name'])
-                ->when($query, fn($q) => $q->where('title', 'like', "%{$query}%"))
+                ->when($query, function ($q) use ($query) {
+                    $q->where('title', 'LIKE', '%' . addcslashes($query, '%_\\') . '%');
+                })
                 ->upcoming()
                 ->limit(20)
                 ->get();
@@ -217,7 +223,9 @@ class SearchController extends Controller
         }
 
         if (in_array($type, ['all', 'hashtags'])) {
-            $hashtags = Hashtag::when($query, fn($q) => $q->where('name', 'like', "%{$query}%"))
+            $hashtags = Hashtag::when($query, function ($q) use ($query) {
+                $q->where('name', 'LIKE', '%' . addcslashes($query, '%_\\') . '%');
+            })
                 ->withCount('posts')
                 ->orderByDesc('posts_count')
                 ->limit(20)

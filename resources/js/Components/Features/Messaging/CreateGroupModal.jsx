@@ -55,7 +55,7 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
         const exists = selectedUsers.find(u => u.id === user.id);
         if (exists) {
             setSelectedUsers(prev => prev.filter(u => u.id !== user.id));
-        } else if (selectedUsers.length < 9) { // max 9 + creator = 10
+        } else if (selectedUsers.length < 10) { // max 10 + creator = 11 total
             setSelectedUsers(prev => [...prev, user]);
         }
     };

@@ -27,9 +27,10 @@ class GroupCallController extends Controller
             return response()->json(['error' => 'Group calls are only available in group conversations.'], 422);
         }
 
-        // Must be participant
-        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
-            return response()->json(['error' => 'Not a member of this group.'], 403);
+        // Only admins can start a group call (per user request: "per admin can create 1 room for it")
+        $participant = $conversation->participants()->where('user_id', $user->id)->first();
+        if (!$participant || $participant->pivot->role !== 'admin') {
+            return response()->json(['error' => 'Only group admins can start a call.'], 403);
         }
 
         // Check if there's already an active call
@@ -162,6 +163,9 @@ class GroupCallController extends Controller
         }
 
         $role = $mode === 'listener' ? 'listener' : 'speaker';
+        
+        // If they join as listener, they are auto-muted
+        $isHostMuted = ($role === 'listener');
 
         // Generate token
         $appId = config('services.agora.app_id');
@@ -188,6 +192,7 @@ class GroupCallController extends Controller
             'user_id' => $user->id,
             'joined_at' => now(),
             'role' => $role,
+            'is_muted_by_host' => $isHostMuted,
         ]);
 
         return response()->json([

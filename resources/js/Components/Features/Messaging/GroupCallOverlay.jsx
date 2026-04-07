@@ -209,7 +209,7 @@ export default function GroupCallOverlay({
 
     // ── Actions ──────────────────────────────────────────────────────
     const toggleMic = async () => {
-        if (mutedByHost) return; // Can't unmute if host muted you
+        if (mutedByHost || callData.role === 'listener') return; 
         if (localAudioTrack) {
             await localAudioTrack.setMuted(!micMuted);
             setMicMuted(!micMuted);
@@ -217,6 +217,7 @@ export default function GroupCallOverlay({
     };
 
     const toggleVideo = async () => {
+        if (callData.role === 'listener') return;
         if (videoMuted) {
             // Enable video
             try {
@@ -241,6 +242,7 @@ export default function GroupCallOverlay({
     };
 
     const toggleScreenShare = async () => {
+        if (callData.role === 'listener') return;
         if (isScreenSharing) {
             // Stop screen share
             if (localScreenTrack) {
