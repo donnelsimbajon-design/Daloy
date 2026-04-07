@@ -147,6 +147,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/stories/{story}/react', [\App\Http\Controllers\StoryController::class, 'react'])->name('stories.react');
     Route::post('/stories/{story}/reply', [\App\Http\Controllers\StoryController::class, 'reply'])->name('stories.reply');
     Route::get('/stories/{story}/live-state', [\App\Http\Controllers\StoryController::class, 'liveState'])->name('stories.live-state');
+    Route::delete('/stories/{story}', [\App\Http\Controllers\StoryController::class, 'destroy'])->name('stories.destroy');
+    Route::post('/stories/{story}/archive', [\App\Http\Controllers\StoryController::class, 'archive'])->name('stories.archive');
+    Route::post('/stories/{story}/unarchive', [\App\Http\Controllers\StoryController::class, 'unarchive'])->name('stories.unarchive');
+    Route::get('/api/stories/archived', [\App\Http\Controllers\StoryController::class, 'archived'])->name('stories.archived');
 
     // Posts
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');

@@ -308,4 +308,84 @@ class StoryController extends Controller
 
         return response()->json(['message' => 'Reply sent successfully.']);
     }
+
+    /**
+     * Delete a story — owner only.
+     */
+    public function destroy(Story $story): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($story->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Delete associated views and reactions
+        $story->views()->delete();
+        $story->reactions()->delete();
+        $story->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    /**
+     * Archive a story — owner only.
+     * Archived stories persist beyond the 24h expiry.
+     */
+    public function archive(Story $story): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($story->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $story->update(['archived_at' => now()]);
+
+        return response()->json(['archived' => true]);
+    }
+
+    /**
+     * Unarchive a story — owner only.
+     */
+    public function unarchive(Story $story): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($story->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $story->update(['archived_at' => null]);
+
+        return response()->json(['unarchived' => true]);
+    }
+
+    /**
+     * Get archived stories for the authenticated user.
+     */
+    public function archived(): JsonResponse
+    {
+        $user = Auth::user();
+
+        $stories = Story::where('user_id', $user->id)
+            ->whereNotNull('archived_at')
+            ->with('user:id,name,username,profile_picture')
+            ->latest('archived_at')
+            ->get()
+            ->map(function ($story) {
+                return [
+                    'id'          => $story->id,
+                    'user'        => $story->user,
+                    'content'     => $story->content,
+                    'image'       => $story->media_url,
+                    'type'        => $story->type,
+                    'created_at'  => $story->created_at->toISOString(),
+                    'archived_at' => $story->archived_at->toISOString(),
+                    'is_owner'    => true,
+                ];
+            });
+
+        return response()->json($stories);
+    }
 }

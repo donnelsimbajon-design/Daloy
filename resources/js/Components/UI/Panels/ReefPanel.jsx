@@ -1230,6 +1230,188 @@ function CurrentsPanel() {
     );
 }
 
+/* ── River Flow Notes Panel ──────────────────────────────────────────── */
+function RiverFlowPanel() {
+    const [notes, setNotes] = useState([]);
+    const [editingNote, setEditingNote] = useState(null);
+    const [newTitle, setNewTitle] = useState('');
+    const [newContent, setNewContent] = useState('');
+    const [showCreate, setShowCreate] = useState(false);
+    const [search, setSearch] = useState('');
+
+    // Local notes stored in localStorage
+    React.useEffect(() => {
+        try {
+            const saved = localStorage.getItem('daloy_river_flow_notes');
+            if (saved) setNotes(JSON.parse(saved));
+        } catch {}
+    }, []);
+
+    const saveNotes = (updated) => {
+        setNotes(updated);
+        localStorage.setItem('daloy_river_flow_notes', JSON.stringify(updated));
+    };
+
+    const createNote = () => {
+        if (!newTitle.trim() && !newContent.trim()) return;
+        const note = {
+            id: Date.now(),
+            title: newTitle.trim() || 'Untitled Note',
+            content: newContent.trim(),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        saveNotes([note, ...notes]);
+        setNewTitle('');
+        setNewContent('');
+        setShowCreate(false);
+    };
+
+    const deleteNote = (id) => {
+        saveNotes(notes.filter(n => n.id !== id));
+    };
+
+    const saveEdit = () => {
+        if (!editingNote) return;
+        saveNotes(notes.map(n => n.id === editingNote.id
+            ? { ...n, title: editingNote.title, content: editingNote.content, updated_at: new Date().toISOString() }
+            : n
+        ));
+        setEditingNote(null);
+    };
+
+    const filtered = notes.filter(n =>
+        n.title.toLowerCase().includes(search.toLowerCase()) ||
+        n.content.toLowerCase().includes(search.toLowerCase())
+    );
+
+    const getTimeAgo = (dateStr) => {
+        const d = new Date(dateStr);
+        const now = new Date();
+        const diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return 'just now';
+        if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+        if (diff < 604800) return `${Math.floor(diff/86400)}d ago`;
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    return (
+        <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none h-full flex flex-col">
+            <CardHeader className="pb-3 border-b border-ocean-divider shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+                            <FileText className="w-4 h-4 text-cyan-400" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-sm">River Flow</CardTitle>
+                            <CardDescription className="text-[10px]">Personal notes & thoughts</CardDescription>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => setShowCreate(!showCreate)}
+                        className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center text-biolum hover:bg-biolum/25 transition-colors cursor-pointer"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d={showCreate ? "M6 18L18 6M6 6l12 12" : "M12 4.5v15m7.5-7.5h-15"} />
+                        </svg>
+                    </button>
+                </div>
+                <SearchBar value={search} onChange={setSearch} placeholder="Search notes..." />
+            </CardHeader>
+
+            <CardContent className="flex-1 overflow-y-auto py-3 space-y-2 no-scrollbar">
+                {/* Create Note Form */}
+                {showCreate && (
+                    <div className="p-3 bg-ocean-surface/60 border border-ocean-border rounded-xl space-y-2 mb-3 animate-[fadeIn_0.2s_ease-out]">
+                        <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            placeholder="Note title..."
+                            className="w-full bg-transparent border-none text-sm font-bold text-ocean-text placeholder:text-ocean-text-dim/50 focus:outline-none"
+                            autoFocus
+                        />
+                        <textarea
+                            value={newContent}
+                            onChange={(e) => setNewContent(e.target.value)}
+                            placeholder="Write your thoughts..."
+                            className="w-full bg-transparent border-none text-xs text-ocean-text-muted placeholder:text-ocean-text-dim/40 focus:outline-none resize-none min-h-[60px]"
+                            rows={3}
+                        />
+                        <div className="flex justify-end gap-1.5">
+                            <button onClick={() => { setShowCreate(false); setNewTitle(''); setNewContent(''); }} className="px-3 py-1.5 text-[10px] font-semibold text-ocean-text-dim bg-ocean-surface border border-ocean-border rounded-lg hover:text-ocean-text transition-colors cursor-pointer">
+                                Cancel
+                            </button>
+                            <button onClick={createNote} className="px-3 py-1.5 text-[10px] font-bold text-black bg-biolum rounded-lg hover:bg-biolum-bright transition-colors cursor-pointer">
+                                Save Note
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Editing a Note */}
+                {editingNote && (
+                    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setEditingNote(null)}>
+                        <div className="w-[380px] max-w-[90vw] bg-ocean-card border border-ocean-border rounded-2xl p-5 space-y-3 shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <input
+                                type="text"
+                                value={editingNote.title}
+                                onChange={(e) => setEditingNote({...editingNote, title: e.target.value})}
+                                className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-3 py-2 text-sm font-bold text-ocean-text focus:outline-none focus:border-biolum/40"
+                                autoFocus
+                            />
+                            <textarea
+                                value={editingNote.content}
+                                onChange={(e) => setEditingNote({...editingNote, content: e.target.value})}
+                                className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-3 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/40 resize-none min-h-[140px]"
+                            />
+                            <div className="flex justify-end gap-2">
+                                <button onClick={() => setEditingNote(null)} className="px-3 py-2 text-xs font-semibold text-ocean-text-dim hover:text-ocean-text transition-colors cursor-pointer">Cancel</button>
+                                <button onClick={saveEdit} className="px-4 py-2 text-xs font-bold text-black bg-biolum rounded-lg hover:bg-biolum-bright transition-colors cursor-pointer">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Notes List */}
+                {filtered.length > 0 ? (
+                    filtered.map(note => (
+                        <div
+                            key={note.id}
+                            className="group p-3 bg-ocean-surface/40 border border-ocean-border/60 rounded-xl hover:border-biolum/20 hover:bg-ocean-surface/60 transition-all cursor-pointer relative"
+                            onClick={() => setEditingNote({...note})}
+                        >
+                            <div className="absolute top-0 left-0 w-0.5 h-full bg-cyan-400/40 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <h4 className="text-sm font-bold text-ocean-text mb-0.5 truncate pr-8">{note.title}</h4>
+                            <p className="text-xs text-ocean-text-dim line-clamp-2 leading-relaxed">{note.content || 'Empty note...'}</p>
+                            <p className="text-[9px] text-ocean-text-dim/50 mt-1.5 font-semibold uppercase tracking-wider">{getTimeAgo(note.updated_at)}</p>
+                            {/* Delete button */}
+                            <button
+                                onClick={(e) => { e.stopPropagation(); deleteNote(note.id); }}
+                                className="absolute top-2.5 right-2.5 w-6 h-6 rounded-md bg-rose-500/0 hover:bg-rose-500/15 flex items-center justify-center text-ocean-text-dim/30 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                            >
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                            </button>
+                        </div>
+                    ))
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-ocean-surface flex items-center justify-center mb-3">
+                            <FileText className="w-6 h-6 text-ocean-text-dim" />
+                        </div>
+                        <h3 className="text-sm font-bold text-ocean-text mb-1">{search ? 'No matching notes' : 'No notes yet'}</h3>
+                        <p className="text-xs text-ocean-text-dim">{search ? 'Try a different search term.' : 'Tap + to create your first note.'}</p>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 /* ── Main ReefPanel ──────────────────────────────────────────────────── */
 export default function ReefPanel({ activePanel }) {
     if (!activePanel) return null;
@@ -1246,6 +1428,7 @@ export default function ReefPanel({ activePanel }) {
                 {activePanel === 'announcements' && <AnnouncementsPanel />}
                 {activePanel === 'language' && <LanguagePanel />}
                 {activePanel === 'currents' && <CurrentsPanel />}
+                {activePanel === 'notes' && <RiverFlowPanel />}
             </div>
             
             <style dangerouslySetInnerHTML={{

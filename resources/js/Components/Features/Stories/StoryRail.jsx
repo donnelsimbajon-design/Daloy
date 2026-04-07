@@ -484,15 +484,55 @@ export default function StoryRail({ horizontal = false }) {
                         </button>
                     </div>
 
-                    {/* Close Button - More accessible on mobile */}
-                    <button
-                        onClick={() => setSelectedStory(null)}
-                        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 text-ocean-text-muted hover:text-white transition-all hover:rotate-90 z-[120] bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10"
-                    >
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    {/* Close Button + Owner Actions */}
+                    <div className="absolute top-4 right-4 md:top-8 md:right-8 flex items-center gap-2 z-[120]">
+                        {/* Owner Actions — Delete & Archive */}
+                        {selectedStory.is_owner && (
+                            <>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                            await axios.post(`/stories/${selectedStory.id}/archive`);
+                                            setSelectedStory(null);
+                                            fetchStories();
+                                        } catch (err) { console.error(err); }
+                                    }}
+                                    className="p-2.5 text-white/70 hover:text-amber-300 transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
+                                    title="Archive Story"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        if (!confirm('Delete this story permanently?')) return;
+                                        try {
+                                            await axios.delete(`/stories/${selectedStory.id}`);
+                                            setSelectedStory(null);
+                                            fetchStories();
+                                        } catch (err) { console.error(err); }
+                                    }}
+                                    className="p-2.5 text-white/70 hover:text-rose-400 transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
+                                    title="Delete Story"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                    </svg>
+                                </button>
+                            </>
+                        )}
+                        <button
+                            onClick={() => setSelectedStory(null)}
+                            className="p-3 text-ocean-text-muted hover:text-white transition-all hover:rotate-90 bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
 
                     <div className="relative z-10 w-full md:max-w-md h-full md:h-[min(90vh,800px)] md:aspect-[9/16] bg-ocean-card/40 md:rounded-[24px] overflow-hidden border-x md:border border-ocean-divider/30 ring-1 ring-ocean-deep/10 flex flex-col backdrop-blur-md shadow-[0_8px_32px_rgba(0,0,0,0.15)]">
                         {/* Progress Bars */}

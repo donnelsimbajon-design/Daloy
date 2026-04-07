@@ -28,6 +28,7 @@ export default function GroupCallOverlay({
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [callDuration, setCallDuration] = useState(0);
+    const [showParticipants, setShowParticipants] = useState(false);
 
     // ── Chat State ──────────────────────────────────────────────────
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -305,6 +306,28 @@ export default function GroupCallOverlay({
         }
     };
 
+    const handleKickUser = async (userId) => {
+        if (!isHost) return;
+        try {
+            await axios.post(`/api/group-calls/${conversationId}/kick/${userId}`);
+            setParticipantsList(prev => prev.filter(p => p.user_id !== userId));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleMuteAll = async () => {
+        if (!isHost) return;
+        try {
+            const nonHostParticipants = participantsList.filter(p => p.role !== 'host');
+            await Promise.all(nonHostParticipants.map(p =>
+                axios.post(`/api/group-calls/${conversationId}/mute/${p.user_id}`, { mute: true })
+            ));
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     const handleSendChat = async (e) => {
         e?.preventDefault();
         if (!chatInput.trim() || sendingChat) return;
@@ -540,7 +563,7 @@ export default function GroupCallOverlay({
                     <div className="w-px h-8 bg-white/20" />
 
                     <button
-                        onClick={() => setIsChatOpen(!isChatOpen)}
+                        onClick={() => { setIsChatOpen(!isChatOpen); setShowParticipants(false); }}
                         className={`p-3.5 rounded-full transition-colors cursor-pointer ${
                             isChatOpen ? 'bg-biolum/30 text-biolum ring-1 ring-biolum/50' : 'bg-white/10 text-white hover:bg-white/20'
                         }`}
@@ -558,6 +581,29 @@ export default function GroupCallOverlay({
                     >
                         {isMusicMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                     </button>
+
+                    <button
+                        onClick={() => { setShowParticipants(!showParticipants); setIsChatOpen(false); }}
+                        className={`p-3.5 rounded-full transition-colors cursor-pointer relative ${
+                            showParticipants ? 'bg-biolum/30 text-biolum ring-1 ring-biolum/50' : 'bg-white/10 text-white hover:bg-white/20'
+                        }`}
+                        title="Participants"
+                    >
+                        <Users className="w-5 h-5" />
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-white/20 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                            {participantsList.length}
+                        </span>
+                    </button>
+
+                    {isHost && (
+                        <button
+                            onClick={handleMuteAll}
+                            className="p-3.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-400 transition-colors cursor-pointer"
+                            title="Mute all participants"
+                        >
+                            <VolumeX className="w-5 h-5" />
+                        </button>
+                    )}
 
                     <div className="w-px h-8 bg-white/20" />
 
@@ -644,6 +690,73 @@ export default function GroupCallOverlay({
                             <Send className="w-4 h-4" />
                         </button>
                     </form>
+                </div>
+            )}
+
+            {/* Participants Drawer */}
+            {showParticipants && (
+                <div className="fixed top-0 right-0 bottom-0 w-[340px] bg-zinc-900/95 backdrop-blur-xl border-l border-white/10 flex flex-col z-10">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+                        <h3 className="text-white font-semibold flex items-center gap-2">
+                            <Users className="w-4 h-4 text-biolum" />
+                            Participants ({participantsList.length})
+                        </h3>
+                        <button
+                            onClick={() => setShowParticipants(false)}
+                            className="p-1.5 rounded-full hover:bg-white/10 text-white/60 transition-colors cursor-pointer"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
+                        {participantsList.map(p => {
+                            const isMe = p.user_id === currentUser.id;
+                            const isParticipantHost = p.role === 'host';
+                            return (
+                                <div key={p.user_id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors group">
+                                    <Avatar className="w-9 h-9 ring-1 ring-white/10">
+                                        {p.user?.profile_picture && <AvatarImage src={p.user.profile_picture} />}
+                                        <AvatarFallback className="bg-ocean-deep text-ocean-text text-sm">
+                                            {p.user?.name?.[0] || '?'}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-white text-sm font-medium truncate">{p.user?.name || 'Unknown'}</span>
+                                            {isMe && <span className="text-biolum text-[10px] font-bold">(You)</span>}
+                                            {isParticipantHost && <Crown className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
+                                        </div>
+                                        <span className="text-white/40 text-[10px] capitalize">{p.role || 'member'}</span>
+                                    </div>
+                                    {/* Host actions on non-self, non-host participants */}
+                                    {isHost && !isMe && !isParticipantHost && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button
+                                                onClick={() => p.is_muted_by_host ? handleHostUnmute(p.user_id) : handleHostMute(p.user_id)}
+                                                className="p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                                                title={p.is_muted_by_host ? 'Unmute' : 'Mute'}
+                                            >
+                                                {p.is_muted_by_host
+                                                    ? <MicOff className="w-3.5 h-3.5 text-rose-400" />
+                                                    : <Mic className="w-3.5 h-3.5 text-white/60" />
+                                                }
+                                            </button>
+                                            <button
+                                                onClick={() => handleKickUser(p.user_id)}
+                                                className="p-1.5 rounded-full hover:bg-rose-500/20 transition-colors cursor-pointer"
+                                                title="Remove from call"
+                                            >
+                                                <UserX className="w-3.5 h-3.5 text-rose-400" />
+                                            </button>
+                                        </div>
+                                    )}
+                                    {p.is_muted_by_host && (
+                                        <MicOff className="w-3.5 h-3.5 text-rose-400/50 shrink-0" />
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/UI/Cards/PostCard';
@@ -52,6 +52,8 @@ export default function UserProfile() {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [blocked, setBlocked] = useState(initIsBlocked || false);
     const [showMoreMenu, setShowMoreMenu] = useState(false);
+    const [archivedStories, setArchivedStories] = useState([]);
+    const [loadingArchived, setLoadingArchived] = useState(false);
 
     const coverInputRef = useRef(null);
     const avatarInputRef = useRef(null);
@@ -175,7 +177,34 @@ export default function UserProfile() {
         { id: 'posts', label: 'Feed', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
         { id: 'articles', label: 'Articles', icon: 'M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25H5.625a2.25 2.25 0 01-2.25-2.25V8.625c0-.621.504-1.125 1.125-1.125H6.75' },
         { id: 'gallery', label: 'Gallery', icon: 'm2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M6.75 21h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12.75a2.25 2.25 0 002.25 2.25z' },
+        ...(isSelf ? [{ id: 'archived', label: 'Archived', icon: 'm20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z' }] : []),
     ];
+
+    // Fetch archived stories when tab is switched
+    useEffect(() => {
+        if (activeTab === 'archived' && isSelf && archivedStories.length === 0) {
+            setLoadingArchived(true);
+            axios.get('/api/stories/archived')
+                .then(res => setArchivedStories(res.data))
+                .catch(err => console.error(err))
+                .finally(() => setLoadingArchived(false));
+        }
+    }, [activeTab]);
+
+    const handleUnarchiveStory = async (storyId) => {
+        try {
+            await axios.post(`/stories/${storyId}/unarchive`);
+            setArchivedStories(prev => prev.filter(s => s.id !== storyId));
+        } catch (err) { console.error(err); }
+    };
+
+    const handleDeleteArchivedStory = async (storyId) => {
+        if (!confirm('Delete this archived story permanently?')) return;
+        try {
+            await axios.delete(`/stories/${storyId}`);
+            setArchivedStories(prev => prev.filter(s => s.id !== storyId));
+        } catch (err) { console.error(err); }
+    };
     const joinedDate = profileUser.created_at ? new Date(profileUser.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : null;
 
     /* ── Render action buttons ───────────────────────────────────────── */
@@ -629,6 +658,70 @@ export default function UserProfile() {
                                                 <svg className="w-7 h-7 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M6.75 21h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12.75a2.25 2.25 0 002.25 2.25z" /></svg>
                                             </div>
                                             <p className="text-ocean-text-dim text-sm font-medium">No photos or videos shared yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ── ARCHIVED STORIES ── */}
+                            {activeTab === 'archived' && isSelf && (
+                                <div className="bg-ocean-card border border-ocean-border rounded-[20px] p-6 shadow-sm">
+                                    <div className="flex items-center justify-between mb-5">
+                                        <h2 className="text-sm font-bold text-ocean-text">Archived Stories</h2>
+                                        <span className="text-xs text-ocean-text-dim font-medium">{archivedStories.length} archived</span>
+                                    </div>
+                                    {loadingArchived ? (
+                                        <div className="flex items-center justify-center py-16">
+                                            <svg className="w-8 h-8 animate-spin text-biolum" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                        </div>
+                                    ) : archivedStories.length > 0 ? (
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                                            {archivedStories.map(story => (
+                                                <div key={story.id} className="aspect-[9/16] bg-ocean-surface rounded-xl overflow-hidden relative group border border-ocean-border hover:border-biolum/30 transition-all cursor-pointer shadow-sm">
+                                                    {story.type === 'text' ? (
+                                                        <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e] flex items-center justify-center p-3">
+                                                            <p className="text-white text-xs font-bold text-center line-clamp-6 leading-relaxed">{story.content}</p>
+                                                        </div>
+                                                    ) : story.image ? (
+                                                        <img src={story.image} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-gradient-to-br from-ocean-surface to-ocean-deep flex items-center justify-center">
+                                                            <svg className="w-8 h-8 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M6.75 21h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                                                        </div>
+                                                    )}
+                                                    {/* Hover overlay with actions */}
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-3">
+                                                        <p className="text-white/70 text-[9px] font-semibold mb-2 uppercase tracking-wider">
+                                                            Archived {new Date(story.archived_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                                        </p>
+                                                        <div className="flex gap-1.5">
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleUnarchiveStory(story.id); }}
+                                                                className="flex-1 py-1.5 text-[10px] font-bold text-white bg-biolum/80 hover:bg-biolum rounded-lg transition-colors"
+                                                            >
+                                                                Unarchive
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); handleDeleteArchivedStory(story.id); }}
+                                                                className="py-1.5 px-2.5 text-[10px] font-bold text-white bg-rose-500/60 hover:bg-rose-500 rounded-lg transition-colors"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                                            <div className="w-14 h-14 rounded-2xl bg-ocean-surface flex items-center justify-center mb-4">
+                                                <svg className="w-7 h-7 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" /></svg>
+                                            </div>
+                                            <p className="text-ocean-text-dim text-sm font-medium">No archived stories yet.</p>
+                                            <p className="text-ocean-text-dim/60 text-xs mt-1">Archive stories from the story viewer to save them here.</p>
                                         </div>
                                     )}
                                 </div>

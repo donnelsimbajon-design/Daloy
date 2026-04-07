@@ -15,13 +15,20 @@ class Story extends Model
         'content',
         'expires_at',
         'visibility',
+        'archived_at',
     ];
 
     protected function casts(): array
     {
         return [
             'expires_at' => 'datetime',
+            'archived_at' => 'datetime',
         ];
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
     }
 
     public function user()

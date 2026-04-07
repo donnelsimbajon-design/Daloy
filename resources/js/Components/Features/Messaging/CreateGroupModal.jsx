@@ -10,6 +10,7 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
     const [step, setStep] = useState(1); // 1: select members, 2: name & avatar
     const [search, setSearch] = useState('');
     const [results, setResults] = useState([]);
+    const [friendSuggestions, setFriendSuggestions] = useState([]);
     const [selectedUsers, setSelectedUsers] = useState([]);
     const [groupName, setGroupName] = useState('');
     const [avatar, setAvatar] = useState(null);
@@ -18,6 +19,23 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
     const [searching, setSearching] = useState(false);
     const avatarInputRef = useRef(null);
     const searchTimeout = useRef(null);
+
+    // Load friends as initial suggestions when modal opens
+    useEffect(() => {
+        if (open) {
+            axios.get('/api/search', { params: { q: '', type: 'people' } })
+                .then(res => {
+                    const friends = (res.data.people || []).filter(u => u.id !== currentUserId);
+                    setFriendSuggestions(friends);
+                })
+                .catch(() => {
+                    // Fallback: try fetching via friends endpoint
+                    axios.get('/api/friend-request/friends')
+                        .then(r => setFriendSuggestions((r.data || []).filter(u => u.id !== currentUserId)))
+                        .catch(() => {});
+                });
+        }
+    }, [open]);
 
     useEffect(() => {
         if (!open) {
@@ -32,7 +50,7 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
     }, [open]);
 
     useEffect(() => {
-        if (search.trim().length < 2) {
+        if (search.trim().length < 1) {
             setResults([]);
             return;
         }
@@ -50,6 +68,9 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
             }
         }, 300);
     }, [search]);
+
+    // Display list: search results OR friend suggestions
+    const displayUsers = search.trim().length > 0 ? results : friendSuggestions;
 
     const toggleUser = (user) => {
         const exists = selectedUsers.find(u => u.id === user.id);
@@ -140,15 +161,19 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
 
                         {/* Results */}
                         <div className="flex-1 overflow-y-auto space-y-1 min-h-0" style={{ maxHeight: '300px' }}>
+                            {/* Section Label */}
+                            {!searching && search.trim().length === 0 && friendSuggestions.length > 0 && (
+                                <p className="text-ocean-text-dim text-xs font-semibold uppercase tracking-wider px-2 py-1.5">Suggested Friends</p>
+                            )}
                             {searching && (
                                 <div className="flex items-center justify-center py-8">
                                     <Loader2 className="w-5 h-5 text-biolum animate-spin" />
                                 </div>
                             )}
-                            {!searching && results.length === 0 && search.length >= 2 && (
+                            {!searching && displayUsers.length === 0 && search.length >= 1 && (
                                 <p className="text-center text-ocean-text-dim text-sm py-4">No voyagers found</p>
                             )}
-                            {!searching && results.map(user => {
+                            {!searching && displayUsers.map(user => {
                                 const isSelected = selectedUsers.some(u => u.id === user.id);
                                 return (
                                     <button
