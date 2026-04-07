@@ -226,9 +226,9 @@ class GroupCallController extends Controller
             $participant->update(['left_at' => now()]);
         }
 
-        // If host leaves or no participants left, end the call
+        // End the call if host leaves, or if participant count drops below 2
         $remainingCount = $groupCall->activeParticipants()->count();
-        if ($remainingCount === 0 || ($participant && $participant->role === 'host')) {
+        if ($remainingCount < 2 || ($participant && $participant->role === 'host')) {
             $this->endCallInternal($groupCall);
         }
 

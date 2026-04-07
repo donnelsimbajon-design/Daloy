@@ -148,6 +148,7 @@ class SearchController extends Controller
             SearchHistory::create([
                 'user_id' => $user->id,
                 'query' => $query,
+                'searched_at' => now(),
             ]);
             // Keep only last 10
             $excess = SearchHistory::where('user_id', $user->id)
@@ -174,7 +175,7 @@ class SearchController extends Controller
                 ->limit(20)
                 ->get();
 
-            $people->transform(function ($u) use ($user) {
+            $people->transform(function (\App\Models\User $u) use ($user) {
                 $u->is_following = $user->isFollowing($u);
                 $u->is_friend = $user->isFriend($u);
                 $u->friendship_status = $u->is_friend ? 'friends' : 'none';
@@ -335,6 +336,7 @@ class SearchController extends Controller
 
         $scored = [];
         foreach ($schools as $school) {
+            /** @var \App\Models\School $school */
             $score = 0;
 
             // Friends who are members (3pts each)

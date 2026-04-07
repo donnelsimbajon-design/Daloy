@@ -501,4 +501,49 @@ class MessagingController extends Controller
 
         return response()->json(['message' => 'Conversation reported successfully. An admin will review it.']);
     }
+
+    /**
+     * Leave a group chat.
+     */
+    public function leaveGroup(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($conversation->type !== 'group') {
+            return response()->json(['message' => 'Cannot leave a direct message.'], 400);
+        }
+
+        $participant = $conversation->participants()->where('user_id', $user->id)->first();
+        if (!$participant) {
+            return response()->json(['message' => 'You are not in this group.'], 403);
+        }
+
+        // Generate system message before leaving
+        $conversation->messages()->create([
+            'user_id' => clone $user->id,
+            'content' => 'SYSTEM_USER_LEFT',
+        ]);
+
+        $conversation->participants()->detach($user->id);
+
+        return response()->json(['left' => true]);
+    }
+
+    /**
+     * Disband a group chat.
+     */
+    public function disbandGroup(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+
+        $participant = $conversation->participants()->where('user_id', $user->id)->first();
+        if (!$participant || $participant->pivot->role !== 'admin') {
+            return response()->json(['message' => 'Only admins can disband the group.'], 403);
+        }
+
+        // Easiest is to delete the conversation entirely which cascades everything.
+        $conversation->delete();
+
+        return response()->json(['disbanded' => true]);
+    }
 }

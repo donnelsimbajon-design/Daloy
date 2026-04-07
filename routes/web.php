@@ -193,6 +193,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/conversations/group', [MessagingController::class, 'createGroup'])->name('api.conversations.group');
     Route::post('/api/conversations/{conversation}/members', [MessagingController::class, 'addMember'])->name('api.conversations.members.add');
     Route::delete('/api/conversations/{conversation}/members/{user}', [MessagingController::class, 'removeMember'])->name('api.conversations.members.remove');
+    Route::post('/api/conversations/{conversation}/leave', [MessagingController::class, 'leaveGroup'])->name('api.conversations.leave');
+    Route::delete('/api/conversations/{conversation}/disband', [MessagingController::class, 'disbandGroup'])->name('api.conversations.disband');
     Route::patch('/api/conversations/{conversation}/name', [MessagingController::class, 'updateGroupName'])->name('api.conversations.name');
     Route::get('/api/conversations/{conversation}/search', [MessagingController::class, 'searchMessages'])->name('api.conversations.search');
     Route::post('/api/conversations/{conversation}/report', [MessagingController::class, 'reportConversation'])->name('api.conversations.report');
