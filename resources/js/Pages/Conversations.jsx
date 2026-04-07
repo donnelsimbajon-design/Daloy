@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import axios from 'axios';
-import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone } from 'lucide-react';
+import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone, Users, PhoneCall, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { ScrollArea } from '@/Components/shadcn/scroll-area';
 import { Input } from '@/Components/shadcn/input';
 import { Button } from '@/Components/shadcn/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/Components/shadcn/dialog';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from '@/Components/shadcn/dropdown-menu';
+import CreateGroupModal from '@/Components/Features/Messaging/CreateGroupModal';
+import GroupCallOverlay from '@/Components/Features/Messaging/GroupCallOverlay';
 
 export default function Conversations() {
     const { auth } = usePage().props;
@@ -29,6 +31,9 @@ export default function Conversations() {
     const [reportSuccess, setReportSuccess] = useState(false);
     const [attachment, setAttachment] = useState(null);
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
+    const [showCreateGroup, setShowCreateGroup] = useState(false);
+    const [activeGroupCall, setActiveGroupCall] = useState(null);
+    const [groupCallActive, setGroupCallActive] = useState(null);
     const messagesEndRef = useRef(null);
     const attachmentInputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -234,6 +239,72 @@ export default function Conversations() {
         }
     };
 
+    const handleStartGroupCall = async () => {
+        if (!selectedConversation || selectedConversation.type !== 'group') return;
+        try {
+            const res = await axios.post(`/api/group-calls/${selectedConversation.id}/start`);
+            setActiveGroupCall({
+                ...res.data,
+                isHost: true,
+                conversationName: selectedConversation.name || 'Group Call',
+            });
+        } catch (err) {
+            if (err.response?.data?.error) {
+                alert(err.response.data.error);
+            } else {
+                alert('Failed to start group call.');
+            }
+        }
+    };
+
+    const handleJoinGroupCall = async () => {
+        if (!selectedConversation) return;
+        try {
+            const res = await axios.post(`/api/group-calls/${selectedConversation.id}/join`);
+            setActiveGroupCall({
+                ...res.data,
+                isHost: false,
+                conversationName: selectedConversation.name || 'Group Call',
+            });
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to join call.');
+        }
+    };
+
+    // Check if selected group has active call
+    useEffect(() => {
+        if (!selectedConversation || selectedConversation.type !== 'group') {
+            setGroupCallActive(null);
+            return;
+        }
+        const check = async () => {
+            try {
+                const res = await axios.get(`/api/group-calls/${selectedConversation.id}/active`);
+                setGroupCallActive(res.data.active ? res.data : null);
+            } catch (e) {
+                setGroupCallActive(null);
+            }
+        };
+        check();
+        const interval = setInterval(check, 5000);
+        return () => clearInterval(interval);
+    }, [selectedConversation?.id]);
+
+    const isSystemMessage = (content) => {
+        return content && content.startsWith('SYSTEM_');
+    };
+
+    const getSystemMessageText = (content) => {
+        const map = {
+            'SYSTEM_GROUP_CREATED': '🌊 Group was created',
+            'SYSTEM_GROUP_CALL_STARTED': '📞 Group call started',
+            'SYSTEM_GROUP_CALL_ENDED': '📞 Group call ended',
+            'SYSTEM_CALL_VIDEO': '📹 Video call',
+            'SYSTEM_CALL_AUDIO': '📞 Voice call',
+        };
+        return map[content] || content;
+    };
+
     const getParticipantName = (conversation) => {
         if (conversation.type === 'group') return conversation.name || 'Group Chat';
         if (!conversation.participants || !Array.isArray(conversation.participants)) return 'Loading...';
@@ -271,6 +342,13 @@ export default function Conversations() {
                             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             <Input type="text" placeholder="Search chats..." className="w-full bg-ocean-surface/50 border-transparent rounded-full pl-10 pr-4 h-10 text-sm text-ocean-text focus-visible:ring-1 focus-visible:bg-ocean-surface focus-visible:border-ocean-border focus-visible:ring-biolum/30 placeholder:text-ocean-text-dim/50 transition-all font-medium" />
                         </div>
+                        <button
+                            onClick={() => setShowCreateGroup(true)}
+                            className="ml-2 p-2 rounded-full bg-biolum/20 hover:bg-biolum/30 text-biolum transition-colors cursor-pointer flex-shrink-0"
+                            title="Create Group"
+                        >
+                            <Plus className="w-5 h-5" />
+                        </button>
                     </div>
                     <ScrollArea className="flex-1">
                         {loading && conversations.length === 0 ? (
@@ -283,19 +361,34 @@ export default function Conversations() {
                                 const isActive = selectedConversation?.id === conv.id;
                                 return (
                                     <div key={conv.id} onClick={() => setSelectedConversation(conv)} className={`flex items-center gap-3 px-3 py-3 mx-2 my-1 cursor-pointer rounded-2xl transition-all ${isActive ? 'bg-ocean-surface border border-ocean-border/50 shadow-sm' : 'hover:bg-ocean-surface/50 border border-transparent'}`}>
-                                        <Avatar className="w-12 h-12 ring-1 ring-ocean-border">
-                                            {other?.profile_picture && <AvatarImage src={other.profile_picture} className="object-cover" />}
-                                            <AvatarFallback className="bg-biolum/20 text-ocean-text font-bold text-sm">
-                                                {getAvatarText(getParticipantName(conv))}
-                                            </AvatarFallback>
-                                        </Avatar>
+                                        <div className="relative">
+                                            <Avatar className="w-12 h-12 ring-1 ring-ocean-border">
+                                                {conv.type === 'group' && conv.avatar_url ? (
+                                                    <AvatarImage src={conv.avatar_url} className="object-cover" />
+                                                ) : other?.profile_picture ? (
+                                                    <AvatarImage src={other.profile_picture} className="object-cover" />
+                                                ) : null}
+                                                <AvatarFallback className="bg-biolum/20 text-ocean-text font-bold text-sm">
+                                                    {conv.type === 'group' ? <Users className="w-5 h-5" /> : getAvatarText(getParticipantName(conv))}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                            {conv.type === 'group' && (
+                                                <span className="absolute -bottom-0.5 -right-0.5 bg-ocean-surface text-ocean-text-dim text-[9px] font-bold px-1 rounded-full border border-ocean-border">
+                                                    {conv.participants?.length || 0}
+                                                </span>
+                                            )}
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-baseline mb-0.5">
                                                 <h3 className={`font-semibold text-sm truncate ${isActive ? 'text-biolum' : 'text-ocean-text'}`}>{getParticipantName(conv)}</h3>
                                                 {conv.latest_message && <span className="text-[10px] uppercase font-bold text-ocean-text-dim tracking-wider ml-2 shrink-0">{formatTime(conv.latest_message.created_at)}</span>}
                                             </div>
                                             <p className={`text-xs truncate ${isActive ? 'text-ocean-text' : 'text-ocean-text-dim'}`}>
-                                                {conv.latest_message ? conv.latest_message.content : 'No messages'}
+                                                {conv.latest_message ? (
+                                                    isSystemMessage(conv.latest_message.content)
+                                                        ? getSystemMessageText(conv.latest_message.content)
+                                                        : conv.latest_message.content
+                                                ) : 'No messages'}
                                             </p>
                                         </div>
                                     </div>
@@ -328,12 +421,26 @@ export default function Conversations() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1">
-                                        <Button variant="ghost" size="icon" onClick={() => handleStartCall('audio')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors">
-                                            <Phone className="w-4 h-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleStartCall('video')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors mr-2">
-                                            <Video className="w-4 h-4" />
-                                        </Button>
+                                        {selectedConversation.type === 'group' ? (
+                                            <>
+                                                {groupCallActive ? (
+                                                    <Button variant="ghost" size="sm" onClick={handleJoinGroupCall} className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-full transition-colors gap-1.5 text-xs font-semibold animate-pulse">
+                                                        <PhoneCall className="w-4 h-4" />
+                                                        Join Call ({groupCallActive.participants?.length || 0})
+                                                    </Button>
+                                                ) : (
+                                                    <Button variant="ghost" size="icon" onClick={handleStartGroupCall} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors" title="Start Group Call">
+                                                        <PhoneCall className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Button variant="ghost" size="icon" onClick={() => handleStartCall('video')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors" title="Video Call">
+                                                    <Video className="w-4 h-4" />
+                                                </Button>
+                                            </>
+                                        )}
                                         <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="flex rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors">
@@ -380,6 +487,18 @@ export default function Conversations() {
                                     <div className="p-4 md:p-6 flex flex-col space-y-4">
                                     {messages.map((msg) => {
                                         const isMe = msg.user_id === auth.user.id;
+
+                                        // System messages
+                                        if (isSystemMessage(msg.content)) {
+                                            return (
+                                                <div key={msg.id} className="flex justify-center">
+                                                    <span className="text-ocean-text-dim text-xs bg-white/5 px-3 py-1 rounded-full">
+                                                        {getSystemMessageText(msg.content)}
+                                                    </span>
+                                                </div>
+                                            );
+                                        }
+
                                         return (
                                             <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
                                                 <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed ${isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
@@ -699,6 +818,30 @@ export default function Conversations() {
                             )}
                         </div>
                     </div>
+                )}
+
+                {/* Create Group Modal */}
+                <CreateGroupModal
+                    open={showCreateGroup}
+                    onClose={() => setShowCreateGroup(false)}
+                    onCreated={(newConv) => {
+                        setConversations(prev => [newConv, ...prev]);
+                        setSelectedConversation(newConv);
+                    }}
+                    currentUserId={auth.user.id}
+                />
+
+                {/* Group Call Overlay */}
+                {activeGroupCall && (
+                    <GroupCallOverlay
+                        conversationId={selectedConversation?.id}
+                        conversationName={activeGroupCall.conversationName}
+                        callData={activeGroupCall}
+                        isHost={activeGroupCall.isHost}
+                        onLeave={() => setActiveGroupCall(null)}
+                        currentUser={auth.user}
+                        participants={[]}
+                    />
                 )}
             </div>
         </MainLayout>

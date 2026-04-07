@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    protected $fillable = ['type', 'name'];
+    protected $fillable = ['type', 'name', 'avatar_url', 'max_members'];
 
     public function participants()
     {
@@ -40,5 +40,15 @@ class Conversation extends Model
     public function reports()
     {
         return $this->morphMany(Report::class, 'reportable');
+    }
+
+    public function groupCalls()
+    {
+        return $this->hasMany(GroupCall::class);
+    }
+
+    public function activeGroupCall()
+    {
+        return $this->hasOne(GroupCall::class)->whereNull('ended_at')->latestOfMany();
     }
 }

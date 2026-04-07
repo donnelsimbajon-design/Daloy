@@ -1,0 +1,402 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Conversation;
+use App\Models\GroupCall;
+use App\Models\GroupCallParticipant;
+use App\Models\GroupCallMessage;
+use App\Models\Ripple;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use CyberDeep\LaravelAgoraTokenGenerator\Services\Agora;
+
+class GroupCallController extends Controller
+{
+    /**
+     * Start a group call in a conversation.
+     */
+    public function startGroupCall(Conversation $conversation, Request $request): JsonResponse
+    {
+        $user = Auth::user();
+
+        // Must be group conversation
+        if ($conversation->type !== 'group') {
+            return response()->json(['error' => 'Group calls are only available in group conversations.'], 422);
+        }
+
+        // Must be participant
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['error' => 'Not a member of this group.'], 403);
+        }
+
+        // Check if there's already an active call
+        $existingCall = $conversation->activeGroupCall;
+        if ($existingCall) {
+            return response()->json(['error' => 'A call is already active in this group.'], 422);
+        }
+
+        $channelName = "group_call_{$conversation->id}_" . time();
+
+        // Use main AGORA_APP_ID (not the message one)
+        $appId = config('services.agora.app_id');
+        $appCertificate = config('services.agora.app_certificate');
+
+        // Generate Agora token
+        $token = "DEVELOPMENT_TOKEN";
+        try {
+            config([
+                'services.agora.app_id' => $appId,
+                'services.agora.app_certificate' => $appCertificate,
+            ]);
+            $token = Agora::make((string) $user->id)
+                ->channel($channelName)
+                ->join(false)
+                ->token();
+        } catch (\Exception $e) {
+            Log::error("Failed to generate Agora group call token: " . $e->getMessage());
+        }
+
+        // Create the group call record
+        $groupCall = GroupCall::create([
+            'conversation_id' => $conversation->id,
+            'channel_name' => $channelName,
+            'started_by' => $user->id,
+            'started_at' => now(),
+        ]);
+
+        // Add host as participant
+        GroupCallParticipant::create([
+            'group_call_id' => $groupCall->id,
+            'user_id' => $user->id,
+            'joined_at' => now(),
+            'role' => 'host',
+        ]);
+
+        // Send Ripple notification to all group members
+        $memberIds = $conversation->participants()
+            ->where('user_id', '!=', $user->id)
+            ->pluck('users.id');
+
+        foreach ($memberIds as $memberId) {
+            Ripple::create([
+                'user_id' => $memberId,
+                'sender_id' => $user->id,
+                'type' => 'group_call',
+                'message' => $user->name . ' started a group call in ' . ($conversation->name ?? 'the group'),
+                'url' => '/conversations?call=' . $groupCall->id,
+            ]);
+        }
+
+        // Post a system message in the conversation
+        $conversation->messages()->create([
+            'user_id' => $user->id,
+            'content' => 'SYSTEM_GROUP_CALL_STARTED',
+        ]);
+
+        return response()->json([
+            'group_call_id' => $groupCall->id,
+            'token' => $token,
+            'app_id' => $appId,
+            'channel_name' => $channelName,
+            'uid' => $user->id,
+        ]);
+    }
+
+    /**
+     * Join an existing group call.
+     */
+    public function joinGroupCall(Conversation $conversation, Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $mode = $request->input('mode', 'speaker'); // 'speaker' or 'listener' (chat-only)
+
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['error' => 'Not a member of this group.'], 403);
+        }
+
+        $groupCall = $conversation->activeGroupCall;
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call in this group.'], 404);
+        }
+
+        // Check if already in the call
+        $existing = GroupCallParticipant::where('group_call_id', $groupCall->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->first();
+
+        if ($existing) {
+            // Already in call, just return token
+            $appId = config('services.agora.app_id');
+            $token = "DEVELOPMENT_TOKEN";
+            try {
+                config([
+                    'services.agora.app_id' => $appId,
+                    'services.agora.app_certificate' => config('services.agora.app_certificate'),
+                ]);
+                $token = Agora::make((string) $user->id)
+                    ->channel($groupCall->channel_name)
+                    ->join(false)
+                    ->token();
+            } catch (\Exception $e) {
+                Log::error("Failed to generate Agora token: " . $e->getMessage());
+            }
+
+            return response()->json([
+                'group_call_id' => $groupCall->id,
+                'token' => $token,
+                'app_id' => $appId,
+                'channel_name' => $groupCall->channel_name,
+                'uid' => $user->id,
+                'role' => $existing->role,
+            ]);
+        }
+
+        // Check max participants (10)
+        $activeCount = $groupCall->activeParticipants()->count();
+        if ($activeCount >= 10) {
+            return response()->json(['error' => 'Call is full (max 10 participants).'], 422);
+        }
+
+        $role = $mode === 'listener' ? 'listener' : 'speaker';
+
+        // Generate token
+        $appId = config('services.agora.app_id');
+        $token = "DEVELOPMENT_TOKEN";
+        try {
+            config([
+                'services.agora.app_id' => $appId,
+                'services.agora.app_certificate' => config('services.agora.app_certificate'),
+            ]);
+            $agoraQuery = Agora::make((string) $user->id)
+                ->channel($groupCall->channel_name)
+                ->join(false);
+            if ($role === 'listener') {
+                $agoraQuery = $agoraQuery->audioOnly(true);
+            }
+            $token = $agoraQuery->token();
+        } catch (\Exception $e) {
+            Log::error("Failed to generate Agora token: " . $e->getMessage());
+        }
+
+        // Add participant
+        GroupCallParticipant::create([
+            'group_call_id' => $groupCall->id,
+            'user_id' => $user->id,
+            'joined_at' => now(),
+            'role' => $role,
+        ]);
+
+        return response()->json([
+            'group_call_id' => $groupCall->id,
+            'token' => $token,
+            'app_id' => $appId,
+            'channel_name' => $groupCall->channel_name,
+            'uid' => $user->id,
+            'role' => $role,
+        ]);
+    }
+
+    /**
+     * Leave a group call.
+     */
+    public function leaveGroupCall(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call.'], 404);
+        }
+
+        $participant = GroupCallParticipant::where('group_call_id', $groupCall->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->first();
+
+        if ($participant) {
+            $participant->update(['left_at' => now()]);
+        }
+
+        // If host leaves or no participants left, end the call
+        $remainingCount = $groupCall->activeParticipants()->count();
+        if ($remainingCount === 0 || ($participant && $participant->role === 'host')) {
+            $this->endCallInternal($groupCall);
+        }
+
+        return response()->json(['left' => true]);
+    }
+
+    /**
+     * End a group call (host only).
+     */
+    public function endGroupCall(Conversation $conversation): JsonResponse
+    {
+        $user = Auth::user();
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call.'], 404);
+        }
+
+        // Only host can end
+        if ($groupCall->started_by !== $user->id) {
+            return response()->json(['error' => 'Only the host can end the call.'], 403);
+        }
+
+        $this->endCallInternal($groupCall);
+
+        return response()->json(['ended' => true]);
+    }
+
+    /**
+     * Mute/unmute a participant (host only).
+     */
+    public function muteParticipant(Conversation $conversation, $userId, Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call.'], 404);
+        }
+
+        if ($groupCall->started_by !== $user->id) {
+            return response()->json(['error' => 'Only the host can mute participants.'], 403);
+        }
+
+        $participant = GroupCallParticipant::where('group_call_id', $groupCall->id)
+            ->where('user_id', $userId)
+            ->whereNull('left_at')
+            ->first();
+
+        if (!$participant) {
+            return response()->json(['error' => 'User not in call.'], 404);
+        }
+
+        $muted = $request->input('mute', true);
+        $participant->update(['is_muted_by_host' => $muted]);
+
+        return response()->json(['muted' => $muted, 'user_id' => (int) $userId]);
+    }
+
+    /**
+     * Get active call info + participants.
+     */
+    public function getActiveCall(Conversation $conversation): JsonResponse
+    {
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['active' => false]);
+        }
+
+        $participants = $groupCall->activeParticipants()
+            ->with('user:id,name,username,profile_picture')
+            ->get();
+
+        return response()->json([
+            'active' => true,
+            'group_call_id' => $groupCall->id,
+            'channel_name' => $groupCall->channel_name,
+            'started_by' => $groupCall->started_by,
+            'started_at' => $groupCall->started_at,
+            'participants' => $participants,
+        ]);
+    }
+
+    /**
+     * Send in-call chat message.
+     */
+    public function sendCallChat(Conversation $conversation, Request $request): JsonResponse
+    {
+        $request->validate(['content' => 'required|string|max:500']);
+
+        $user = Auth::user();
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call.'], 404);
+        }
+
+        // Must be in the call
+        $inCall = GroupCallParticipant::where('group_call_id', $groupCall->id)
+            ->where('user_id', $user->id)
+            ->whereNull('left_at')
+            ->exists();
+
+        if (!$inCall) {
+            return response()->json(['error' => 'You must be in the call to send messages.'], 403);
+        }
+
+        $message = GroupCallMessage::create([
+            'group_call_id' => $groupCall->id,
+            'user_id' => $user->id,
+            'content' => $request->input('content'),
+        ]);
+
+        $message->load('user:id,name,username,profile_picture');
+
+        return response()->json($message);
+    }
+
+    /**
+     * Get in-call chat messages.
+     */
+    public function getCallChat(Conversation $conversation, Request $request): JsonResponse
+    {
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['messages' => []]);
+        }
+
+        $afterId = $request->input('after_id', 0);
+
+        $messages = $groupCall->chatMessages()
+            ->with('user:id,name,username,profile_picture')
+            ->where('id', '>', $afterId)
+            ->orderBy('created_at')
+            ->take(50)
+            ->get();
+
+        return response()->json(['messages' => $messages]);
+    }
+
+    /**
+     * Get mute status for all participants (polled by clients).
+     */
+    public function getMuteStatus(Conversation $conversation): JsonResponse
+    {
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['participants' => []]);
+        }
+
+        $participants = $groupCall->activeParticipants()
+            ->select('user_id', 'is_muted_by_host', 'role')
+            ->get();
+
+        return response()->json(['participants' => $participants]);
+    }
+
+    /**
+     * Internal: end a group call.
+     */
+    private function endCallInternal(GroupCall $groupCall): void
+    {
+        // Mark all participants as left
+        $groupCall->activeParticipants()->update(['left_at' => now()]);
+        $groupCall->update(['ended_at' => now()]);
+
+        // Post system message
+        $groupCall->conversation->messages()->create([
+            'user_id' => $groupCall->started_by,
+            'content' => 'SYSTEM_GROUP_CALL_ENDED',
+        ]);
+    }
+}

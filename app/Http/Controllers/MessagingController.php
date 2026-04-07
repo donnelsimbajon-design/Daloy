@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageReaction;
 use App\Models\Report;
+use App\Models\Ripple;
 use App\Models\TypingIndicator;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -300,26 +301,62 @@ class MessagingController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:100',
-            'member_ids' => 'required|array|min:1',
+            'member_ids' => 'required|array|min:1|max:9', // max 9 + creator = 10
             'member_ids.*' => 'exists:users,id',
+            'avatar' => 'nullable|file|mimes:jpeg,png,jpg,webp|max:5120',
         ]);
 
         $user = Auth::user();
 
+        // Block check: filter out blocked users
+        $blockedByMeIds = $user->blockedUsers()->pluck('users.id')->toArray();
+        $blockedMeIds = $user->blockedBy()->pluck('users.id')->toArray();
+        $allBlockedIds = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
+
+        $validMemberIds = collect($request->member_ids)
+            ->filter(fn($id) => $id != $user->id && !in_array($id, $allBlockedIds))
+            ->values()
+            ->toArray();
+
+        if (empty($validMemberIds)) {
+            return response()->json(['message' => 'No valid members to add.'], 422);
+        }
+
+        // Handle group avatar
+        $avatarUrl = null;
+        if ($request->hasFile('avatar')) {
+            $avatarUrl = Storage::url($request->file('avatar')->store('group_avatars'));
+        }
+
         $conversation = Conversation::create([
             'type' => 'group',
             'name' => $request->name,
+            'avatar_url' => $avatarUrl,
+            'max_members' => 10,
         ]);
 
         // Add creator as admin
         $conversation->participants()->attach($user->id, ['role' => 'admin']);
 
-        // Add members
-        foreach ($request->member_ids as $memberId) {
-            if ($memberId !== $user->id) {
-                $conversation->participants()->attach($memberId, ['role' => 'member']);
-            }
+        // Add members and send notifications
+        foreach ($validMemberIds as $memberId) {
+            $conversation->participants()->attach($memberId, ['role' => 'member']);
+
+            // Send Ripple notification
+            Ripple::create([
+                'user_id' => $memberId,
+                'sender_id' => $user->id,
+                'type' => 'group_invite',
+                'message' => $user->name . ' added you to the group "' . $request->name . '"',
+                'url' => '/conversations',
+            ]);
         }
+
+        // Post a system message
+        $conversation->messages()->create([
+            'user_id' => $user->id,
+            'content' => 'SYSTEM_GROUP_CREATED',
+        ]);
 
         $conversation->load('participants:id,name,username,profile_picture');
 

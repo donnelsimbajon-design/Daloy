@@ -193,6 +193,17 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/conversations/{conversation}/search', [MessagingController::class, 'searchMessages'])->name('api.conversations.search');
     Route::post('/api/conversations/{conversation}/report', [MessagingController::class, 'reportConversation'])->name('api.conversations.report');
 
+    // Group Call System
+    Route::post('/api/group-calls/{conversation}/start', [App\Http\Controllers\GroupCallController::class, 'startGroupCall'])->name('api.group-calls.start');
+    Route::post('/api/group-calls/{conversation}/join', [App\Http\Controllers\GroupCallController::class, 'joinGroupCall'])->name('api.group-calls.join');
+    Route::post('/api/group-calls/{conversation}/leave', [App\Http\Controllers\GroupCallController::class, 'leaveGroupCall'])->name('api.group-calls.leave');
+    Route::post('/api/group-calls/{conversation}/end', [App\Http\Controllers\GroupCallController::class, 'endGroupCall'])->name('api.group-calls.end');
+    Route::post('/api/group-calls/{conversation}/mute/{user}', [App\Http\Controllers\GroupCallController::class, 'muteParticipant'])->name('api.group-calls.mute');
+    Route::get('/api/group-calls/{conversation}/active', [App\Http\Controllers\GroupCallController::class, 'getActiveCall'])->name('api.group-calls.active');
+    Route::post('/api/group-calls/{conversation}/chat', [App\Http\Controllers\GroupCallController::class, 'sendCallChat'])->name('api.group-calls.chat');
+    Route::get('/api/group-calls/{conversation}/chat', [App\Http\Controllers\GroupCallController::class, 'getCallChat'])->name('api.group-calls.chat.get');
+    Route::get('/api/group-calls/{conversation}/mute-status', [App\Http\Controllers\GroupCallController::class, 'getMuteStatus'])->name('api.group-calls.mute-status');
+
     // Ripple / Notification routes (Prompt 6)
     Route::get('/api/ripples/latest', [RippleController::class, 'latest'])->name('api.ripples.latest');
     Route::get('/api/ripples/unread-count', [RippleController::class, 'unreadCount'])->name('api.ripples.unread-count');
