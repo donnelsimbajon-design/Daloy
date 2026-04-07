@@ -177,16 +177,23 @@ class SettingsController extends Controller
         return back()->with('status', 'notifications-updated');
     }
 
-    public function updateAccessibility(Request $request): RedirectResponse
+    public function updateAccessibility(Request $request): JsonResponse|RedirectResponse
     {
+        $user = $request->user();
+        
         $validated = $request->validate([
-            'font_size' => 'required|in:small,medium,large',
-            'reduce_motion' => 'required|boolean',
-            'high_contrast' => 'required|boolean',
-            'dark_mode' => 'required|boolean',
+            'font_size' => 'nullable|in:small,medium,large',
+            'reduce_motion' => 'nullable|boolean',
+            'high_contrast' => 'nullable|boolean',
+            'dark_mode' => 'nullable|boolean',
         ]);
+        
+        // Only update fields that are present in the request
+        $user->update(array_filter($validated, fn($val) => $val !== null));
 
-        $request->user()->update($validated);
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'user' => $user]);
+        }
 
         return back()->with('status', 'accessibility-updated');
     }
