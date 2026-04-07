@@ -40,8 +40,8 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
         searchTimeout.current = setTimeout(async () => {
             setSearching(true);
             try {
-                const res = await axios.get('/api/search', { params: { q: search, type: 'users' } });
-                const users = (res.data.users || res.data || []).filter(u => u.id !== currentUserId);
+                const res = await axios.get('/api/search', { params: { q: search, type: 'people' } });
+                const users = (res.data.people || []).filter(u => u.id !== currentUserId);
                 setResults(users);
             } catch (e) {
                 console.error(e);

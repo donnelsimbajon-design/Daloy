@@ -436,7 +436,10 @@ export default function Conversations() {
                                             </>
                                         ) : (
                                             <>
-                                                <Button variant="ghost" size="icon" onClick={() => handleStartCall('video')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors" title="Video Call">
+                                                <Button variant="ghost" size="icon" onClick={() => handleStartCall('audio')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors" title="Voice Call">
+                                                    <Phone className="w-4 h-4" />
+                                                </Button>
+                                                <Button variant="ghost" size="icon" onClick={() => handleStartCall('video')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors mr-2" title="Video Call">
                                                     <Video className="w-4 h-4" />
                                                 </Button>
                                             </>
