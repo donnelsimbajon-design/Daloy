@@ -77,16 +77,35 @@ class StoryController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'media'      => 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov|max:51200',
-            'content'    => 'nullable|string|max:255',
-            'visibility' => 'required|in:public,friends,private,close_friends',
-        ]);
+        $storyType = $request->input('type', 'photo');
 
-        $path      = $request->file('media')->store('stories');
-        $url       = Storage::url($path);
-        $extension = strtolower($request->file('media')->getClientOriginalExtension());
-        $type      = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
+        $rules = [
+            'content'        => 'nullable|string|max:500',
+            'visibility'     => 'required|in:public,friends,private,close_friends',
+            'type'           => 'nullable|string|in:photo,text',
+            'text_x'         => 'nullable|numeric',
+            'text_y'         => 'nullable|numeric',
+            'text_font_size' => 'nullable|integer|min:10|max:72',
+            'text_bg'        => 'nullable|string|in:none,dark,light',
+        ];
+
+        if ($storyType === 'text') {
+            $rules['content'] = 'required|string|max:500';
+        } else {
+            $rules['media'] = 'required|file|mimes:jpg,jpeg,png,webp,mp4,mov|max:51200';
+        }
+
+        $request->validate($rules);
+
+        $url  = null;
+        $type = 'text';
+
+        if ($storyType !== 'text' && $request->hasFile('media')) {
+            $path      = $request->file('media')->store('stories');
+            $url       = Storage::url($path);
+            $extension = strtolower($request->file('media')->getClientOriginalExtension());
+            $type      = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
+        }
 
         Story::create([
             'user_id'    => Auth::id(),

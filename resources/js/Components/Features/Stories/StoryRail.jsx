@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePage } from '@inertiajs/react';
 import axios from 'axios';
@@ -20,6 +20,13 @@ export default function StoryRail({ horizontal = false }) {
     const [creationPreview, setCreationPreview] = useState(null);
     const [creationVisibility, setCreationVisibility] = useState('friends');
     const [creationCaption, setCreationCaption] = useState('');
+    // Draggable text state
+    const [textPos, setTextPos] = useState({ x: 50, y: 50 }); // percentage-based position
+    const [textFontSize, setTextFontSize] = useState(24);
+    const [isDraggingText, setIsDraggingText] = useState(false);
+    const [textBg, setTextBg] = useState('none'); // 'none', 'dark', 'light'
+    const previewRef = useRef(null);
+    const dragStartRef = useRef(null);
     
     // Facebook-style interactions
     const [replyText, setReplyText] = useState('');
@@ -166,7 +173,61 @@ export default function StoryRail({ horizontal = false }) {
         setCreationPreview(null);
         setShowCreateMenu(false);
         setShowCreateModal(true);
+        setTextPos({ x: 50, y: 50 });
+        setTextFontSize(24);
+        setTextBg('none');
     };
+
+    // Draggable text handlers
+    const handleTextMouseDown = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingText(true);
+        const rect = previewRef.current?.getBoundingClientRect();
+        if (rect) {
+            dragStartRef.current = {
+                startX: (e.clientX || e.touches?.[0]?.clientX) - rect.left,
+                startY: (e.clientY || e.touches?.[0]?.clientY) - rect.top,
+                origX: textPos.x,
+                origY: textPos.y,
+                rectW: rect.width,
+                rectH: rect.height,
+            };
+        }
+    }, [textPos]);
+
+    const handleTextMouseMove = useCallback((e) => {
+        if (!isDraggingText || !dragStartRef.current || !previewRef.current) return;
+        const rect = previewRef.current.getBoundingClientRect();
+        const clientX = e.clientX || e.touches?.[0]?.clientX;
+        const clientY = e.clientY || e.touches?.[0]?.clientY;
+        const newX = ((clientX - rect.left) / rect.width) * 100;
+        const newY = ((clientY - rect.top) / rect.height) * 100;
+        setTextPos({
+            x: Math.max(5, Math.min(95, newX)),
+            y: Math.max(5, Math.min(95, newY)),
+        });
+    }, [isDraggingText]);
+
+    const handleTextMouseUp = useCallback(() => {
+        setIsDraggingText(false);
+        dragStartRef.current = null;
+    }, []);
+
+    useEffect(() => {
+        if (isDraggingText) {
+            window.addEventListener('mousemove', handleTextMouseMove);
+            window.addEventListener('mouseup', handleTextMouseUp);
+            window.addEventListener('touchmove', handleTextMouseMove, { passive: false });
+            window.addEventListener('touchend', handleTextMouseUp);
+            return () => {
+                window.removeEventListener('mousemove', handleTextMouseMove);
+                window.removeEventListener('mouseup', handleTextMouseUp);
+                window.removeEventListener('touchmove', handleTextMouseMove);
+                window.removeEventListener('touchend', handleTextMouseUp);
+            };
+        }
+    }, [isDraggingText, handleTextMouseMove, handleTextMouseUp]);
 
     const confirmUpload = async () => {
         if (creationType === 'photo' && !creationFile) return;
@@ -185,9 +246,11 @@ export default function StoryRail({ horizontal = false }) {
         if (creationCaption) {
             formData.append('content', creationCaption);
         }
-        if (creationCaption) {
-            formData.append('content', creationCaption);
-        }
+        // Send text position data
+        formData.append('text_x', textPos.x);
+        formData.append('text_y', textPos.y);
+        formData.append('text_font_size', textFontSize);
+        formData.append('text_bg', textBg);
 
         setUploading(true);
         setShowCreateModal(false);
@@ -205,6 +268,9 @@ export default function StoryRail({ horizontal = false }) {
             setCreationPreview(null);
             setCreationCaption('');
             setCreationVisibility('friends');
+            setTextPos({ x: 50, y: 50 });
+            setTextFontSize(24);
+            setTextBg('none');
         }
     };
 
@@ -215,6 +281,9 @@ export default function StoryRail({ horizontal = false }) {
         setCreationPreview(null);
         setCreationCaption('');
         setCreationVisibility('friends');
+        setTextPos({ x: 50, y: 50 });
+        setTextFontSize(24);
+        setTextBg('none');
     };
 
     const scroll = (direction) => {
@@ -457,7 +526,13 @@ export default function StoryRail({ horizontal = false }) {
 
                         {/* Story Content Media */}
                         <div className="flex-1 bg-transparent relative flex items-center justify-center pointer-events-auto">
-                            {selectedStory.type === 'video' ? (
+                            {selectedStory.type === 'text' ? (
+                                <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e] flex items-center justify-center p-8">
+                                    <p className="text-white text-2xl md:text-3xl font-bold text-center leading-tight drop-shadow-lg">
+                                        {selectedStory.content}
+                                    </p>
+                                </div>
+                            ) : selectedStory.type === 'video' ? (
                                 <video 
                                     src={selectedStory.image} 
                                     className="w-full h-full object-contain bg-black/50" 
@@ -465,12 +540,14 @@ export default function StoryRail({ horizontal = false }) {
                                     playsInline
                                     onEnded={handleNextStory}
                                 />
-                            ) : (
+                            ) : selectedStory.image ? (
                                 <img
                                     src={selectedStory.image}
                                     alt="Story content"
                                     className="w-full h-full object-contain md:object-cover"
                                 />
+                            ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e]" />
                             )}
                             
                             {/* Mobile/Tap Navigation Areas */}
@@ -608,34 +685,38 @@ export default function StoryRail({ horizontal = false }) {
 
             {/* Create Story Menu (Photo vs Text selection) */}
             {showCreateMenu && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ocean-deep/90 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
                     <div className="absolute inset-0" onClick={() => setShowCreateMenu(false)} />
                     
-                    <button onClick={() => setShowCreateMenu(false)} className="absolute top-6 right-6 p-3 rounded-full bg-ocean-card/20 hover:bg-ocean-card/40 backdrop-blur-md text-white transition-all z-10 shadow-[0_4px_12px_rgba(0,0,0,0.1)]">
+                    <button onClick={() => setShowCreateMenu(false)} className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white transition-all z-10">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
                     <div className="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6 relative z-10 max-w-lg w-full px-4">
-                        {/* Photo Story Card */}
+                        {/* Photo Story Card — Black */}
                         <div 
                             onClick={() => fileInputRef.current?.click()}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#4f8ff7] to-[#80B3FF] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(79,143,247,0.3)] ring-1 ring-white/20 relative overflow-hidden"
+                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ring-1 ring-white/10 relative overflow-hidden"
                         >
-                            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.3)] relative z-10 transition-transform group-hover:scale-110">
+                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_60%)]" />
+                            <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white shrink-0 ring-1 ring-white/15 relative z-10 transition-transform group-hover:scale-110">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
                             </div>
                             <span className="text-white font-bold text-base text-center relative z-10 tracking-wide">Photo Story</span>
+                            <span className="text-white/40 text-xs text-center relative z-10">Share a moment</span>
                         </div>
 
-                        {/* Text Story Card */}
+                        {/* Text Story Card — White */}
                         <div 
                             onClick={handleTextStorySelect}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(200,75,176,0.3)] ring-1 ring-white/20 relative overflow-hidden"
+                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#f5f5f5] to-[#e0e0e0] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.15)] ring-1 ring-black/5 relative overflow-hidden"
                         >
-                            <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white shrink-0 shadow-[inset_0_1px_2px_rgba(255,255,255,0.3)] relative z-10 transition-transform group-hover:scale-110">
-                                <span className="text-2xl font-serif leading-none mt-1 font-light">T</span>
+                            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0.03),transparent_60%)]" />
+                            <div className="w-16 h-16 rounded-full bg-black/8 flex items-center justify-center text-[#1a1a1a] shrink-0 ring-1 ring-black/10 relative z-10 transition-transform group-hover:scale-110">
+                                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" /></svg>
                             </div>
-                            <span className="text-white font-bold text-base text-center relative z-10 tracking-wide">Text Story</span>
+                            <span className="text-[#1a1a1a] font-bold text-base text-center relative z-10 tracking-wide">Text Story</span>
+                            <span className="text-black/40 text-xs text-center relative z-10">Express yourself</span>
                         </div>
                     </div>
                 </div>,
@@ -672,7 +753,7 @@ export default function StoryRail({ horizontal = false }) {
                             </div>
 
                             {/* Editing Controls */}
-                            <div className="p-4 space-y-6">
+                            <div className="p-4 space-y-5">
                                 <div className="space-y-2">
                                     <label className="text-[11px] font-bold text-ocean-text-dim uppercase tracking-wider ml-1">
                                         {creationType === 'text' ? 'Story Text' : 'Caption'}
@@ -681,8 +762,51 @@ export default function StoryRail({ horizontal = false }) {
                                         value={creationCaption}
                                         onChange={(e) => setCreationCaption(e.target.value)}
                                         placeholder={creationType === 'text' ? "Start typing..." : "Add a short caption..."}
-                                        className="w-full h-32 bg-ocean-card/50 border border-ocean-divider-subtle rounded-[14px] p-3 text-ocean-text text-sm focus:ring-1 focus:ring-biolum/30 focus:border-biolum/50 transition-all resize-none placeholder:text-ocean-text-dim/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
+                                        className="w-full h-28 bg-ocean-card/50 border border-ocean-divider-subtle rounded-[14px] p-3 text-ocean-text text-sm focus:ring-1 focus:ring-biolum/30 focus:border-biolum/50 transition-all resize-none placeholder:text-ocean-text-dim/60 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)]"
                                     />
+                                    <p className="text-[10px] text-ocean-text-dim ml-1">Drag text on preview to reposition</p>
+                                </div>
+
+                                {/* Font Size Slider */}
+                                <div className="space-y-2">
+                                    <label className="text-[11px] font-bold text-ocean-text-dim uppercase tracking-wider ml-1">Text Size</label>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs text-ocean-text-dim">A</span>
+                                        <input
+                                            type="range"
+                                            min="14"
+                                            max="48"
+                                            value={textFontSize}
+                                            onChange={(e) => setTextFontSize(Number(e.target.value))}
+                                            className="flex-1 h-1.5 bg-ocean-border rounded-full appearance-none cursor-pointer accent-biolum"
+                                        />
+                                        <span className="text-lg font-bold text-ocean-text-dim">A</span>
+                                    </div>
+                                </div>
+
+                                {/* Text Background */}
+                                <div className="space-y-2">
+                                    <label className="text-[11px] font-bold text-ocean-text-dim uppercase tracking-wider ml-1">Text Background</label>
+                                    <div className="flex gap-2">
+                                        {[
+                                            { id: 'none', label: 'None', cls: 'bg-transparent border-ocean-border' },
+                                            { id: 'dark', label: 'Dark', cls: 'bg-black/70 border-white/20' },
+                                            { id: 'light', label: 'Light', cls: 'bg-white/80 border-black/10' },
+                                        ].map(opt => (
+                                            <button
+                                                key={opt.id}
+                                                type="button"
+                                                onClick={() => setTextBg(opt.id)}
+                                                className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-all ${
+                                                    textBg === opt.id
+                                                        ? 'ring-2 ring-biolum border-biolum text-biolum'
+                                                        : `${opt.cls} text-ocean-text-dim hover:text-ocean-text`
+                                                }`}
+                                            >
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2">
@@ -718,30 +842,61 @@ export default function StoryRail({ horizontal = false }) {
 
                     {/* Main Preview Area */}
                     <div className="hidden md:flex flex-1 items-center justify-center p-6 relative overflow-hidden bg-[#0a0f18] min-h-0">
-                        <div className={`relative max-w-sm w-full h-full max-h-[85vh] aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl ${creationType === 'text' ? 'bg-gradient-to-br from-[#B840B0] to-[#FF6B9E]' : 'bg-[#111827]'}`}>
+                        <div
+                            ref={previewRef}
+                            className={`relative max-w-sm w-full h-full max-h-[85vh] aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl select-none ${creationType === 'text' ? 'bg-gradient-to-br from-[#1a1a2e] to-[#16213e]' : 'bg-[#111827]'}`}
+                        >
                             
                             {creationType === 'photo' && creationPreview && (
                                 <div className="absolute inset-0 bg-black flex items-center justify-center">
                                     {creationFile && creationFile.type.startsWith('video') ? (
-                                        <video src={creationPreview} className="w-full h-full object-contain" autoPlay loop muted playsInline />
+                                        <video src={creationPreview} className="w-full h-full object-cover" autoPlay loop muted playsInline />
                                     ) : (
-                                        <img src={creationPreview} alt="Preview" className="w-full h-full object-contain" />
+                                        <img src={creationPreview} alt="Preview" className="w-full h-full object-cover" draggable={false} />
                                     )}
                                 </div>
                             )}
                             
-                            <div className="absolute inset-x-0 bottom-0 p-8 flex flex-col items-center justify-center pointer-events-none z-10 w-full h-full">
-                                {creationCaption && (
-                                    <p className={`text-white text-center drop-shadow-lg ${creationType === 'text' ? 'text-2xl font-bold leading-tight' : 'text-xl font-semibold absolute bottom-12 left-6 right-6'}`}>
+                            {/* Draggable Text Overlay */}
+                            {creationCaption ? (
+                                <div
+                                    onMouseDown={handleTextMouseDown}
+                                    onTouchStart={handleTextMouseDown}
+                                    className={`absolute z-20 px-4 py-2 rounded-xl max-w-[85%] break-words text-center transition-shadow select-none ${
+                                        isDraggingText ? 'shadow-[0_0_20px_rgba(34,211,238,0.3)] ring-2 ring-biolum/50' : 'hover:shadow-[0_0_12px_rgba(34,211,238,0.2)]'
+                                    } ${
+                                        textBg === 'dark' ? 'bg-black/70 backdrop-blur-sm' :
+                                        textBg === 'light' ? 'bg-white/80 backdrop-blur-sm' : ''
+                                    }`}
+                                    style={{
+                                        left: `${textPos.x}%`,
+                                        top: `${textPos.y}%`,
+                                        transform: 'translate(-50%, -50%)',
+                                        fontSize: `${textFontSize}px`,
+                                        cursor: isDraggingText ? 'grabbing' : 'grab',
+                                    }}
+                                >
+                                    <p className={`font-bold leading-tight drop-shadow-lg ${
+                                        textBg === 'light' ? 'text-[#1a1a1a]' : 'text-white'
+                                    }`}>
                                         {creationCaption}
                                     </p>
-                                )}
-                                {!creationCaption && creationType === 'text' && (
-                                    <p className="text-white/50 text-center text-2xl font-bold leading-tight drop-shadow-md">
-                                        Start typing
+                                </div>
+                            ) : creationType === 'text' ? (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <p className="text-white/30 text-center text-2xl font-bold leading-tight">
+                                        Start typing...
                                     </p>
-                                )}
-                            </div>
+                                </div>
+                            ) : null}
+
+                            {/* Drag guide lines */}
+                            {isDraggingText && (
+                                <>
+                                    <div className="absolute left-0 right-0 top-1/2 h-px bg-biolum/30 pointer-events-none z-10" />
+                                    <div className="absolute top-0 bottom-0 left-1/2 w-px bg-biolum/30 pointer-events-none z-10" />
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>,

@@ -557,13 +557,6 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
                                 </div>
                                 <div className="flex items-center justify-between py-4 border-t border-ocean-border">
                                     <div>
-                                        <p className="text-sm font-medium text-ocean-text">Dark mode</p>
-                                        <p className="text-[12px] text-ocean-text-dim">Use a dark color scheme</p>
-                                    </div>
-                                    <Toggle on={accessibilityForm.data.dark_mode} onChange={() => accessibilityForm.setData('dark_mode', !accessibilityForm.data.dark_mode)} />
-                                </div>
-                                <div className="flex items-center justify-between py-4 border-t border-ocean-border">
-                                    <div>
                                         <p className="text-sm font-medium text-ocean-text">High contrast</p>
                                         <p className="text-[12px] text-ocean-text-dim">Increase contrast for readability</p>
                                     </div>

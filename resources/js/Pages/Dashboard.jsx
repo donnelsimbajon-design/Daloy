@@ -27,7 +27,7 @@ export default function Dashboard({ posts }) {
             <Head title="Deep Flow" />
 
             {/* ── Fixed Left Rail: Stories (Desktop only) ── */}
-            <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-24 xl:w-28 border-r border-ocean-border z-20 bg-ocean-card/40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+            <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-20 xl:w-24 border-r border-ocean-border z-20 bg-ocean-card/40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
                 <div className="pt-3 px-1.5 h-full flex flex-col items-center w-full overflow-hidden">
                     <div className="bg-ocean-card/50 rounded-2xl border border-ocean-border w-full h-[calc(100%-8px)] overflow-hidden">
                         <StoryRail />
@@ -36,11 +36,11 @@ export default function Dashboard({ posts }) {
             </aside>
 
             {/* Dashboard Content — Main Area ───────────────────── */}
-            <div className={`transition-all duration-500 ease-in-out md:ml-24 xl:ml-28 w-full md:w-auto overflow-x-hidden`}>
+            <div className={`transition-all duration-500 ease-in-out md:ml-20 xl:ml-24 w-full md:w-auto overflow-x-hidden`}>
                 <div className="flex flex-col items-start w-full min-h-screen">
 
-                    {/* Main Area: Feed & Mobile Stories */}
-                    <div className="flex-1 w-full pt-4 md:pt-6 px-2 sm:px-4 md:pl-3 xl:pl-4 md:pr-12 xl:pr-17">
+                    {/* Main Area: Feed & Mobile Stories — fixed width, shifts to center when panel closes */}
+                    <div className="flex-1 w-full max-w-[850px] mx-auto pt-4 md:pt-6 px-2 sm:px-4 transition-all duration-400">
 
                         {/* Mobile/Tablet Stories - shown only on small screens */}
                         <div className="md:hidden mb-6 bg-ocean-card border border-ocean-border rounded-2xl py-4 overflow-hidden">

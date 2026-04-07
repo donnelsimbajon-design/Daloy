@@ -316,10 +316,16 @@ export default function Conversations() {
                                         <Button variant="ghost" size="icon" onClick={() => setSelectedConversation(null)} className="md:hidden -ml-2 text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface">
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
                                         </Button>
-                                        <h3 className="font-extrabold text-ocean-text text-base flex items-center gap-2">
-                                            {otherUser ? otherUser.name : getParticipantName(selectedConversation)}
-                                            {!isBlocked && otherUser?.is_online && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
-                                        </h3>
+                                        {otherUser ? (
+                                            <Link href={`/users/${otherUser.id}`} className="font-extrabold text-ocean-text text-base flex items-center gap-2 hover:underline decoration-biolum/50 underline-offset-2">
+                                                {otherUser.name}
+                                                {!isBlocked && otherUser.is_online && <span className="w-2 h-2 rounded-full bg-emerald-400"></span>}
+                                            </Link>
+                                        ) : (
+                                            <h3 className="font-extrabold text-ocean-text text-base flex items-center gap-2">
+                                                {getParticipantName(selectedConversation)}
+                                            </h3>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <Button variant="ghost" size="icon" onClick={() => handleStartCall('audio')} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors">

@@ -133,6 +133,7 @@ class HandleInertiaRequests extends Middleware
 
             return [
                 'id'        => $convo->id,
+                'user_id'   => $other?->id,
                 'name'      => $other?->name ?? 'Unknown',
                 'username'  => $other?->username ?? '',
                 'avatar'    => $other?->profile_picture ?? null,

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import axios from 'axios';
 
 
@@ -283,19 +283,24 @@ export default function StoryRail({ horizontal = false }) {
 
                         {/* Story Header */}
                         <div className="absolute top-6 left-4 right-4 z-20 flex items-center gap-3 md:top-10">
-                            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-ocean-divider/40 ring-2 ring-biolum/50 shadow-[0_2px_8px_rgba(0,0,0,0.2)] overflow-hidden bg-ocean-surface shrink-0">
-                                {selectedStory.user.profile_picture ? (
-                                    <img src={selectedStory.user.profile_picture} alt={selectedStory.user.name} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-ocean-text font-bold bg-biolum">
-                                        {selectedStory.user.name.charAt(0)}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex-1">
-                                <p className="text-sm md:text-base font-bold text-ocean-text leading-none">{selectedStory.user.name}</p>
-                                <p className="text-[10px] md:text-xs text-ocean-text/70 font-medium mt-1">{selectedStory.time}</p>
-                            </div>
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setSelectedStory(null); router.visit(`/users/${selectedStory.user.id}`); }}
+                                className="flex items-center gap-3 group"
+                            >
+                                <div className="w-10 h-10 md:w-12 md:h-12 rounded-full border border-ocean-divider/40 ring-2 ring-biolum/50 shadow-[0_2px_8px_rgba(0,0,0,0.2)] overflow-hidden bg-ocean-surface shrink-0 group-hover:ring-biolum transition-all">
+                                    {selectedStory.user.profile_picture ? (
+                                        <img src={selectedStory.user.profile_picture} alt={selectedStory.user.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-ocean-text font-bold bg-biolum">
+                                            {selectedStory.user.name.charAt(0)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm md:text-base font-bold text-ocean-text leading-none group-hover:underline decoration-biolum/50 underline-offset-2">{selectedStory.user.name}</p>
+                                    <p className="text-[10px] md:text-xs text-ocean-text/70 font-medium mt-1">{selectedStory.time}</p>
+                                </div>
+                            </button>
                         </div>
 
                         {/* Story Content Media */}

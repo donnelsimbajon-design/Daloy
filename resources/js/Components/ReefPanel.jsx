@@ -233,30 +233,63 @@ function ChatThreadView({ chat, onBack, currentUser }) {
         }
     };
 
+    const handleStartCall = async (type) => {
+        try {
+            const res = await axios.post(`/api/conversations/${chat.id}/call`, { type });
+            window.dispatchEvent(new CustomEvent('daloy:start-call', { detail: res.data }));
+            const formData = new FormData();
+            formData.append('conversation_id', chat.id);
+            formData.append('content', `SYSTEM_CALL_${type.toUpperCase()}`);
+            await axios.post('/api/messages/send', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Failed to initialize call.');
+        }
+    };
+
     return (
         <div className="flex flex-col h-[60vh] min-h-[400px] flex-1 animate-[slideInRight_0.2s_ease-out]">
             {/* Header */}
-            <div className="flex items-center gap-3 pb-4 border-b border-ocean-divider shrink-0">
-                <button 
-                    onClick={onBack}
-                    className="p-2 -ml-2 rounded-full hover:bg-ocean-surface/50 text-ocean-text-dim hover:text-ocean-text transition-colors"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                    </svg>
-                </button>
+            <div className="flex items-center justify-between pb-4 border-b border-ocean-divider shrink-0">
                 <div className="flex items-center gap-3">
-                    {chat.avatar ? (
-                        <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                    ) : (
-                        <div className="w-9 h-9 rounded-full bg-ocean-text flex items-center justify-center text-ocean-deep font-bold text-xs shrink-0">
-                            {chat.initial || chat.name.charAt(0)}
+                    <button 
+                        onClick={onBack}
+                        className="p-2 -ml-2 rounded-full hover:bg-ocean-surface/50 text-ocean-text-dim hover:text-ocean-text transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                        </svg>
+                    </button>
+                    <button 
+                        onClick={() => { if(chat.user_id) router.visit(`/users/${chat.user_id}`) }} 
+                        className="flex items-center gap-3 text-left group hover:opacity-80 transition-opacity"
+                    >
+                        {chat.avatar ? (
+                            <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                        ) : (
+                            <div className="w-9 h-9 rounded-full bg-ocean-text flex items-center justify-center text-ocean-deep font-bold text-xs shrink-0">
+                                {chat.initial || chat.name.charAt(0)}
+                            </div>
+                        )}
+                        <div>
+                            <h3 className="text-sm font-bold text-ocean-text leading-tight group-hover:underline decoration-biolum/50 underline-offset-2">{chat.name}</h3>
+                            <p className="text-[10px] text-biolum font-medium">Active now</p>
                         </div>
-                    )}
-                    <div>
-                        <h3 className="text-sm font-bold text-ocean-text leading-tight">{chat.name}</h3>
-                        <p className="text-[10px] text-biolum font-medium">Active now</p>
-                    </div>
+                    </button>
+                </div>
+                <div className="flex items-center gap-1.5 pr-2">
+                    <button onClick={() => handleStartCall('audio')} className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.896-1.596-5.273-3.973-6.869-6.87l1.292-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                        </svg>
+                    </button>
+                    <button onClick={() => handleStartCall('video')} className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                    </button>
                 </div>
             </div>
 

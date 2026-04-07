@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { useLanguage } from '@/Contexts/LanguageContext';
+import { useCurrents } from '@/Contexts/CurrentsContext';
 
 // Minimalist animated burger icon
 function WavyBurgerIcon({ isOpen }) {
@@ -46,7 +47,13 @@ export default function NavDrawer({ isOpen, onClose }) {
     const { t } = useLanguage();
     const user = usePage().props?.auth?.user;
 
-    const handleLogout = () => {
+    const currentsCtx = useCurrents();
+
+    const handleLogout = async () => {
+        // Stop music playback before logging out
+        if (currentsCtx?.isInSession) {
+            try { await currentsCtx.leaveSession(); } catch (e) { console.error(e); }
+        }
         router.post('/logout');
     };
 

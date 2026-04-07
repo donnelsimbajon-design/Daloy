@@ -429,7 +429,10 @@ export default function UserProfile() {
                                         {/* Friends Card */}
                                         <div className="bg-ocean-card border border-ocean-border rounded-[20px] p-5 shadow-sm">
                                             <div className="flex items-center justify-between mb-4">
-                                                <h3 className="text-sm font-bold text-ocean-text">Friends</h3>
+                                                <div className="flex items-baseline gap-2">
+                                                    <h3 className="text-sm font-bold text-ocean-text">Friends</h3>
+                                                    <span className="text-xs font-semibold text-ocean-text-dim">{profileUser.friend_count ?? 0}</span>
+                                                </div>
                                                 <button onClick={() => setActiveTab('friends')} className="text-xs font-bold text-biolum hover:text-biolum-bright transition-colors">View All</button>
                                             </div>
                                             

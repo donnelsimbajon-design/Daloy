@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import NavDrawer, { WavyBurgerIcon } from '@/Components/UI/Navigation/NavDrawer';
 import { useLanguage } from '@/Contexts/LanguageContext';
+import { useCurrents } from '@/Contexts/CurrentsContext';
 import axios from 'axios';
 
 export default function TopNav() {
@@ -19,6 +20,26 @@ export default function TopNav() {
     const [isSearching, setIsSearching] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
 
+    // Notification state
+    const { social } = usePage().props;
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const [notifSearch, setNotifSearch] = useState('');
+    const [actionLoading, setActionLoading] = useState(null);
+    const notifRef = useRef(null);
+    const notifications = social?.recent_notifications || [];
+    const unreadNotifCount = (social?.unread_notifications || 0) + (social?.pending_friend_requests || 0) + (social?.pending_follow_requests || 0);
+
+    // Dark mode state
+    const [isDark, setIsDark] = useState(() => {
+        if (typeof document !== 'undefined') {
+            return document.documentElement.classList.contains('dark');
+        }
+        return user?.dark_mode || false;
+    });
+
+    // Currents context for stopping music on logout
+    const currentsCtx = useCurrents();
+
     // Close profile dropdown when clicking outside
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -27,6 +48,9 @@ export default function TopNav() {
             }
             if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
                 setShowDropdown(false);
+            }
+            if (notifRef.current && !notifRef.current.contains(e.target)) {
+                setIsNotifOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -68,12 +92,31 @@ export default function TopNav() {
 
     const handleLogout = async () => {
         setIsProfileOpen(false);
+        // Stop music playback before logging out
+        if (currentsCtx?.isInSession) {
+            try { await currentsCtx.leaveSession(); } catch (e) { console.error(e); }
+        }
         router.post('/logout');
+    };
+
+    const toggleTheme = () => {
+        const root = document.documentElement;
+        const newDark = !isDark;
+        setIsDark(newDark);
+        if (newDark) {
+            root.classList.add('dark');
+            root.setAttribute('data-theme', 'dark');
+        } else {
+            root.classList.remove('dark');
+            root.removeAttribute('data-theme');
+        }
+        // Persist to server
+        axios.patch('/settings/accessibility', { dark_mode: newDark }).catch(console.error);
     };
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-40 bg-ocean-card border-b border-ocean-divider shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]" style={{ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' }}>
+            <nav className="fixed top-0 left-0 right-0 z-40 bg-ocean-deep border-b border-ocean-divider shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]">
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center h-16 relative w-full">
 
@@ -242,6 +285,178 @@ export default function TopNav() {
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                             </button>
 
+                            {/* Dark / Light Mode Toggle */}
+                            <button
+                                onClick={toggleTheme}
+                                className="p-2.5 rounded-xl text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface/50 transition-colors"
+                                title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                                id="topnav-theme-btn"
+                            >
+                                {isDark ? (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+                                    </svg>
+                                )}
+                            </button>
+
+                            {/* Notification Bell */}
+                            <div className="relative" ref={notifRef}>
+                                <button
+                                    onClick={() => {
+                                        setIsNotifOpen(!isNotifOpen);
+                                        if (!isNotifOpen && social?.unread_notifications > 0) {
+                                            axios.post('/api/ripples/mark-all-read').then(() => {
+                                                router.reload({ only: ['social'] });
+                                            }).catch(console.error);
+                                        }
+                                    }}
+                                    className={`p-2.5 rounded-xl transition-colors relative ${isNotifOpen ? 'text-biolum bg-biolum/10' : 'text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface/50'}`}
+                                    id="topnav-notif-btn"
+                                >
+                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                    </svg>
+                                    {unreadNotifCount > 0 && (
+                                        <span className="absolute top-1 right-1 min-w-[16px] h-[16px] px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center leading-none">
+                                            {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Notification Dropdown */}
+                                {isNotifOpen && (
+                                    <div className="absolute right-0 top-full mt-2 w-[360px] max-h-[80vh] bg-ocean-deep border border-ocean-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] overflow-hidden z-50 animate-[fadeIn_0.15s_ease-out]">
+                                        {/* Header */}
+                                        <div className="px-4 py-3 border-b border-ocean-divider-subtle flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-7 h-7 rounded-lg bg-biolum/15 flex items-center justify-center">
+                                                    <svg className="w-3.5 h-3.5 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                                                    </svg>
+                                                </div>
+                                                <h3 className="text-sm font-bold text-ocean-text">Notifications</h3>
+                                            </div>
+                                        </div>
+
+                                        {/* Search */}
+                                        <div className="px-3 py-2 border-b border-ocean-divider-subtle">
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <svg className="w-3.5 h-3.5 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                                                    </svg>
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={notifSearch}
+                                                    onChange={(e) => setNotifSearch(e.target.value)}
+                                                    placeholder="Search activity..."
+                                                    className="w-full pl-9 h-8 bg-ocean-surface/50 border border-ocean-border/60 rounded-lg text-xs text-ocean-text placeholder-ocean-text-dim/50 focus:outline-none focus:border-biolum/30"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Notification Items */}
+                                        <div className="overflow-y-auto max-h-[60vh] p-2 space-y-0.5">
+                                            {(() => {
+                                                const typeColors = {
+                                                    friend: 'bg-blue-500', follow: 'bg-emerald-500', like: 'bg-rose-500',
+                                                    story_like: 'bg-rose-500', story_reply: 'bg-emerald-600',
+                                                    comment: 'bg-amber-500', share: 'bg-purple-500', mention: 'bg-cyan-500',
+                                                };
+                                                const filtered = notifications.filter(n =>
+                                                    (n.user || '').toLowerCase().includes(notifSearch.toLowerCase()) ||
+                                                    (n.action || '').toLowerCase().includes(notifSearch.toLowerCase())
+                                                );
+
+                                                const handleAction = async (e, type, rawId) => {
+                                                    e.stopPropagation();
+                                                    setActionLoading(rawId);
+                                                    try {
+                                                        if (rawId.startsWith('fr_')) {
+                                                            const id = rawId.replace('fr_', '');
+                                                            if (type === 'accept') await axios.post('/api/friend-request/accept', { request_id: id });
+                                                            else await axios.post('/api/friend-request/reject', { request_id: id });
+                                                        } else if (rawId.startsWith('flr_')) {
+                                                            const id = rawId.replace('flr_', '');
+                                                            if (type === 'accept') await axios.post('/api/follow-request/accept', { request_id: id });
+                                                            else await axios.post('/api/follow-request/reject', { request_id: id });
+                                                        }
+                                                        router.reload({ only: ['social'] });
+                                                    } catch (error) { console.error(error); }
+                                                    finally { setActionLoading(null); }
+                                                };
+
+                                                const navigateToTarget = (notif) => {
+                                                    setIsNotifOpen(false);
+                                                    if (['reaction', 'comment', 'share', 'mention'].includes(notif.type) && notif.data?.post_id) {
+                                                        router.visit(`/posts/${notif.data.post_id}`);
+                                                    } else if (notif.user_id) {
+                                                        router.visit(`/users/${notif.user_id}`);
+                                                    }
+                                                };
+
+                                                if (filtered.length === 0) return (
+                                                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                                                        <svg className="w-10 h-10 text-ocean-text-dim mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" /></svg>
+                                                        <p className="text-xs text-ocean-text-dim">{notifSearch ? `No activity matching "${notifSearch}"` : 'No notifications yet.'}</p>
+                                                    </div>
+                                                );
+
+                                                return filtered.map((notif) => (
+                                                    <div
+                                                        key={notif.id}
+                                                        onClick={() => navigateToTarget(notif)}
+                                                        className={`flex items-start gap-3 p-2.5 rounded-xl transition-colors cursor-pointer ${notif.is_unread ? 'bg-biolum/10' : 'hover:bg-ocean-surface/30'}`}
+                                                    >
+                                                        <div className="relative shrink-0 flex items-center gap-2">
+                                                            <div className="relative">
+                                                                {notif.avatar ? (
+                                                                    <img src={notif.avatar} alt={notif.user} className="w-8 h-8 rounded-full object-cover" />
+                                                                ) : (
+                                                                    <div className={`w-8 h-8 flex justify-center items-center rounded-full ${typeColors[notif.type] || 'bg-biolum'}`} />
+                                                                )}
+                                                                {notif.is_unread && (
+                                                                    <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-biolum border-2 border-ocean-card rounded-full" />
+                                                                )}
+                                                            </div>
+                                                            {(notif.type === 'story_like' || notif.type === 'story_reply') && notif.data?.story_image && (
+                                                                <div className="w-8 h-10 rounded overflow-hidden shadow-sm shrink-0 bg-black/20">
+                                                                    <img src={notif.data.story_image} alt="Story" className="w-full h-full object-cover" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className={`text-xs leading-relaxed ${notif.is_unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim/90'}`}>
+                                                                <span className="font-bold text-ocean-text">{notif.user}</span>{' '}
+                                                                {notif.action}
+                                                            </p>
+                                                            <p className={`text-[10px] mt-0.5 ${notif.is_unread ? 'text-biolum font-medium' : 'text-ocean-text-dim'}`}>{notif.time}</p>
+                                                            {notif.type === 'friend' && (
+                                                                <div className="mt-1.5 flex items-center gap-2">
+                                                                    <button onClick={(e) => handleAction(e, 'accept', notif.id)} disabled={actionLoading === notif.id} className="px-3 py-1 bg-biolum text-white text-[11px] font-medium rounded hover:bg-biolum-bright transition-colors disabled:opacity-50">{actionLoading === notif.id ? '...' : 'Accept'}</button>
+                                                                    <button onClick={(e) => handleAction(e, 'decline', notif.id)} disabled={actionLoading === notif.id} className="px-3 py-1 bg-transparent border border-ocean-border text-ocean-text-muted text-[11px] font-medium rounded hover:bg-ocean-surface transition-colors disabled:opacity-50">Decline</button>
+                                                                </div>
+                                                            )}
+                                                            {notif.type === 'follow' && (
+                                                                <div className="mt-1.5 flex items-center gap-2">
+                                                                    <button onClick={(e) => handleAction(e, 'accept', notif.id)} disabled={actionLoading === notif.id} className="px-3 py-1 bg-emerald-600 text-white text-[11px] font-medium rounded hover:bg-emerald-700 transition-colors disabled:opacity-50">{actionLoading === notif.id ? '...' : 'Accept'}</button>
+                                                                    <button onClick={(e) => handleAction(e, 'decline', notif.id)} disabled={actionLoading === notif.id} className="px-3 py-1 bg-transparent border border-ocean-border text-ocean-text-muted text-[11px] font-medium rounded hover:bg-ocean-surface transition-colors disabled:opacity-50">Decline</button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            })()}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Profile Avatar + Dropdown */}
                             <div className="relative" ref={profileRef}>
                                 <button 
@@ -270,7 +485,7 @@ export default function TopNav() {
 
                                 {/* Dropdown Menu */}
                                 {isProfileOpen && (
-                                    <div className="absolute right-0 top-full mt-2 w-64 bg-ocean-card border border-ocean-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.05)] overflow-hidden z-50 animate-[fadeIn_0.15s_ease-out]">
+                                    <div className="absolute right-0 top-full mt-2 w-64 backdrop-blur-xl bg-ocean-card/80 border border-ocean-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.05)] overflow-hidden z-50 animate-[fadeIn_0.15s_ease-out]">
                                         {/* User Info Header */}
                                         <div className="px-4 py-3.5 border-b border-ocean-divider-subtle bg-ocean-surface/30">
                                             <div className="flex items-center gap-3">
