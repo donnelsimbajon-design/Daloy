@@ -69,7 +69,7 @@ export default function MainLayout({ children }) {
             {/* Main Content Area */}
             <main className="pt-0 mx-auto w-full max-w-[1920px] overflow-x-hidden relative z-10">
                 <GlobalRightRailWrapper>
-                    <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300">
+                    <div className="pt-20 pb-16 w-full px-0 sm:px-6 lg:px-8 max-w-[1536px] mx-auto transition-all duration-300 main-content-mobile">
 
                         {children}
                     </div>

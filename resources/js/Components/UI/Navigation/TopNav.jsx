@@ -329,7 +329,7 @@ export default function TopNav() {
 
                                 {/* Notification Dropdown */}
                                 {isNotifOpen && (
-                                    <div className="absolute right-0 top-full mt-2 w-[360px] max-h-[80vh] bg-ocean-deep border border-ocean-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] overflow-hidden z-50 animate-[fadeIn_0.15s_ease-out]">
+                                    <div className="absolute right-0 top-full mt-2 w-[360px] max-w-[calc(100vw-1rem)] max-h-[80vh] bg-ocean-deep border border-ocean-border rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.25)] overflow-hidden z-50 animate-[fadeIn_0.15s_ease-out] topnav-notif-dropdown">
                                         {/* Header */}
                                         <div className="px-4 py-3 border-b border-ocean-divider-subtle flex items-center justify-between">
                                             <div className="flex items-center gap-2">
