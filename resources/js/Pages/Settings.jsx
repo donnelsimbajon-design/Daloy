@@ -600,7 +600,7 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
                                 </div>
                             </div>
                             <div className="mt-5 p-4 rounded-xl bg-biolum/5 border border-biolum/10">
-                                <p className="text-[12px] font-medium text-biolum mb-1">💡 Tip</p>
+                                <p className="text-[12px] font-medium text-biolum mb-1">Tip</p>
                                 <p className="text-[12px] text-ocean-text-dim">Accessibility settings apply across the entire app and are saved to your account.</p>
                             </div>
                         </Card>

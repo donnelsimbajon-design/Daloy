@@ -344,6 +344,28 @@ class SchoolCallController extends Controller
         return response()->json(['error' => 'Unauthorized'], 403);
     }
 
+    /**
+     * Save the currently playing track to the user's personal library.
+     */
+    public function saveTrack(School $school)
+    {
+        $session = SchoolCurrent::where('school_id', $school->id)->where('is_active', true)->first();
+
+        if (!$session || !$session->track_url) {
+            return response()->json(['error' => 'No active track to save.'], 404);
+        }
+
+        $saved = \App\Models\SavedTrack::firstOrCreate([
+            'user_id' => Auth::id(),
+            'track_url' => $session->track_url,
+        ], [
+            'track_title' => $session->current_track_title,
+            'track_type' => $session->track_type,
+        ]);
+
+        return response()->json(['status' => 'saved', 'track' => $saved]);
+    }
+
     // ── Private Helpers ──────────────────────────────────────────────────
 
     private function detectTrackType(?string $url): ?string

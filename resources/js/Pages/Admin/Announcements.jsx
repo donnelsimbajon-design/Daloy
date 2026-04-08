@@ -419,7 +419,7 @@ function AnnouncementForm({ form, setForm, schools }) {
             <div className="adm-preview-box">
                 <div className="adm-permission-category-label">Preview</div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <div style={{ fontSize: 18 }}>📣</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, flexShrink: 0 }}><Radio size={18} color="var(--adm-text-muted)" /></div>
                     <div>
                         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>
                             {form.title || 'Announcement Title'}{' '}

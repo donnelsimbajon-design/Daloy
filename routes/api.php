@@ -6,6 +6,7 @@ use App\Http\Controllers\FriendRequestController;
 use App\Http\Controllers\FollowController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\GroupCallController;
 
 Route::get('/user', function (Request $request) {
     return $request->user()->only([
@@ -52,6 +53,19 @@ Route::middleware('auth')->group(function () {
 
     // Messaging
     Route::get('/conversations', [MessagingController::class, 'index']);
+    Route::post('/group-calls/{conversation}/start', [GroupCallController::class, 'startGroupCall']);
+    Route::post('/group-calls/{conversation}/join', [GroupCallController::class, 'joinGroupCall']);
+    Route::post('/group-calls/{conversation}/leave', [GroupCallController::class, 'leaveGroupCall']);
+    Route::post('/group-calls/{conversation}/end', [GroupCallController::class, 'endGroupCall']);
+    Route::post('/group-calls/{conversation}/mute/{userId}', [GroupCallController::class, 'muteParticipant']);
+    Route::post('/group-calls/{conversation}/kick/{userId}', [GroupCallController::class, 'kickParticipant']);
+    Route::get('/group-calls/{conversation}/mute', [GroupCallController::class, 'getMuteStatus']);
+    Route::get('/group-calls/{conversation}/mute-status', [GroupCallController::class, 'getMuteStatus']);
+    Route::post('/group-calls/{conversation}/chat', [GroupCallController::class, 'sendCallChat']);
+    Route::get('/group-calls/{conversation}/chat', [GroupCallController::class, 'getCallChat']);
+    Route::post('/group-calls/{conversation}/screenshare', [GroupCallController::class, 'toggleScreenShareStatus']);
+    Route::get('/group-calls/{conversation}/active', [GroupCallController::class, 'getActiveCall']);
+    
     Route::post('/conversations/start', [MessagingController::class, 'start']);
     Route::post('/messages/send', [MessagingController::class, 'sendMessage']);
     Route::get('/messages/{conversation}', [MessagingController::class, 'messages']);

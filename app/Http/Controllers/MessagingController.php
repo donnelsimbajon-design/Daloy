@@ -347,8 +347,12 @@ class MessagingController extends Controller
                 'user_id' => $memberId,
                 'sender_id' => $user->id,
                 'type' => 'group_invite',
-                'message' => $user->name . ' added you to the group "' . $request->name . '"',
-                'url' => '/conversations',
+                'notifiable_type' => Conversation::class,
+                'notifiable_id' => $conversation->id,
+                'data' => [
+                    'message' => $user->name . ' added you to the group "' . $request->name . '"',
+                    'url' => '/conversations',
+                ],
             ]);
         }
 
@@ -545,5 +549,52 @@ class MessagingController extends Controller
         $conversation->delete();
 
         return response()->json(['disbanded' => true]);
+    }
+
+    /**
+     * Kick a member from the group (admin only).
+     */
+    public function kickMember(Conversation $conversation, Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        if ($conversation->type !== 'group') return response()->json(['error' => 'Not a group'], 400);
+
+        $participant = $conversation->participants()->where('user_id', $user->id)->first();
+        if (!$participant || $participant->pivot->role !== 'admin') {
+            return response()->json(['error' => 'Only admins can kick members'], 403);
+        }
+
+        $targetId = $request->input('user_id');
+        if ($targetId == $user->id) return response()->json(['error' => 'Cannot kick yourself'], 400);
+
+        $conversation->participants()->detach($targetId);
+        return response()->json(['status' => 'kicked']);
+    }
+
+    /**
+     * Invite a member to the group (admin only).
+     */
+    public function inviteMember(Conversation $conversation, Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        if ($conversation->type !== 'group') return response()->json(['error' => 'Not a group'], 400);
+
+        $participant = $conversation->participants()->where('user_id', $user->id)->first();
+        // Wait, normally we let anyone invite, but user requested Admin Only
+        if (!$participant || $participant->pivot->role !== 'admin') {
+            return response()->json(['error' => 'Only admins can invite members'], 403);
+        }
+
+        $targetId = $request->input('user_id');
+        $targetUser = User::find($targetId);
+
+        if (!$targetUser) return response()->json(['error' => 'User not found'], 404);
+
+        if ($conversation->participants()->where('user_id', $targetId)->exists()) {
+            return response()->json(['error' => 'User is already in group'], 400);
+        }
+
+        $conversation->participants()->attach($targetId, ['role' => 'member']);
+        return response()->json(['status' => 'invited', 'user' => $targetUser]);
     }
 }

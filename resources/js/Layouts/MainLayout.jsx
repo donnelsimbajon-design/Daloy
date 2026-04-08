@@ -76,10 +76,6 @@ export default function MainLayout({ children }) {
                 </GlobalRightRailWrapper>
             </main>
 
-            <GlobalCallManager 
-                activeCallParam={activeCallParam} 
-                onClearActiveCallParam={() => setActiveCallParam(null)} 
-            />
             <GlobalAnnouncementPopup />
         </div>
     );

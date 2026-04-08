@@ -82,12 +82,27 @@ class GroupCallController extends Controller
             ->pluck('users.id');
 
         foreach ($memberIds as $memberId) {
+            \Illuminate\Support\Facades\Cache::put("incoming_call_{$memberId}", [
+                'caller_id' => $user->id,
+                'caller_name' => $user->name,
+                'caller_avatar' => $user->profile_picture,
+                'type' => 'video',
+                'channel_name' => $channelName,
+                'conversation_id' => $conversation->id,
+                'conversation_name' => $conversation->name,
+                'is_group_call' => true,
+            ], now()->addSeconds(60));
+
             Ripple::create([
                 'user_id' => $memberId,
                 'sender_id' => $user->id,
                 'type' => 'group_call',
-                'message' => $user->name . ' started a group call in ' . ($conversation->name ?? 'the group'),
-                'url' => '/conversations?call=' . $groupCall->id,
+                'notifiable_type' => \App\Models\GroupCall::class,
+                'notifiable_id' => $groupCall->id,
+                'data' => [
+                    'message' => $user->name . ' started a group call in ' . ($conversation->name ?? 'the group'),
+                    'url' => '/conversations?call=' . $groupCall->id,
+                ]
             ]);
         }
 
@@ -309,8 +324,42 @@ class GroupCallController extends Controller
             'channel_name' => $groupCall->channel_name,
             'started_by' => $groupCall->started_by,
             'started_at' => $groupCall->started_at,
-            'participants' => $participants,
+            'participants' => $participants->map(fn ($p) => [
+                'user_id' => $p->user_id,
+                'role' => $p->role,
+                'is_muted_by_host' => (bool) $p->is_muted_by_host,
+                'is_screen_sharing' => (bool) ($p->is_screen_sharing ?? false),
+                'user' => $p->user,
+            ]),
         ]);
+    }
+
+    /**
+     * Kick a participant from the call (host only).
+     */
+    public function kickParticipant(Conversation $conversation, $userId): JsonResponse
+    {
+        $user = Auth::user();
+        $groupCall = $conversation->activeGroupCall;
+
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active call.'], 404);
+        }
+
+        if ($groupCall->started_by !== $user->id) {
+            return response()->json(['error' => 'Only the host can kick participants.'], 403);
+        }
+
+        $participant = GroupCallParticipant::where('group_call_id', $groupCall->id)
+            ->where('user_id', $userId)
+            ->whereNull('left_at')
+            ->first();
+
+        if ($participant) {
+            $participant->update(['left_at' => now()]);
+        }
+
+        return response()->json(['kicked' => true, 'user_id' => (int) $userId]);
     }
 
     /**
@@ -383,10 +432,34 @@ class GroupCallController extends Controller
         }
 
         $participants = $groupCall->activeParticipants()
-            ->select('user_id', 'is_muted_by_host', 'role')
+            ->select('user_id', 'is_muted_by_host', 'role', 'is_screen_sharing')
             ->get();
 
         return response()->json(['participants' => $participants]);
+    }
+
+    /**
+     * Toggle the screen share status for the current user.
+     */
+    public function toggleScreenShareStatus(Conversation $conversation, Request $request): JsonResponse
+    {
+        $groupCall = $conversation->activeGroupCall;
+        if (!$groupCall) {
+            return response()->json(['error' => 'No active group call'], 422);
+        }
+
+        $participant = $groupCall->participants()
+            ->where('user_id', Auth::id())
+            ->whereNull('left_at')
+            ->first();
+
+        if ($participant) {
+            $participant->update([
+                'is_screen_sharing' => $request->boolean('is_screen_sharing', false)
+            ]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     /**
@@ -394,11 +467,17 @@ class GroupCallController extends Controller
      */
     private function endCallInternal(GroupCall $groupCall): void
     {
-        // Mark all participants as left
-        $groupCall->activeParticipants()->update(['left_at' => now()]);
+        // Delete in-call chat messages (ephemeral — not saved after call ends)
+        $groupCall->chatMessages()->delete();
+
+        // Mark all participants as left + clear screen sharing
+        $groupCall->activeParticipants()->update([
+            'left_at' => now(),
+            'is_screen_sharing' => false,
+        ]);
         $groupCall->update(['ended_at' => now()]);
 
-        // Post system message
+        // Post system message to the conversation feed
         $groupCall->conversation->messages()->create([
             'user_id' => $groupCall->started_by,
             'content' => 'SYSTEM_GROUP_CALL_ENDED',

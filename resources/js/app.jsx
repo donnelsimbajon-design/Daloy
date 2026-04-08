@@ -15,8 +15,9 @@ import GlobalCallManager from '@/Components/Features/Messaging/GlobalCallManager
 const appName = import.meta.env.VITE_APP_NAME || 'DALOY';
 
 /** Root-level call state — survives Inertia full-page navigations */
-function PersistentCallLayer() {
+function PersistentCallLayer({ user }) {
     const [activeCallParam, setActiveCallParam] = React.useState(null);
+    const currentUser = user;
 
     React.useEffect(() => {
         const handler = (e) => setActiveCallParam(e.detail);
@@ -28,6 +29,7 @@ function PersistentCallLayer() {
         <GlobalCallManager
             activeCallParam={activeCallParam}
             onClearActiveCallParam={() => setActiveCallParam(null)}
+            currentUser={currentUser}
         />
     );
 }
@@ -50,7 +52,7 @@ createInertiaApp({
                     <GlobalAudioLayer />
                     <PersistentMiniPlayer />
                     <NowPlayingBar />
-                    <PersistentCallLayer />
+                    <PersistentCallLayer user={props?.initialPage?.props?.auth?.user} />
                 </CurrentsProvider>
             </LanguageProvider>
         );

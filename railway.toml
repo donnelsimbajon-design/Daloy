@@ -1,9 +1,10 @@
 [build]
-buildCommand = "npm ci && npm run build"
+buildCommand = "composer install --no-dev --optimize-autoloader && npm ci && npm run build"
 
 [deploy]
-startCommand = "php artisan migrate --force || true; php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
+startCommand = "php artisan config:clear && php artisan cache:clear && php artisan view:clear && php artisan storage:link --force 2>/dev/null || true && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
 
 [nixpacks]
 [nixpacks.variables]
 NODE_VERSION = "20"
+PHP_VERSION = "8.2"

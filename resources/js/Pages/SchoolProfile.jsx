@@ -350,7 +350,7 @@ export default function SchoolProfile() {
                                                 ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
                                                 : 'bg-amber-500/10 text-amber-600 border-amber-500/20'
                                         }`}>
-                                            {school.privacy === 'public' ? '🌍 Public' : '🔒 Private'}
+                                            {school.privacy === 'public' ? 'Public' : 'Private'}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-4 mt-2 text-sm text-ocean-text-dim flex-wrap">
@@ -854,7 +854,7 @@ export default function SchoolProfile() {
                                                     : 'bg-ocean-surface border-ocean-border text-ocean-text-dim hover:border-ocean-hover'
                                             }`}
                                         >
-                                            {opt === 'public' ? '🌍 Public' : '🔒 Private'}
+                                            {opt === 'public' ? 'Public' : 'Private'}
                                         </button>
                                     ))}
                                 </div>
@@ -978,7 +978,7 @@ export default function SchoolProfile() {
                                 <div>
                                     <label className="text-[10px] font-black text-ocean-text-dim uppercase tracking-widest block mb-2">Privacy</label>
                                     <div className="flex gap-3">
-                                        {[{ v: 'public', l: '🌍 Public' }, { v: 'members_only', l: '🔒 Members Only' }].map(opt => (
+                                        {[{ v: 'public', l: 'Public' }, { v: 'members_only', l: 'Members Only' }].map(opt => (
                                             <button
                                                 key={opt.v} type="button"
                                                 onClick={() => setEventForm({ ...eventForm, privacy: opt.v })}

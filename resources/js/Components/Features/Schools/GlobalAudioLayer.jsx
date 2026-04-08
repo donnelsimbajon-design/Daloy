@@ -10,6 +10,9 @@ export default function GlobalAudioLayer() {
     const session = ctx?.session;
     const trackElapsed = ctx?.trackElapsed || 0;
     const isHost = ctx?.isHost;
+    
+    const isLocalPaused = ctx?.isLocalMusicPaused;
+    const isLocalMuted = ctx?.isLocalMusicMuted;
 
     const [syncedYtUrl, setSyncedYtUrl] = useState('');
 
@@ -34,22 +37,39 @@ export default function GlobalAudioLayer() {
             if (session.track_type === 'mp3' && audioRef.current) {
                 // TIGHT SYNC: Correct EVERYONE (even the host) if they are more than 1.5 seconds off the global server live time.
                 // This acts like true Live Radio.
+                if (Math.abs(audioRef.current.currentTime - trackElapsed) > 1.5 && !isLocalPaused) {
+                    audioRef.current.currentTime = trackElapsed;
+                }
+            }
+        }
+    }, [isInSession, session?.track_url, trackElapsed, isHost, session?.track_type, isLocalPaused]);
+
+    // Effect to apply pause/play/mute dynamically to MP3 files
+    useEffect(() => {
+        if (session?.track_type === 'mp3' && audioRef.current) {
+            audioRef.current.muted = isLocalMuted;
+            if (isLocalPaused) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play().catch(() => {});
+                // Optional: Re-sync time when unpausing
                 if (Math.abs(audioRef.current.currentTime - trackElapsed) > 1.5) {
                     audioRef.current.currentTime = trackElapsed;
                 }
             }
         }
-    }, [isInSession, session?.track_url, trackElapsed, isHost, session?.track_type]);
+    }, [isLocalPaused, isLocalMuted, session?.track_type, trackElapsed]);
 
-    if (!isInSession) return null;
+    // Don't render anything if paused for iframe embeds (to stop playback)
+    if (!isInSession || (isLocalPaused && session?.track_type !== 'mp3')) return null;
 
     return (
         <div className="fixed -left-[9999px] -top-[9999px] w-1 h-1 opacity-0 pointer-events-none" aria-hidden="true">
-            {session.track_type === 'youtube' && syncedYtUrl && (
+            {session.track_type === 'youtube' && syncedYtUrl && !isLocalPaused && (
                 <iframe
                     key={`yt-${session.track_url}`}
                     width="1" height="1"
-                    src={syncedYtUrl}
+                    src={`${syncedYtUrl}${isLocalMuted ? '&mute=1' : ''}`}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen

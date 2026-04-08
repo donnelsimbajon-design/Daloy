@@ -17,6 +17,7 @@ const SAFE_DEFAULT = {
     toggleMic: NOOP_ASYNC, toggleLocalMute: NOOP,
     sendChat: NOOP_ASYNC, castVote: NOOP_ASYNC,
     addTrack: NOOP_ASYNC, playNext: NOOP_ASYNC,
+    saveTrack: NOOP_ASYNC,
 };
 
 export function useCurrents() {
@@ -65,6 +66,10 @@ export function CurrentsProvider({ children }) {
     const [isInSession, setIsInSession] = useState(false);
     const [activeTab, setActiveTab] = useState('music');
     const [isExpanded, setIsExpanded] = useState(false);
+    
+    // Local playback state (user's personal settings)
+    const [isLocalMusicPaused, setIsLocalMusicPaused] = useState(false);
+    const [isLocalMusicMuted, setIsLocalMusicMuted] = useState(false);
 
     // ── Live state (polled) ──────────────────────────────────────────────
     const [participants, setParticipants] = useState([]);
@@ -331,6 +336,17 @@ export function CurrentsProvider({ children }) {
         setMyVote(null);
     }, [currentSchool]);
 
+    const saveTrack = useCallback(async () => {
+        if (!currentSchool) return;
+        try {
+            await axios.post(`/schools/${currentSchool.id}/currents/save-track`);
+            return true;
+        } catch (err) {
+            console.error('Failed to save track:', err);
+            return false;
+        }
+    }, [currentSchool]);
+
     // ── Context Value ────────────────────────────────────────────────────
     const userId = authUserRef.current?.id;
     const value = {
@@ -339,11 +355,13 @@ export function CurrentsProvider({ children }) {
         votes, myVote, chatMessages, isMicEnabled, isMicMuted, locallyMutedUsers,
         activeTab, setActiveTab,
         isExpanded, setIsExpanded,
+        isLocalMusicPaused, setIsLocalMusicPaused,
+        isLocalMusicMuted, setIsLocalMusicMuted,
         trackElapsed,
         isHost: session?.admin_id === userId,
         // Actions
         joinSession, startSession, leaveSession, endSession,
-        toggleMic, toggleLocalMute, sendChat, castVote, addTrack, playNext,
+        toggleMic, toggleLocalMute, sendChat, castVote, addTrack, playNext, saveTrack,
     };
 
     return (

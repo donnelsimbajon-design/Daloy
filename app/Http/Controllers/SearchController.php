@@ -143,17 +143,25 @@ class SearchController extends Controller
         $blockedMeIds   = $user->blockedBy()->pluck('users.id')->toArray();
         $allBlockedIds  = array_unique(array_merge($blockedByMeIds, $blockedMeIds));
 
-        // Save search history
-        if ($query !== '' && $type !== 'all_inline') {
-            SearchHistory::create([
-                'user_id' => $user->id,
-                'query' => $query,
-                'searched_at' => now(),
-            ]);
+        if ($query) {
+            $existing = SearchHistory::where('user_id', $user->id)
+                ->where('query', $query)
+                ->first();
+
+            if ($existing) {
+                $existing->update(['searched_at' => now()]);
+            } else {
+                SearchHistory::create([
+                    'user_id' => $user->id,
+                    'query' => $query,
+                    'searched_at' => now(),
+                ]);
+            }
             // Keep only last 10
             $excess = SearchHistory::where('user_id', $user->id)
                 ->orderByDesc('searched_at')
                 ->skip(10)
+                ->take(100) // required in MySQL when using skip
                 ->pluck('id');
             if ($excess->count() > 0) {
                 SearchHistory::whereIn('id', $excess)->delete();

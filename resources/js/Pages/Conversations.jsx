@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import axios from 'axios';
-import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone, Users, PhoneCall, Plus } from 'lucide-react';
+import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone, Users, PhoneCall, Plus, LogOut } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { ScrollArea } from '@/Components/shadcn/scroll-area';
 import { Input } from '@/Components/shadcn/input';
@@ -18,6 +18,7 @@ export default function Conversations() {
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [isBlocked, setIsBlocked] = useState(false);
@@ -32,8 +33,11 @@ export default function Conversations() {
     const [attachment, setAttachment] = useState(null);
     const [fullscreenMedia, setFullscreenMedia] = useState(null);
     const [showCreateGroup, setShowCreateGroup] = useState(false);
+    const [showManageMembers, setShowManageMembers] = useState(false);
     const [activeGroupCall, setActiveGroupCall] = useState(null);
     const [groupCallActive, setGroupCallActive] = useState(null);
+    const [inviteUsername, setInviteUsername] = useState('');
+    const [inviteSending, setInviteSending] = useState(false);
     const messagesEndRef = useRef(null);
     const attachmentInputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -131,10 +135,10 @@ export default function Conversations() {
 
     const handleTyping = () => {
         if (!selectedConversation) return;
-        
+
         // Only send typing indicator once every 2 seconds to avoid spamming
         if (!typingTimeoutRef.current) {
-            axios.post(`/api/conversations/${selectedConversation.id}/typing`).catch(() => {});
+            axios.post(`/api/conversations/${selectedConversation.id}/typing`).catch(() => { });
             typingTimeoutRef.current = setTimeout(() => {
                 typingTimeoutRef.current = null;
             }, 2000);
@@ -157,7 +161,7 @@ export default function Conversations() {
         };
 
         setMessages(prev => [...prev, optimisticMessage]);
-        
+
         const currentAttachment = attachment;
         setNewMessage('');
         setAttachment(null);
@@ -222,10 +226,10 @@ export default function Conversations() {
         if (!selectedConversation) return;
         try {
             const res = await axios.post(`/api/conversations/${selectedConversation.id}/call`, { type });
-            
+
             // Dispatch a global event so MainLayout's GlobalCallManager can run the UI
             window.dispatchEvent(new CustomEvent('daloy:start-call', { detail: res.data }));
-            
+
             // Drop a system tip in chat to notify the other person
             const formData = new FormData();
             formData.append('conversation_id', selectedConversation.id);
@@ -239,15 +243,47 @@ export default function Conversations() {
         }
     };
 
+    const handleKickMember = async (userId) => {
+        if (!confirm('Are you sure you want to kick this member?')) return;
+        try {
+            await axios.post(`/api/conversations/${selectedConversation.id}/kick`, { user_id: userId });
+            setSelectedConversation(prev => ({
+                ...prev,
+                participants: prev.participants.filter(p => p.id !== userId)
+            }));
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to kick member.');
+        }
+    };
+
+    const handleInviteMember = async () => {
+        if (!inviteUsername.trim()) return;
+        setInviteSending(true);
+        try {
+            // we will search by user ID or username? Wait, let's just make an API call to search user by username or ID
+            // For simplicity, we assume inviteUsername contains the exact user ID right now (since no autocomplete API is built for this yet)
+            // Wait, usually adding someone uses user_id. Let me assume they can type user_id. Or better, just show an alert. 
+            alert('User invitation by username requires a search endpoint which is not yet connected to the modal.');
+            // await axios.post(`/api/conversations/${selectedConversation.id}/invite`, { user_id: inviteUsername });
+        } catch (err) {
+            alert(err.response?.data?.error || 'Failed to invite.');
+        } finally {
+            setInviteSending(false);
+        }
+    };
+
     const handleStartGroupCall = async () => {
         if (!selectedConversation || selectedConversation.type !== 'group') return;
         try {
             const res = await axios.post(`/api/group-calls/${selectedConversation.id}/start`);
-            setActiveGroupCall({
-                ...res.data,
-                isHost: true,
-                conversationName: selectedConversation.name || 'Group Call',
-            });
+            window.dispatchEvent(new CustomEvent('daloy:group-call', {
+                detail: {
+                    ...res.data,
+                    isHost: true,
+                    conversationId: selectedConversation.id,
+                    conversationName: selectedConversation.name || 'Group Call',
+                }
+            }));
         } catch (err) {
             if (err.response?.data?.error) {
                 alert(err.response.data.error);
@@ -261,11 +297,14 @@ export default function Conversations() {
         if (!selectedConversation) return;
         try {
             const res = await axios.post(`/api/group-calls/${selectedConversation.id}/join`);
-            setActiveGroupCall({
-                ...res.data,
-                isHost: false,
-                conversationName: selectedConversation.name || 'Group Call',
-            });
+            window.dispatchEvent(new CustomEvent('daloy:group-call', {
+                detail: {
+                    ...res.data,
+                    isHost: false,
+                    conversationId: selectedConversation.id,
+                    conversationName: selectedConversation.name || 'Group Call',
+                }
+            }));
         } catch (err) {
             alert(err.response?.data?.error || 'Failed to join call.');
         }
@@ -296,11 +335,11 @@ export default function Conversations() {
 
     const getSystemMessageText = (content) => {
         const map = {
-            'SYSTEM_GROUP_CREATED': '🌊 Group was created',
-            'SYSTEM_GROUP_CALL_STARTED': '📞 Group call started',
-            'SYSTEM_GROUP_CALL_ENDED': '📞 Group call ended',
-            'SYSTEM_CALL_VIDEO': '📹 Video call',
-            'SYSTEM_CALL_AUDIO': '📞 Voice call',
+            'SYSTEM_GROUP_CREATED': 'Group was created',
+            'SYSTEM_GROUP_CALL_STARTED': 'Group call started',
+            'SYSTEM_GROUP_CALL_ENDED': 'Group call ended',
+            'SYSTEM_CALL_VIDEO': 'Video call',
+            'SYSTEM_CALL_AUDIO': 'Voice call',
         };
         return map[content] || content;
     };
@@ -313,6 +352,7 @@ export default function Conversations() {
     };
 
     const getOtherParticipant = (conversation) => {
+        if (conversation.type === 'group') return null;
         if (!conversation.participants || !Array.isArray(conversation.participants)) return null;
         return conversation.participants.find(p => p.id !== auth.user.id);
     };
@@ -340,7 +380,7 @@ export default function Conversations() {
                     <div className="h-[72px] px-5 flex items-center justify-between border-b border-ocean-border bg-ocean-card shrink-0">
                         <div className="flex-1 w-full relative">
                             <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            <Input type="text" placeholder="Search chats..." className="w-full bg-ocean-surface/50 border-transparent rounded-full pl-10 pr-4 h-10 text-sm text-ocean-text focus-visible:ring-1 focus-visible:bg-ocean-surface focus-visible:border-ocean-border focus-visible:ring-biolum/30 placeholder:text-ocean-text-dim/50 transition-all font-medium" />
+                            <Input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search chats..." className="w-full bg-ocean-surface/50 border-transparent rounded-full pl-10 pr-4 h-10 text-sm text-ocean-text focus-visible:ring-1 focus-visible:bg-ocean-surface focus-visible:border-ocean-border focus-visible:ring-biolum/30 placeholder:text-ocean-text-dim/50 transition-all font-medium" />
                         </div>
                         <button
                             onClick={() => setShowCreateGroup(true)}
@@ -356,7 +396,11 @@ export default function Conversations() {
                         ) : conversations.length === 0 ? (
                             <p className="text-center text-sm text-ocean-text-dim py-8">No conversations yet.</p>
                         ) : (
-                            conversations.map(conv => {
+                            conversations.filter(conv => {
+                                if (!searchQuery.trim()) return true;
+                                const name = getParticipantName(conv).toLowerCase();
+                                return name.includes(searchQuery.toLowerCase());
+                            }).map(conv => {
                                 const other = getOtherParticipant(conv);
                                 const isActive = selectedConversation?.id === conv.id;
                                 return (
@@ -428,11 +472,11 @@ export default function Conversations() {
                                                         <PhoneCall className="w-4 h-4" />
                                                         Join Call ({groupCallActive.participants?.length || 0})
                                                     </Button>
-                                                ) : (
+                                                ) : (selectedConversation.pivot?.role === 'admin' || !selectedConversation.pivot) ? (
                                                     <Button variant="ghost" size="icon" onClick={handleStartGroupCall} className="text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface rounded-full transition-colors" title="Start Group Call">
                                                         <PhoneCall className="w-4 h-4" />
                                                     </Button>
-                                                )}
+                                                ) : null}
                                             </>
                                         ) : (
                                             <>
@@ -445,156 +489,187 @@ export default function Conversations() {
                                             </>
                                         )}
                                         <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="flex rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors">
-                                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-56 bg-ocean-card border border-ocean-border/80">
-                                            <DropdownMenuLabel className="text-ocean-text text-[10px] uppercase font-bold tracking-widest opacity-50">Conversation details</DropdownMenuLabel>
-                                            <DropdownMenuSeparator className="bg-ocean-border/50" />
-                                            {otherUser && (
-                                                <DropdownMenuItem asChild>
-                                                    <Link href={`/users/${otherUser.id}`} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                        <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0M4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-                                                        View Profile
-                                                    </Link>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="flex rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors">
+                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" /></svg>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-56 bg-ocean-card border border-ocean-border/80">
+                                                <DropdownMenuLabel className="text-ocean-text text-[10px] uppercase font-bold tracking-widest opacity-50">Conversation details</DropdownMenuLabel>
+                                                <DropdownMenuSeparator className="bg-ocean-border/50" />
+                                                {otherUser && (
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={`/users/${otherUser.id}`} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0M4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+                                                            View Profile
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                )}
+                                                <DropdownMenuItem onClick={() => setMediaDrawerType('images')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                                    Images
                                                 </DropdownMenuItem>
-                                            )}
-                                            <DropdownMenuItem onClick={() => setMediaDrawerType('images')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                                                Images
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setMediaDrawerType('videos')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                                                Videos
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => setMediaDrawerType('documents')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                                                Documents
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator className="bg-ocean-border/50" />
-                                            <DropdownMenuItem onClick={() => setShowReportModal(true)} className="cursor-pointer text-sm font-semibold text-amber-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-amber-500 flex items-center gap-3">
-                                                <Flag className="w-4 h-4" />
-                                                Report Conversation
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onClick={() => handleBlockUser(otherUser?.id)} className="cursor-pointer text-sm font-semibold text-red-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-red-500 flex items-center gap-3">
-                                                <Ban className="w-4 h-4" />
-                                                Block User
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                                <DropdownMenuItem onClick={() => setMediaDrawerType('videos')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                                    Videos
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => setMediaDrawerType('documents')} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                                    Documents
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator className="bg-ocean-border/50" />
+                                                {selectedConversation.type === 'group' && (
+                                                    <>
+                                                        <DropdownMenuItem onClick={async () => {
+                                                            if (confirm('Are you sure you want to leave this group?')) {
+                                                                await axios.post(`/api/conversations/${selectedConversation.id}/leave`);
+                                                                window.location.reload();
+                                                            }
+                                                        }} className="cursor-pointer text-sm font-semibold text-rose-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-rose-500 flex items-center gap-3">
+                                                            <LogOut className="w-4 h-4" />
+                                                            Leave Group
+                                                        </DropdownMenuItem>
+                                                        {selectedConversation.pivot?.role === 'admin' && (
+                                                            <>
+                                                                <DropdownMenuItem onClick={() => setShowManageMembers(true)} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                                    <Users className="w-4 h-4" />
+                                                                    Manage Members
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={async () => {
+                                                                    if (confirm('Are you sure you want to disband this group? This action cannot be reversed.')) {
+                                                                        await axios.post(`/api/conversations/${selectedConversation.id}/disband`);
+                                                                        window.location.reload();
+                                                                    }
+                                                                }} className="cursor-pointer text-sm font-semibold text-rose-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-rose-500 flex items-center gap-3">
+                                                                    <Ban className="w-4 h-4" />
+                                                                    Disband Group
+                                                                </DropdownMenuItem>
+                                                            </>
+                                                        )}
+                                                        <DropdownMenuSeparator className="bg-ocean-border/50" />
+                                                    </>
+                                                )}
+                                                <DropdownMenuItem onClick={() => setShowReportModal(true)} className="cursor-pointer text-sm font-semibold text-amber-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-amber-500 flex items-center gap-3">
+                                                    <Flag className="w-4 h-4" />
+                                                    Report Conversation
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => handleBlockUser(otherUser?.id)} className="cursor-pointer text-sm font-semibold text-red-500 hover:bg-ocean-surface focus:bg-ocean-surface focus:text-red-500 flex items-center gap-3">
+                                                    <Ban className="w-4 h-4" />
+                                                    Block User
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
                                     </div>
                                 </div>
                                 <ScrollArea className="flex-1 bg-ocean-deep">
                                     <div className="p-4 md:p-6 flex flex-col space-y-4">
-                                    {messages.map((msg) => {
-                                        const isMe = msg.user_id === auth.user.id;
+                                        {messages.map((msg) => {
+                                            const isMe = msg.user_id === auth.user.id;
 
-                                        // System messages
-                                        if (isSystemMessage(msg.content)) {
+                                            // System messages
+                                            if (isSystemMessage(msg.content)) {
+                                                return (
+                                                    <div key={msg.id} className="flex justify-center">
+                                                        <span className="text-ocean-text-dim text-xs bg-white/5 px-3 py-1 rounded-full">
+                                                            {getSystemMessageText(msg.content)}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            }
+
                                             return (
-                                                <div key={msg.id} className="flex justify-center">
-                                                    <span className="text-ocean-text-dim text-xs bg-white/5 px-3 py-1 rounded-full">
-                                                        {getSystemMessageText(msg.content)}
-                                                    </span>
-                                                </div>
-                                            );
-                                        }
-
-                                        return (
-                                            <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                                <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed ${isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
-                                                    {msg.story_id && (
-                                                        <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-3 ${isMe ? 'border-white/20' : 'border-ocean-border'}`}>
-                                                            {msg.story ? (
-                                                                <>
-                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.story.media_url, type: msg.story.type === 'video' ? 'video' : 'image' })} className="w-10 h-14 rounded overflow-hidden shrink-0 bg-black/20 hover:opacity-80 transition-opacity">
-                                                                        {msg.story.type === 'video' ? (
-                                                                            <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
-                                                                        ) : (
-                                                                            <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover" />
-                                                                        )}
-                                                                    </button>
-                                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                                        <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}'s story</span>
-                                                                        {msg.story.content && <span className={`text-xs font-semibold truncate ${isMe ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
-                                                                    </div>
-                                                                </>
-                                                            ) : (
-                                                                <div className="flex-1 py-1 flex items-center gap-2">
-                                                                    <svg className={`w-4 h-4 ${isMe ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                                                    <span className={`text-[11px] italic font-medium tracking-wide ${isMe ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {msg.media_url && (
-                                                        <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl' : 'rounded-[16px] ' + (isMe ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
-                                                            {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
-                                                                <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'image' })} className="w-full h-full block cursor-zoom-in">
-                                                                    <img src={msg.media_url} className="w-full h-auto max-h-64 object-cover" alt="attachment" />
-                                                                </button>
-                                                            ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
-                                                                <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'video' })} className="w-full h-full block cursor-zoom-in">
-                                                                    <video src={msg.media_url} className="w-full max-h-64 object-contain bg-black pointer-events-none" />
-                                                                </button>
-                                                            ) : (
-                                                                <a href={msg.media_url} download target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-3 hover:bg-black/5 transition-colors ${isMe ? 'text-white' : 'text-ocean-text'}`}>
-                                                                    <div className={`p-2 rounded-lg shrink-0 ${isMe ? 'bg-white/20 text-white' : 'bg-biolum/20 text-biolum'}`}><FileText size={20} /></div>
-                                                                    <span className="truncate text-sm font-semibold underline decoration-transparent hover:decoration-current transition-all">Download Attachment</span>
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                    {msg.content && (
-                                                        <div className="break-words whitespace-pre-wrap">
-                                                            {(() => {
-                                                                let text = msg.content;
-                                                                let callType = null;
-                                                                
-                                                                if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
-                                                                    text = "Started a Video call. Click the Video icon to join!";
-                                                                    callType = 'video';
-                                                                } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
-                                                                    text = "Started an Audio call. Click the Phone icon to join!";
-                                                                    callType = 'audio';
-                                                                }
-                                                                
-                                                                if (callType) {
-                                                                    return (
-                                                                        <div className="flex items-center gap-2.5 opacity-90">
-                                                                            <div className="p-1.5 rounded-full bg-black/10 shrink-0">
-                                                                                {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-                                                                            </div>
-                                                                            <span className="italic font-medium text-sm">{text}</span>
+                                                <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed ${isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
+                                                        {msg.story_id && (
+                                                            <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-3 ${isMe ? 'border-white/20' : 'border-ocean-border'}`}>
+                                                                {msg.story ? (
+                                                                    <>
+                                                                        <button type="button" onClick={() => setFullscreenMedia({ url: msg.story.media_url, type: msg.story.type === 'video' ? 'video' : 'image' })} className="w-10 h-14 rounded overflow-hidden shrink-0 bg-black/20 hover:opacity-80 transition-opacity">
+                                                                            {msg.story.type === 'video' ? (
+                                                                                <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
+                                                                            ) : (
+                                                                                <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover" />
+                                                                            )}
+                                                                        </button>
+                                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                            <span className={`text-[9px] font-bold uppercase tracking-widest ${isMe ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}'s story</span>
+                                                                            {msg.story.content && <span className={`text-xs font-semibold truncate ${isMe ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
                                                                         </div>
-                                                                    );
-                                                                }
-                                                                return <p>{text}</p>;
-                                                            })()}
+                                                                    </>
+                                                                ) : (
+                                                                    <div className="flex-1 py-1 flex items-center gap-2">
+                                                                        <svg className={`w-4 h-4 ${isMe ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                                        <span className={`text-[11px] italic font-medium tracking-wide ${isMe ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {msg.media_url && (
+                                                            <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl' : 'rounded-[16px] ' + (isMe ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
+                                                                {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
+                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'image' })} className="w-full h-full block cursor-zoom-in">
+                                                                        <img src={msg.media_url} className="w-full h-auto max-h-64 object-cover" alt="attachment" />
+                                                                    </button>
+                                                                ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'video' })} className="w-full h-full block cursor-zoom-in">
+                                                                        <video src={msg.media_url} className="w-full max-h-64 object-contain bg-black pointer-events-none" />
+                                                                    </button>
+                                                                ) : (
+                                                                    <a href={msg.media_url} download target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-3 hover:bg-black/5 transition-colors ${isMe ? 'text-white' : 'text-ocean-text'}`}>
+                                                                        <div className={`p-2 rounded-lg shrink-0 ${isMe ? 'bg-white/20 text-white' : 'bg-biolum/20 text-biolum'}`}><FileText size={20} /></div>
+                                                                        <span className="truncate text-sm font-semibold underline decoration-transparent hover:decoration-current transition-all">Download Attachment</span>
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {msg.content && (
+                                                            <div className="break-words whitespace-pre-wrap">
+                                                                {(() => {
+                                                                    let text = msg.content;
+                                                                    let callType = null;
+
+                                                                    if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
+                                                                        text = "Started a Video call. Click the Video icon to join!";
+                                                                        callType = 'video';
+                                                                    } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
+                                                                        text = "Started an Audio call. Click the Phone icon to join!";
+                                                                        callType = 'audio';
+                                                                    }
+
+                                                                    if (callType) {
+                                                                        return (
+                                                                            <div className="flex items-center gap-2.5 opacity-90">
+                                                                                <div className="p-1.5 rounded-full bg-black/10 shrink-0">
+                                                                                    {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                                                                                </div>
+                                                                                <span className="italic font-medium text-sm">{text}</span>
+                                                                            </div>
+                                                                        );
+                                                                    }
+                                                                    return <p>{text}</p>;
+                                                                })()}
+                                                            </div>
+                                                        )}
+                                                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
+                                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            {isMe && msg.id && msg.id > 100000000000 && ( // Just an optimistic ID check
+                                                                <svg className="w-3.5 h-3.5 opacity-50" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                            )}
+                                                            {isMe && msg.read_at && (
+                                                                <svg className="w-3.5 h-3.5 text-emerald-300" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                            )}
+                                                            {isMe && !msg.read_at && msg.id && msg.id < 100000000000 && (
+                                                                <svg className="w-3.5 h-3.5 text-white/50" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                            )}
                                                         </div>
-                                                    )}
-                                                    <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
-                                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        {isMe && msg.id && msg.id > 100000000000 && ( // Just an optimistic ID check
-                                                            <svg className="w-3.5 h-3.5 opacity-50" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                                        )}
-                                                        {isMe && msg.read_at && (
-                                                            <svg className="w-3.5 h-3.5 text-emerald-300" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                                        )}
-                                                        {isMe && !msg.read_at && msg.id && msg.id < 100000000000 && (
-                                                            <svg className="w-3.5 h-3.5 text-white/50" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
-                                                        )}
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
                                         <div ref={messagesEndRef} className="h-2 shrink-0" />
                                     </div>
                                 </ScrollArea>
-                                
+
                                 {typingUsers.length > 0 && (
                                     <div className="absolute bottom-[80px] left-8 bg-ocean-card/80 backdrop-blur-sm border border-ocean-border rounded-full px-3 py-1.5 flex items-center gap-2 z-20 shadow-sm animate-pulse">
                                         <div className="flex gap-1">
@@ -620,7 +695,7 @@ export default function Conversations() {
                                                         {attachment.type.startsWith('image/') ? (
                                                             <img src={URL.createObjectURL(attachment)} className="w-10 h-10 object-cover rounded-md border border-ocean-border shrink-0" />
                                                         ) : attachment.type.startsWith('video/') ? (
-                                                             <video src={URL.createObjectURL(attachment)} className="w-10 h-10 object-cover rounded-md border border-ocean-border shrink-0" />
+                                                            <video src={URL.createObjectURL(attachment)} className="w-10 h-10 object-cover rounded-md border border-ocean-border shrink-0" />
                                                         ) : (
                                                             <div className="w-10 h-10 bg-biolum/10 text-biolum rounded-md flex items-center justify-center shrink-0">
                                                                 <FileText size={20} />
@@ -637,7 +712,7 @@ export default function Conversations() {
                                                 </div>
                                             )}
                                             <div className="flex items-end gap-2 bg-ocean-surface border border-ocean-border rounded-[24px] px-2 py-1.5 focus-within:border-biolum/50 focus-within:ring-1 focus-within:ring-biolum/20 transition-all">
-                                                <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => { if(e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
+                                                <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => { if (e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button type="button" variant="ghost" size="icon" className="text-ocean-text-dim hover:text-ocean-text hover:bg-black/10 self-center shrink-0">
@@ -691,7 +766,7 @@ export default function Conversations() {
                                 const images = sharedMedia.filter(m => m.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i));
                                 const videos = sharedMedia.filter(m => m.media_url.match(/\.(mp4|webm|mov)$/i));
                                 const docs = sharedMedia.filter(m => !m.media_url.match(/\.(jpeg|jpg|gif|png|webp|mp4|webm|mov)$/i));
-                                
+
                                 let targetMedia = [];
                                 if (mediaDrawerType === 'images') targetMedia = images;
                                 else if (mediaDrawerType === 'videos') targetMedia = videos;
@@ -803,17 +878,64 @@ export default function Conversations() {
                     </DialogContent>
                 </Dialog>
 
+                {/* Manage Members Modal */}
+                <Dialog open={showManageMembers} onOpenChange={setShowManageMembers}>
+                    <DialogContent className="max-w-md bg-ocean-card border-ocean-border text-ocean-text">
+                        <DialogHeader className="px-1 border-b border-ocean-border pb-4">
+                            <div className="flex items-center gap-2">
+                                <Users className="w-5 h-5 text-biolum" />
+                                <DialogTitle className="font-bold text-ocean-text">Group Members</DialogTitle>
+                            </div>
+                        </DialogHeader>
+                        <div className="py-4 space-y-4">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={inviteUsername} onChange={e => setInviteUsername(e.target.value)}
+                                    placeholder="Enter User ID to invite..."
+                                    className="bg-ocean-surface/50 border-ocean-border text-sm"
+                                />
+                                <Button onClick={handleInviteMember} disabled={inviteSending || !inviteUsername} className="bg-biolum hover:bg-biolum-bright text-white">Add</Button>
+                            </div>
+                            <ScrollArea className="h-64 rounded-xl border border-ocean-border/50 bg-ocean-surface">
+                                <div className="p-2 space-y-1">
+                                    {selectedConversation?.participants?.map(p => (
+                                        <div key={p.id} className="flex flex-row items-center justify-between px-3 py-2 hover:bg-ocean-card rounded-lg transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="w-8 h-8 ring-1 ring-ocean-border">
+                                                    <AvatarImage src={p.profile_picture} className="object-cover" />
+                                                    <AvatarFallback className="bg-biolum/20 text-ocean-text text-xs uppercase">{getAvatarText(p.name)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-ocean-text flex items-center gap-1">
+                                                        {p.name} {p.id === auth.user.id && <span className="text-ocean-text-dim text-xs font-normal">(You)</span>}
+                                                    </span>
+                                                    {p.pivot?.role === 'admin' && <span className="text-[10px] text-biolum uppercase tracking-widest font-bold">Admin</span>}
+                                                </div>
+                                            </div>
+                                            {p.id !== auth.user.id && (
+                                                <Button variant="ghost" size="sm" onClick={() => handleKickMember(p.id)} className="text-rose-400 hover:bg-rose-500/10 hover:text-rose-500" title="Kick">
+                                                    <X className="w-4 h-4" />
+                                                </Button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </ScrollArea>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
                 {/* Fullscreen Media Viewer */}
                 {fullscreenMedia && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
-                        <button 
-                            type="button" 
+                        <button
+                            type="button"
                             onClick={() => setFullscreenMedia(null)}
                             className="absolute top-6 right-6 lg:top-10 lg:right-10 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10 backdrop-blur-md"
                         >
                             <X className="w-8 h-8" />
                         </button>
-                        <div className="relative w-full h-full p-4 md:p-12 flex items-center justify-center" onClick={(e) => { if(e.target === e.currentTarget) setFullscreenMedia(null); }}>
+                        <div className="relative w-full h-full p-4 md:p-12 flex items-center justify-center" onClick={(e) => { if (e.target === e.currentTarget) setFullscreenMedia(null); }}>
                             {fullscreenMedia.type === 'video' ? (
                                 <video src={fullscreenMedia.url} controls autoPlay className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain drop-shadow-[0_0_30px_rgba(0,0,0,0.8)] outline-none ring-1 ring-white/10" />
                             ) : (
@@ -833,19 +955,6 @@ export default function Conversations() {
                     }}
                     currentUserId={auth.user.id}
                 />
-
-                {/* Group Call Overlay */}
-                {activeGroupCall && (
-                    <GroupCallOverlay
-                        conversationId={selectedConversation?.id}
-                        conversationName={activeGroupCall.conversationName}
-                        callData={activeGroupCall}
-                        isHost={activeGroupCall.isHost}
-                        onLeave={() => setActiveGroupCall(null)}
-                        currentUser={auth.user}
-                        participants={[]}
-                    />
-                )}
             </div>
         </MainLayout>
     );

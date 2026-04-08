@@ -33,6 +33,7 @@ class StoryController extends Controller
 
         $stories = Story::with(['user:id,name,username,profile_picture', 'reactions'])
             ->where('expires_at', '>', now())
+            ->whereNull('archived_at')
             ->whereIn('user_id', $eligibleUserIds)
             ->whereNotIn('user_id', $allBlockedIds)
             ->where(function ($query) use ($user, $friendIds, $closeFriendOfIds) {

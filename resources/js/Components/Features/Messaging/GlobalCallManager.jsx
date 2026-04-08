@@ -4,6 +4,7 @@ import AgoraRTC from 'agora-rtc-sdk-ng';
 import { Phone, PhoneOff, Video, Mic, MicOff, VideoOff, Maximize, Minimize2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { router } from '@inertiajs/react';
+import GroupCallOverlay from '@/Components/Features/Messaging/GroupCallOverlay';
 
 // Web Audio API Ringtone Generator
 const playRingtone = (audioCtxRef, oscillatorRef, intervalRef) => {
@@ -44,15 +45,31 @@ const stopRingtone = (oscillatorRef, intervalRef) => {
     }
 };
 
-export default function GlobalCallManager({ activeCallParam, onClearActiveCallParam }) {
+export default function GlobalCallManager({ activeCallParam, onClearActiveCallParam, currentUser }) {
     const [incomingCall, setIncomingCall] = useState(null);
-    const [activeCall, setActiveCall] = useState(null); // { token, app_id, channel_name, uid, type, isCaller }
+    const [activeCall, setActiveCall] = useState(null);
+    // Restore group call from sessionStorage on page refresh
+    const [activeGroupCall, setActiveGroupCall] = useState(() => {
+        try {
+            const saved = sessionStorage.getItem('daloy_active_group_call');
+            return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
+    });
     const [isMinimized, setIsMinimized] = useState(false);
     
-    // Call Polling
+    // Sync activeGroupCall to sessionStorage so it survives page refresh
+    useEffect(() => {
+        if (activeGroupCall) {
+            sessionStorage.setItem('daloy_active_group_call', JSON.stringify(activeGroupCall));
+        } else {
+            sessionStorage.removeItem('daloy_active_group_call');
+        }
+    }, [activeGroupCall]);
+
+    // Poll for incoming 1-on-1 calls (skip if already in any call)
     useEffect(() => {
         let interval;
-        if (!activeCall) {
+        if (!activeCall && !activeGroupCall) {
             interval = setInterval(async () => {
                 try {
                     const res = await axios.get('/api/calls/incoming');
@@ -65,7 +82,7 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
             }, 3000);
         }
         return () => clearInterval(interval);
-    }, [activeCall]);
+    }, [activeCall, activeGroupCall]);
 
     // Handle out-of-band initiated calls (From Conversations.jsx)
     useEffect(() => {
@@ -74,6 +91,15 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
             onClearActiveCallParam();
         }
     }, [activeCallParam]);
+
+    // Listen for Group Calls triggered from Conversations.jsx
+    useEffect(() => {
+        const handleGroupCall = (e) => {
+            setActiveGroupCall(e.detail);
+        };
+        window.addEventListener('daloy:group-call', handleGroupCall);
+        return () => window.removeEventListener('daloy:group-call', handleGroupCall);
+    }, []);
 
     // Caller checks status if receiver accepted/rejected
     useEffect(() => {
@@ -96,6 +122,25 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
 
     const handleAccept = async () => {
         if (!incomingCall) return;
+        
+        if (incomingCall.is_group_call) {
+            try {
+                // To remove the incoming call cache so it stops popping up
+                await axios.post('/api/calls/action', { action: 'reject', caller_id: incomingCall.caller_id, channel_name: incomingCall.channel_name });
+                const res = await axios.post(`/api/group-calls/${incomingCall.conversation_id}/join`);
+                setActiveGroupCall({
+                    ...res.data,
+                    isHost: false,
+                    conversationId: incomingCall.conversation_id,
+                    conversationName: incomingCall.conversation_name || 'Group Call',
+                });
+                setIncomingCall(null);
+            } catch(e) {
+                alert('Failed to join group call');
+            }
+            return;
+        }
+
         try {
             const res = await axios.post('/api/calls/action', {
                 action: 'accept',
@@ -128,7 +173,7 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
 
     return (
         <>
-            {incomingCall && !activeCall && (
+            {incomingCall && !activeCall && !activeGroupCall && (
                 <IncomingCallToast call={incomingCall} onAccept={handleAccept} onReject={handleReject} />
             )}
             
@@ -138,6 +183,18 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
                     isMinimized={isMinimized}
                     onToggleMinimize={() => setIsMinimized(!isMinimized)}
                     onEnd={() => setActiveCall(null)} 
+                />
+            )}
+
+            {activeGroupCall && (
+                <GroupCallOverlay
+                    conversationId={activeGroupCall.conversationId}
+                    conversationName={activeGroupCall.conversationName}
+                    callData={activeGroupCall}
+                    isHost={activeGroupCall.isHost}
+                    onLeave={() => setActiveGroupCall(null)}
+                    currentUser={currentUser}
+                    participants={[]}
                 />
             )}
         </>

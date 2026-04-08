@@ -25,6 +25,18 @@ use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
+| Root Route — Smart landing (no middleware)
+|--------------------------------------------------------------------------
+*/
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard'); // → /app
+    }
+    return Inertia::render('Landing');
+})->name('landing');
+
+/*
+|--------------------------------------------------------------------------
 | Guest Routes (unauthenticated)
 |--------------------------------------------------------------------------
 */
@@ -48,8 +60,9 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
-    Route::get('/', [PostController::class, 'index'])->name('dashboard');
-    Route::get('/app', [PostController::class, 'index']);
+    // Auth dashboard (named 'dashboard' so redirects from login work)
+    Route::get('/app', [PostController::class, 'index'])->name('dashboard');
+    Route::get('/home', [PostController::class, 'index']);
 
     // Navigation Pages
     Route::get('/explore', [SearchController::class, 'explore'])->name('explore');
@@ -92,6 +105,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/schools/{school}/currents/end', [\App\Http\Controllers\SchoolCallController::class, 'end'])->name('schools.currents.end');
     Route::post('/schools/{school}/currents/add-track', [\App\Http\Controllers\SchoolCallController::class, 'addTrack'])->name('schools.currents.add-track');
     Route::post('/schools/{school}/currents/play-next', [\App\Http\Controllers\SchoolCallController::class, 'playNext'])->name('schools.currents.play-next');
+    Route::post('/schools/{school}/currents/save-track', [\App\Http\Controllers\SchoolCallController::class, 'saveTrack'])->name('schools.currents.save-track');
     Route::post('/schools/{school}/currents/chat', [\App\Http\Controllers\SchoolCallController::class, 'sendMessage'])->name('schools.currents.chat');
 
     // ── Join via invite link ─────────────────────────────────────
@@ -193,8 +207,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/conversations/group', [MessagingController::class, 'createGroup'])->name('api.conversations.group');
     Route::post('/api/conversations/{conversation}/members', [MessagingController::class, 'addMember'])->name('api.conversations.members.add');
     Route::delete('/api/conversations/{conversation}/members/{user}', [MessagingController::class, 'removeMember'])->name('api.conversations.members.remove');
+    // ── Group Messaging ──────────────────────────────────────────
     Route::post('/api/conversations/{conversation}/leave', [MessagingController::class, 'leaveGroup'])->name('api.conversations.leave');
-    Route::delete('/api/conversations/{conversation}/disband', [MessagingController::class, 'disbandGroup'])->name('api.conversations.disband');
+    Route::post('/api/conversations/{conversation}/disband', [MessagingController::class, 'disbandGroup'])->name('api.conversations.disband');
+    Route::post('/api/conversations/{conversation}/kick', [MessagingController::class, 'kickMember'])->name('api.conversations.kick');
+    Route::post('/api/conversations/{conversation}/invite', [MessagingController::class, 'inviteMember'])->name('api.conversations.invite');
     Route::patch('/api/conversations/{conversation}/name', [MessagingController::class, 'updateGroupName'])->name('api.conversations.name');
     Route::get('/api/conversations/{conversation}/search', [MessagingController::class, 'searchMessages'])->name('api.conversations.search');
     Route::post('/api/conversations/{conversation}/report', [MessagingController::class, 'reportConversation'])->name('api.conversations.report');

@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePage } from '@inertiajs/react';
 import { useCurrents } from '@/Contexts/CurrentsContext';
-import { SkipForward, Volume2, VolumeX, Mic, MicOff, Send, MessageCircle, Users, Music, LogOut, Crown, X, ThumbsUp, ThumbsDown, ChevronUp, ChevronDown, ListMusic, Radio, Maximize2, Minimize2 } from 'lucide-react';
+import { SkipForward, Volume2, VolumeX, Mic, MicOff, Send, MessageCircle, Users, Music, LogOut, Crown, X, ThumbsUp, ThumbsDown, ChevronUp, ChevronDown, ListMusic, Radio, Maximize2, Minimize2, Play, Pause, Save } from 'lucide-react';
 
 /**
  * MusicPlayer — Bottom-docked bar inside the CurrentsPanel card.
@@ -26,8 +26,17 @@ export default function MusicPlayer() {
     const { session, participants, listenerCount, votes, myVote, chatMessages,
         isMicEnabled, isMicMuted, locallyMutedUsers, trackElapsed,
         activeTab, setActiveTab, isExpanded, setIsExpanded,
+        isLocalMusicPaused, setIsLocalMusicPaused,
+        isLocalMusicMuted, setIsLocalMusicMuted,
         leaveSession, endSession, toggleMic, toggleLocalMute,
-        sendChat, castVote, addTrack, playNext } = ctx;
+        sendChat, castVote, addTrack, playNext, saveTrack } = ctx;
+
+    const [isSaved, setIsSaved] = useState(false);
+
+    const handleSaveTrack = async () => {
+        const success = await saveTrack();
+        if (success) setIsSaved(true);
+    };
 
     const isHost = session.admin_id === auth?.user?.id;
 
@@ -89,6 +98,12 @@ export default function MusicPlayer() {
                             className={`p-2 rounded-xl transition-all ${!isMicEnabled ? 'text-ocean-text-dim bg-ocean-surface/50' : isMicMuted ? 'text-rose-400 bg-rose-500/10' : 'text-biolum bg-biolum/10'}`}>
                             {isMicEnabled && !isMicMuted ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                         </button>
+                        <button onClick={() => setIsLocalMusicPaused(!isLocalMusicPaused)} className="p-2 rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-all" title={isLocalMusicPaused ? "Play Music" : "Pause Music"}>
+                            {isLocalMusicPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                        </button>
+                        <button onClick={() => setIsLocalMusicMuted(!isLocalMusicMuted)} className="p-2 rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-all" title={isLocalMusicMuted ? "Unmute Music" : "Mute Music"}>
+                            {isLocalMusicMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                        </button>
                         <button onClick={leaveSession} className="p-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-all" title="Leave">
                             <LogOut className="w-4 h-4" />
                         </button>
@@ -131,6 +146,12 @@ export default function MusicPlayer() {
                                 <img key={v.id} src={v.avatar || '/images/default-avatar.png'} className="w-5 h-5 rounded-full border-2 border-ocean-card object-cover" title={v.name} />
                             ))}
                         </div>
+                        <button onClick={handleSaveTrack}
+                            disabled={isSaved}
+                            className={`flex items-center justify-center p-2 rounded-xl transition-all ${isSaved ? 'text-biolum bg-biolum/10' : 'text-ocean-text-dim bg-ocean-surface/40 hover:text-ocean-text'}`}
+                            title="Save Track to Library">
+                            <Save className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 
@@ -423,6 +444,12 @@ export default function MusicPlayer() {
                     </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={(e) => { e.stopPropagation(); setIsLocalMusicPaused(!isLocalMusicPaused); }} className="p-2 rounded-xl text-ocean-text-dim hover:text-ocean-text transition-all" title={isLocalMusicPaused ? "Play" : "Pause"}>
+                        {isLocalMusicPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); setIsLocalMusicMuted(!isLocalMusicMuted); }} className="p-2 rounded-xl text-ocean-text-dim hover:text-ocean-text transition-all" title="Mute/Unmute">
+                        {isLocalMusicMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                    </button>
                     <button onClick={(e) => { e.stopPropagation(); toggleMic(); }}
                         className={`p-2 rounded-xl transition-all ${!isMicEnabled ? 'text-ocean-text-dim' : isMicMuted ? 'text-rose-400' : 'text-biolum'}`}>
                         {isMicEnabled && !isMicMuted ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
