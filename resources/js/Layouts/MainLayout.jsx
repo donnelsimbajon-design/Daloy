@@ -35,8 +35,10 @@ export default function MainLayout({ children }) {
             root.removeAttribute('data-high-contrast');
         }
 
-        // Dark mode
-        if (user?.dark_mode) {
+        // Dark mode — default to dark unless user explicitly set it to light (false)
+        // user?.dark_mode is `false` only when explicitly disabled; undefined/null/true = dark
+        const isDark = user?.dark_mode !== false;
+        if (isDark) {
             root.classList.add('dark');
             root.setAttribute('data-theme', 'dark');
         } else {

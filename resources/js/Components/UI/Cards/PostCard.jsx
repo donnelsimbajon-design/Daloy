@@ -349,8 +349,8 @@ export default function PostCard({ post }) {
             )}
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
-                <div className="flex items-center justify-between">
+            <div className="px-3 sm:px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <PostActions
                         reactionsCount={reactionsCount}
                         commentsCount={commentsCount}
@@ -361,7 +361,7 @@ export default function PostCard({ post }) {
                     />
 
                     {/* Flow Velocity Badge */}
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
+                    <div className={`px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
                         ? 'text-biolum bg-biolum/10 border border-biolum/20'
                         : 'text-ocean-text-dim/70 bg-ocean-surface/60 border border-ocean-divider-subtle'
                         }`}>

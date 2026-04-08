@@ -679,17 +679,17 @@ export default function GroupCallOverlay({
         )}
 
         {/* ── Main overlay ─────────────────────────────────────────── */}
-        <div className="fixed inset-0 z-[200] flex bg-zinc-950 overflow-hidden">
+        <div className="fixed inset-0 z-[200] flex flex-col sm:flex-row bg-zinc-950 overflow-hidden">
 
             {/* Left: video area */}
             <div className="flex-1 flex flex-col relative min-w-0">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-20">
-                    <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-                        <div>
-                            <h2 className="text-white font-bold text-lg">{conversationName}</h2>
-                            <p className="text-white/50 text-sm">{participantsList.length} participants · {formatDuration(callDuration)}</p>
+                <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 right-0 z-20">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                        <div className="min-w-0">
+                            <h2 className="text-white font-bold text-sm sm:text-lg truncate">{conversationName}</h2>
+                            <p className="text-white/50 text-xs sm:text-sm">{participantsList.length} · {formatDuration(callDuration)}</p>
                         </div>
                     </div>
                     <button
@@ -701,7 +701,7 @@ export default function GroupCallOverlay({
                 </div>
 
                 {/* Video / Grid */}
-                <div className="flex-1 overflow-hidden p-4 pt-20 pb-24">
+                <div className="flex-1 overflow-hidden p-2 sm:p-4 pt-16 sm:pt-20 pb-24 sm:pb-28">
                     {focusedUserId ? (
                         /* ── Focused view (screen share OR pinned) ── */
                         <div className="flex gap-3 h-full">
@@ -743,8 +743,8 @@ export default function GroupCallOverlay({
                                 )}
                             </div>
 
-                            {/* Sidebar: all participant tiles */}
-                            <div className="w-[190px] flex flex-col gap-2.5 overflow-y-auto shrink-0">
+                            {/* Sidebar: all participant tiles — scrollable strip on mobile */}
+                            <div className="flex sm:flex-col flex-row gap-2 sm:gap-2.5 overflow-x-auto sm:overflow-y-auto sm:w-[160px] lg:w-[190px] w-full sm:shrink-0 h-24 sm:h-auto shrink-0">
                                 {allParticipantUids.map(uid => renderTile(uid, 'small'))}
                             </div>
                         </div>
@@ -764,7 +764,7 @@ export default function GroupCallOverlay({
                 </div>
 
                 {/* Bottom Controls */}
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 sm:gap-3 bg-black/80 backdrop-blur-xl px-5 py-3 rounded-2xl border border-white/10 shadow-2xl z-20">
+                <div className="absolute bottom-3 sm:bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 sm:gap-2 bg-black/80 backdrop-blur-xl px-2 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl border border-white/10 shadow-2xl z-20 max-w-[calc(100vw-1rem)] overflow-x-auto">
                     {/* Mic */}
                     <button
                         onClick={toggleMic}
@@ -871,9 +871,9 @@ export default function GroupCallOverlay({
                 </div>
             </div>
 
-            {/* ── Chat Sidebar ──────────────────────────────────────────── */}
+            {/* ── Chat Sidebar — full screen on mobile, fixed sidebar on desktop ── */}
             {isChatOpen && (
-                <div className="w-[340px] shrink-0 bg-zinc-900 border-l border-white/10 flex flex-col z-20">
+                <div className="fixed inset-0 sm:static sm:inset-auto sm:w-[300px] lg:w-[340px] sm:shrink-0 bg-zinc-900 border-l border-white/10 flex flex-col z-30">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/20 shrink-0">
                         <h3 className="text-white font-semibold flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-biolum" /> In-Call Chat
@@ -945,9 +945,9 @@ export default function GroupCallOverlay({
                 </div>
             )}
 
-            {/* ── Participants Drawer ───────────────────────────────────── */}
+            {/* ── Participants Drawer — full screen on mobile ── */}
             {showParticipants && (
-                <div className="w-[300px] shrink-0 bg-zinc-900 border-l border-white/10 flex flex-col z-20">
+                <div className="fixed inset-0 sm:static sm:inset-auto sm:w-[260px] lg:w-[300px] sm:shrink-0 bg-zinc-900 border-l border-white/10 flex flex-col z-30">
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-black/20 shrink-0">
                         <h3 className="text-white font-semibold flex items-center gap-2">
                             <Users className="w-4 h-4 text-biolum" /> Participants ({participantsList.length})

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
 import {
     X, ThumbsUp, ThumbsDown, Sparkles,
-    Info, AlertTriangle, AlertOctagon, Wrench, Rocket
+    Info, AlertTriangle, AlertOctagon, Wrench, Rocket, Send
 } from 'lucide-react';
 import axios from 'axios';
 
@@ -43,7 +43,8 @@ export default function GlobalAnnouncementPopup() {
 
     const handleDismiss = async () => {
         const ld = JSON.parse(localStorage.getItem('daloy_dismissed_announcements') || '[]');
-        if (!ld.includes(announcement.id)) localStorage.setItem('daloy_dismissed_announcements', JSON.stringify([...ld, announcement.id]));
+        if (!ld.includes(announcement.id))
+            localStorage.setItem('daloy_dismissed_announcements', JSON.stringify([...ld, announcement.id]));
         try { await axios.post(`/api/announcements/${announcement.id}/interact`, { vote: voted || 'none', feedback, dismissed: true }); } catch {}
         setAnnouncement(null); setVoted(null); setFeedback('');
     };
@@ -66,196 +67,196 @@ export default function GlobalAnnouncementPopup() {
         setIsSubmitting(false);
     };
 
-    // ── Icon per type ──
+    // ── Type config ──
     const typeConfig = {
-        info:        { Icon: Info,           label: 'Information' },
-        warning:     { Icon: AlertTriangle,  label: 'Warning' },
-        critical:    { Icon: AlertOctagon,   label: 'Critical Alert' },
-        maintenance: { Icon: Wrench,         label: 'Maintenance' },
-        feature:     { Icon: Rocket,         label: 'New Feature' },
+        info:        { Icon: Info,          label: 'Information', color: '#60a5fa', glow: 'rgba(96,165,250,0.15)' },
+        warning:     { Icon: AlertTriangle, label: 'Warning',     color: '#fbbf24', glow: 'rgba(251,191,36,0.15)' },
+        critical:    { Icon: AlertOctagon,  label: 'Critical',    color: '#f87171', glow: 'rgba(248,113,113,0.15)' },
+        maintenance: { Icon: Wrench,        label: 'Maintenance', color: '#a78bfa', glow: 'rgba(167,139,250,0.15)' },
+        feature:     { Icon: Rocket,        label: 'New Feature', color: '#34d399', glow: 'rgba(52,211,153,0.15)' },
     };
-    const { Icon: TypeIcon, label: typeLabel } = typeConfig[announcement.type] || typeConfig.info;
+    const { Icon: TypeIcon, label: typeLabel, color: typeColor, glow: typeGlow } =
+        typeConfig[announcement.type] || typeConfig.info;
 
     return (
         <div style={{
             position: 'fixed', inset: 0, zIndex: 99999,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(16px)',
-            padding: 16, animation: 'annFadeIn 0.3s ease-out',
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(16px)',
+            padding: '12px',
+            animation: 'annFadeIn 0.3s ease-out',
         }}>
             <style>{`
                 @keyframes annFadeIn { from { opacity:0 } to { opacity:1 } }
-                @keyframes annSlide { from { opacity:0; transform:scale(0.92) translateY(20px) } to { opacity:1; transform:scale(1) translateY(0) } }
-                @keyframes annIconPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.06) } }
-                .ann-vote-btn { transition: all 0.2s; }
-                .ann-vote-btn:hover { transform: translateY(-2px); }
-                .ann-vote-btn.voted-up { background: rgba(34,197,94,0.15) !important; border-color: rgba(34,197,94,0.5) !important; }
-                .ann-vote-btn.voted-down { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.5) !important; }
+                @keyframes annSlide { from { opacity:0; transform:scale(0.93) translateY(24px) } to { opacity:1; transform:scale(1) translateY(0) } }
+                @keyframes annIconPulse { 0%,100% { transform:scale(1) } 50% { transform:scale(1.08) } }
+                .ann-vote-btn { transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.04); }
+                .ann-vote-btn:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08) !important; }
+                .ann-vote-btn.voted-up { background: rgba(34,197,94,0.15) !important; border-color: rgba(34,197,94,0.4) !important; color: #4ade80 !important; }
+                .ann-vote-btn.voted-down { background: rgba(239,68,68,0.15) !important; border-color: rgba(239,68,68,0.4) !important; color: #f87171 !important; }
             `}</style>
 
+            {/* ── Card — single column on mobile, two-column on desktop ── */}
             <div style={{
-                display: 'flex', width: '100%', maxWidth: 820, minHeight: 440,
+                width: '100%', maxWidth: 780,
+                maxHeight: '90dvh',
                 borderRadius: 20, overflow: 'hidden',
-                background: '#0c0c0f',
+                background: '#0e0e12',
                 border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset',
-                animation: 'annSlide 0.45s cubic-bezier(0.22,1,0.36,1)',
+                boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
+                animation: 'annSlide 0.4s cubic-bezier(0.22,1,0.36,1)',
+                display: 'flex', flexDirection: 'column',
+                position: 'relative',
             }}>
-                {/* ───── LEFT: Icon Panel ───── */}
+
+                {/* ── Top accent bar ── */}
                 <div style={{
-                    width: '38%', minWidth: 240, position: 'relative',
-                    background: 'linear-gradient(160deg, #141418 0%, #1a1a22 100%)',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    padding: '40px 24px',
-                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    height: 4, width: '100%',
+                    background: `linear-gradient(90deg, transparent 0%, ${typeColor} 40%, ${typeColor} 60%, transparent 100%)`,
+                    opacity: 0.7,
+                }} />
+
+                {/* ── Header ── */}
+                <div style={{
+                    display: 'flex', alignItems: 'center', gap: 16,
+                    padding: '20px 20px 16px',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    flexShrink: 0,
                 }}>
-                    {/* Subtle grid pattern */}
+                    {/* Icon */}
                     <div style={{
-                        position: 'absolute', inset: 0, opacity: 0.03,
-                        backgroundImage: 'radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px)',
-                        backgroundSize: '24px 24px',
-                    }} />
-                    {/* Glow behind icon */}
-                    <div style={{
-                        position: 'absolute', width: 200, height: 200, borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)',
-                    }} />
-
-                    {/* Rotated type label */}
-                    <div style={{
-                        position: 'absolute', top: '50%', left: 14,
-                        transform: 'rotate(-90deg) translateX(-50%)', transformOrigin: 'left center',
-                        color: 'rgba(255,255,255,0.1)', fontWeight: 900, fontSize: 18,
-                        letterSpacing: '0.35em', textTransform: 'uppercase', whiteSpace: 'nowrap',
-                    }}>{announcement.type}</div>
-
-                    {/* Main icon */}
-                    <div style={{
-                        background: 'rgba(255,255,255,0.06)', borderRadius: '50%', padding: 28,
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        width: 52, height: 52, borderRadius: 14, flexShrink: 0,
+                        background: typeGlow,
+                        border: `1px solid ${typeColor}30`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
                         animation: 'annIconPulse 3s ease-in-out infinite',
                     }}>
-                        <TypeIcon size={72} color="#ffffff" strokeWidth={1.5} style={{ filter: 'drop-shadow(0 0 20px rgba(255,255,255,0.15))' }} />
+                        <TypeIcon size={26} color={typeColor} strokeWidth={1.8} />
                     </div>
 
-                    {/* Type label */}
-                    <p style={{
-                        marginTop: 20, color: 'rgba(255,255,255,0.35)',
-                        fontSize: 11, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase',
-                    }}>{typeLabel}</p>
+                    {/* Type + title */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{
+                            fontSize: 10, fontWeight: 700, color: typeColor,
+                            textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 4,
+                        }}>{typeLabel}</p>
+                        <h2 style={{
+                            fontSize: 'clamp(16px, 4vw, 22px)', fontWeight: 800, color: '#ffffff',
+                            lineHeight: 1.2, letterSpacing: '-0.02em',
+                            overflow: 'hidden', textOverflow: 'ellipsis',
+                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        }}>{announcement.title}</h2>
+                    </div>
 
-                    {/* Corner accents (no emoji) */}
-                    <div style={{ position: 'absolute', top: 20, right: 20, width: 8, height: 8, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
-                    <div style={{ position: 'absolute', bottom: 24, left: 20, width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-                </div>
-
-                {/* ───── RIGHT: Content Panel ───── */}
-                <div style={{
-                    flex: 1, padding: '36px 32px 28px', display: 'flex', flexDirection: 'column',
-                    background: '#111114', position: 'relative',
-                }}>
                     {/* Close */}
                     <button onClick={handleDismiss} style={{
-                        position: 'absolute', top: 14, right: 14,
+                        flexShrink: 0, width: 36, height: 36, borderRadius: '50%',
                         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: '50%', width: 34, height: 34, cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                        cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.2s', alignSelf: 'flex-start',
                     }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
                     >
-                        <X size={16} color="rgba(255,255,255,0.5)" strokeWidth={2.5} />
+                        <X size={16} color="rgba(255,255,255,0.6)" strokeWidth={2.5} />
                     </button>
+                </div>
 
-                    {/* Title */}
-                    <h2 style={{
-                        fontSize: 28, fontWeight: 800, color: '#ffffff',
-                        lineHeight: 1.15, marginBottom: 14, paddingRight: 36,
-                        letterSpacing: '-0.02em',
-                    }}>{announcement.title}</h2>
+                {/* ── Message body — scrollable on small screens ── */}
+                <div style={{
+                    flex: 1, overflowY: 'auto', padding: '20px',
+                    minHeight: 0,
+                }}>
+                    <p style={{
+                        color: 'rgba(255,255,255,0.6)', fontSize: 'clamp(13px, 3.5vw, 15px)',
+                        lineHeight: 1.75, whiteSpace: 'pre-wrap', fontWeight: 400,
+                    }}>{announcement.message}</p>
+                </div>
 
-                    {/* Message */}
+                {/* ── Success overlay ── */}
+                {showSuccess && (
                     <div style={{
-                        color: 'rgba(255,255,255,0.55)', fontSize: 15, lineHeight: 1.7,
-                        flex: 1, whiteSpace: 'pre-wrap', fontWeight: 400, marginBottom: 20,
-                    }}>{announcement.message}</div>
+                        position: 'absolute', inset: 0, background: 'rgba(14,14,18,0.97)',
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                        zIndex: 10, borderRadius: 20,
+                    }}>
+                        <Sparkles size={40} color={typeColor} />
+                        <p style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginTop: 14 }}>Thank you!</p>
+                        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Your feedback has been recorded</p>
+                    </div>
+                )}
 
-                    {/* ── Success overlay ── */}
-                    {showSuccess && (
-                        <div style={{
-                            position: 'absolute', inset: 0, background: 'rgba(17,17,20,0.97)',
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                            zIndex: 10, borderRadius: '0 20px 20px 0',
-                        }}>
-                            <Sparkles size={40} color="#ffffff" />
-                            <p style={{ fontSize: 18, fontWeight: 700, color: '#fff', marginTop: 12 }}>Thank you!</p>
-                            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>Your feedback has been recorded</p>
-                        </div>
-                    )}
+                {/* ── Voting + Feedback ── */}
+                <div style={{
+                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                    padding: '16px 20px 20px',
+                    flexShrink: 0,
+                    background: 'rgba(0,0,0,0.2)',
+                }}>
+                    <p style={{
+                        fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)',
+                        textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 10,
+                    }}>What do you think?</p>
 
-                    {/* ── Voting ── */}
-                    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 18 }}>
-                        <p style={{
-                            fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.25)',
-                            textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: 10,
-                        }}>What do you think about this update?</p>
+                    {/* Vote buttons */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                        <button
+                            className={`ann-vote-btn ${voted === 'upvote' ? 'voted-up' : ''}`}
+                            onClick={() => handleVote('upvote')} disabled={isSubmitting}
+                            style={{
+                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                padding: '10px 12px', borderRadius: 12,
+                                cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                                color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em',
+                            }}
+                        >
+                            <ThumbsUp size={15} /> Awesome
+                        </button>
+                        <button
+                            className={`ann-vote-btn ${voted === 'downvote' ? 'voted-down' : ''}`}
+                            onClick={() => handleVote('downvote')} disabled={isSubmitting}
+                            style={{
+                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                padding: '10px 12px', borderRadius: 12,
+                                cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                                color: 'rgba(255,255,255,0.6)', letterSpacing: '0.05em',
+                            }}
+                        >
+                            <ThumbsDown size={15} /> Not Good
+                        </button>
+                    </div>
 
-                        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                            <button
-                                className={`ann-vote-btn ${voted === 'upvote' ? 'voted-up' : ''}`}
-                                onClick={() => handleVote('upvote')} disabled={isSubmitting}
-                                style={{
-                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                    padding: '12px 14px', background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
-                                    cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.6)',
-                                    letterSpacing: '0.05em',
-                                }}
-                            >
-                                <ThumbsUp size={16} /> AWESOME
-                            </button>
-                            <button
-                                className={`ann-vote-btn ${voted === 'downvote' ? 'voted-down' : ''}`}
-                                onClick={() => handleVote('downvote')} disabled={isSubmitting}
-                                style={{
-                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                                    padding: '12px 14px', background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12,
-                                    cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'rgba(255,255,255,0.6)',
-                                    letterSpacing: '0.05em',
-                                }}
-                            >
-                                <ThumbsDown size={16} /> NOT GOOD
-                            </button>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: 8 }}>
-                            <input
-                                type="text" value={feedback}
-                                onChange={e => setFeedback(e.target.value)}
-                                placeholder="Share your thoughts..."
-                                onKeyDown={e => e.key === 'Enter' && handleFeedbackSubmit()}
-                                style={{
-                                    flex: 1, background: 'rgba(255,255,255,0.04)',
-                                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
-                                    padding: '11px 14px', fontSize: 13, fontWeight: 400,
-                                    color: '#fff', outline: 'none', transition: 'border-color 0.2s',
-                                }}
-                                onFocus={e => { e.target.style.borderColor = 'rgba(255,255,255,0.2)'; }}
-                                onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.08)'; }}
-                            />
-                            <button
-                                onClick={handleFeedbackSubmit}
-                                disabled={isSubmitting || !feedback.trim()}
-                                style={{
-                                    background: feedback.trim() ? '#fff' : 'rgba(255,255,255,0.06)',
-                                    color: feedback.trim() ? '#000' : 'rgba(255,255,255,0.2)',
-                                    border: 'none', borderRadius: 10, padding: '11px 18px',
-                                    fontWeight: 700, fontSize: 11, cursor: feedback.trim() ? 'pointer' : 'not-allowed',
-                                    textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.2s',
-                                }}
-                            >Send</button>
-                        </div>
+                    {/* Feedback input */}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                            type="text" value={feedback}
+                            onChange={e => setFeedback(e.target.value)}
+                            placeholder="Share your thoughts..."
+                            onKeyDown={e => e.key === 'Enter' && handleFeedbackSubmit()}
+                            style={{
+                                flex: 1, background: 'rgba(255,255,255,0.04)',
+                                border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10,
+                                padding: '10px 14px', fontSize: 13, fontWeight: 400,
+                                color: '#fff', outline: 'none', transition: 'border-color 0.2s',
+                                minWidth: 0,
+                            }}
+                            onFocus={e => { e.target.style.borderColor = typeColor + '60'; }}
+                            onBlur={e => { e.target.style.borderColor = 'rgba(255,255,255,0.08)'; }}
+                        />
+                        <button
+                            onClick={handleFeedbackSubmit}
+                            disabled={isSubmitting || !feedback.trim()}
+                            style={{
+                                background: feedback.trim() ? '#fff' : 'rgba(255,255,255,0.06)',
+                                color: feedback.trim() ? '#000' : 'rgba(255,255,255,0.2)',
+                                border: 'none', borderRadius: 10, padding: '10px 16px',
+                                fontWeight: 700, fontSize: 11, cursor: feedback.trim() ? 'pointer' : 'not-allowed',
+                                textTransform: 'uppercase', letterSpacing: '0.1em', transition: 'all 0.2s',
+                                display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
+                            }}
+                        >
+                            <Send size={13} /> Send
+                        </button>
                     </div>
                 </div>
             </div>

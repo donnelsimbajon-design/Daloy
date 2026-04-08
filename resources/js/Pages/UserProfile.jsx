@@ -298,7 +298,7 @@ export default function UserProfile() {
 
 
             {/* ── ═══════ FULL-WIDTH HEADER ═══════ ── */}
-            <div className="absolute top-0 left-0 w-full h-[200px] sm:h-[320px] md:h-[380px]">
+            <div className="absolute top-0 left-0 w-full h-[160px] sm:h-[240px] md:h-[320px]">
                 {profileUser.background_picture ? (
                     <img src={profileUser.background_picture} alt="Cover" className="w-full h-full object-cover" />
                 ) : (
@@ -308,13 +308,13 @@ export default function UserProfile() {
                 <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ocean-deep via-ocean-deep/60 to-transparent" />
             </div>
 
-            <div className="max-w-6xl mx-auto pt-[120px] sm:pt-[220px] md:pt-[260px] text-ocean-text px-4 relative z-10">
+            <div className="max-w-6xl mx-auto pt-[80px] sm:pt-[160px] md:pt-[200px] text-ocean-text px-3 sm:px-4 relative z-10">
                 
                 {/* ── ═══════ CENTERED PROFILE INFO ═══════ ── */}
-                <div className="flex flex-col items-center text-center -mt-16 sm:-mt-20">
+                <div className="flex flex-col items-center text-center -mt-12 sm:-mt-16 md:-mt-20">
                     {/* Avatar positioned "inside" the background */}
                     <div className="relative group/avatar">
-                        <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full ring-4 ring-ocean-deep bg-ocean-card flex items-center justify-center text-ocean-text font-bold text-4xl overflow-hidden shadow-sm">
+                        <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full ring-4 ring-ocean-deep bg-ocean-card flex items-center justify-center text-ocean-text font-bold text-3xl sm:text-4xl overflow-hidden shadow-sm">
                             {profileUser.profile_picture
                                 ? <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" />
                                 : <span className="text-ocean-text-dim">{avatarText}</span>}
@@ -329,8 +329,8 @@ export default function UserProfile() {
                     </div>
 
                     {/* Name */}
-                    <div className="mt-6">
-                        <h1 className="text-3xl sm:text-4xl font-semibold text-ocean-text tracking-tight mb-1">
+                    <div className="mt-4 sm:mt-6">
+                        <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold text-ocean-text tracking-tight mb-1 px-2">
                             {profileUser.name}
                             {profileUser.privacy_setting === 'private' && (
                                 <svg className="w-6 h-6 text-ocean-text-dim inline-block ml-2 -translate-y-1" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -363,11 +363,11 @@ export default function UserProfile() {
                         </div>
                     )}
                     
-                    {/* Tabs */}
-                    <div className={`${isSelf ? 'mt-2' : 'mt-4'} flex items-center justify-center border-b border-ocean-border w-full py-1 gap-10`}>
+                    {/* Tabs — horizontal scroll on mobile */}
+                    <div className={`${isSelf ? 'mt-2' : 'mt-4'} flex items-center border-b border-ocean-border w-full py-1 gap-6 sm:gap-10 overflow-x-auto scrollbar-hide justify-start sm:justify-center`}>
                         {tabs.map((tab) => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id
+                                className={`profile-tab-btn flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id
                                     ? 'text-ocean-text'
                                     : 'text-ocean-text-dim hover:text-ocean-text'
                                     }`}>

@@ -128,12 +128,12 @@ export default function CreatePostModal({ isOpen, onClose }) {
                 onClick={handleClose}
             />
 
-            {/* Modal */}
-            <div className="fixed inset-0 z-[61] flex items-start justify-center pt-16 sm:pt-24 px-4">
+            {/* Modal — bottom sheet on mobile, centered on desktop */}
+            <div className="fixed inset-0 z-[61] flex items-end sm:items-start justify-center sm:pt-20 px-0 sm:px-4">
                 <div
-                    className="w-full max-w-xl bg-ocean-deep border border-ocean-border rounded-2xl overflow-hidden animate-in"
+                    className="w-full sm:max-w-xl bg-ocean-deep border border-ocean-border sm:rounded-2xl rounded-t-2xl overflow-hidden"
                     onClick={(e) => e.stopPropagation()}
-                    style={{ animation: 'slideUp 0.25s ease-out' }}
+                    style={{ animation: 'slideUp 0.25s ease-out', maxHeight: '95dvh', overflowY: 'auto' }}
                 >
                     {/* Header */}
                     <div className="flex items-center justify-between px-5 py-4 border-b border-ocean-border">
@@ -292,8 +292,8 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 </button>
                             </div>
 
-                            {/* Visibility + Velocity row */}
-                            <div className="flex items-center justify-between gap-3">
+                            {/* Visibility + Velocity row — wraps on small phones */}
+                            <div className="flex flex-wrap items-center justify-between gap-2">
                                 {/* Visibility selector */}
                                 <div className="flex items-center gap-1 bg-ocean-surface/50 rounded-xl p-0.5">
                                     {visibilityOptions.map((opt) => (

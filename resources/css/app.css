@@ -782,3 +782,35 @@ html {
     }
 }
 
+/* ── Scrollbar hide utility ── */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── Prevent FOUC: apply dark class immediately in <html> ── */
+/* This is loaded before React hydrates, preventing white flash */
+html {
+    background-color: #000000;
+}
+
+/* ── Group Call mobile: hide scrollbar on bottom controls bar ── */
+@media (max-width: 640px) {
+    .group-call-controls::-webkit-scrollbar {
+        display: none;
+    }
+    .group-call-controls {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+}
+
+/* ── UserProfile: ensure tab labels don't shrink ── */
+.profile-tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+

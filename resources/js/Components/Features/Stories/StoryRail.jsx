@@ -366,7 +366,7 @@ export default function StoryRail({ horizontal = false }) {
             {/* Stories List */}
             <div
                 ref={scrollContainerRef}
-                className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-2 w-[calc(100vw-2rem)]' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-5 no-scrollbar pb-4 relative z-[1]`}
+                className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-1 w-full' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-3 sm:gap-5 no-scrollbar pb-4 relative z-[1]`}
             >
                 {/* Your Story Avatar */}
                 <div className="flex flex-col items-center gap-2 group cursor-pointer shrink-0" onClick={() => setShowCreateMenu(true)}>
@@ -378,7 +378,7 @@ export default function StoryRail({ horizontal = false }) {
                         className="hidden" 
                     />
                     <div className={`relative p-1 rounded-full group-hover:scale-105 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="w-[64px] h-[64px] rounded-full border-2 border-ocean-border border-dashed p-0.5 group-hover:border-biolum/50 overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative transition-colors">
+                        <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-2 border-ocean-border border-dashed p-0.5 group-hover:border-biolum/50 overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative transition-colors">
                             {user?.profile_picture ? (
                                 <img src={user.profile_picture} alt={user.name} className="w-full h-full rounded-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                             ) : (
@@ -408,7 +408,7 @@ export default function StoryRail({ horizontal = false }) {
                             onClick={() => setSelectedStory(group.items[0])}
                         >
                             <div className="p-[3px] rounded-full bg-gradient-to-tr from-biolum via-biolum-bright to-ocean-border transition-all duration-300 group-hover:scale-[1.03]">
-                                <div className="w-[64px] h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
+                                <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
                                     {firstStory.type === 'text' ? (
                                         <div className="w-full h-full bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] flex items-center justify-center p-2 text-center">
                                             <span className="text-[8px] font-bold text-white leading-tight line-clamp-4 break-words shadow-sm">
@@ -438,7 +438,7 @@ export default function StoryRail({ horizontal = false }) {
                                     )}
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-ocean-text group-hover:text-ocean-text/80 tracking-wide truncate max-w-[72px] text-center transition-colors">
+                            <span className="text-[11px] font-semibold text-ocean-text group-hover:text-ocean-text/80 tracking-wide truncate max-w-[60px] sm:max-w-[72px] text-center transition-colors">
                                 {group.user.name.split(' ')[0]}
                             </span>
                         </div>
@@ -732,11 +732,11 @@ export default function StoryRail({ horizontal = false }) {
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
 
-                    <div className="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6 relative z-10 max-w-lg w-full px-4">
-                        {/* Photo Story Card — Black */}
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 relative z-10 max-w-lg w-full px-4">
+                        {/* Photo Story Card */}
                         <div 
                             onClick={() => fileInputRef.current?.click()}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ring-1 ring-white/10 relative overflow-hidden"
+                            className="group cursor-pointer w-full sm:w-56 aspect-[3/2] sm:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#1a1a1a] to-[#2d2d2d] p-5 sm:p-6 flex flex-row sm:flex-col items-center sm:justify-center gap-4 hover:scale-[1.02] sm:hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.4)] ring-1 ring-white/10 relative overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.06),transparent_60%)]" />
                             <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white shrink-0 ring-1 ring-white/15 relative z-10 transition-transform group-hover:scale-110">
@@ -746,10 +746,10 @@ export default function StoryRail({ horizontal = false }) {
                             <span className="text-white/40 text-xs text-center relative z-10">Share a moment</span>
                         </div>
 
-                        {/* Text Story Card — White */}
+                        {/* Text Story Card */}
                         <div 
                             onClick={handleTextStorySelect}
-                            className="group cursor-pointer w-full md:w-60 aspect-[3/4] md:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#f5f5f5] to-[#e0e0e0] p-6 flex flex-col items-center justify-center gap-4 hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.15)] ring-1 ring-black/5 relative overflow-hidden"
+                            className="group cursor-pointer w-full sm:w-56 aspect-[3/2] sm:aspect-[4/5] rounded-[24px] bg-gradient-to-br from-[#f5f5f5] to-[#e0e0e0] p-5 sm:p-6 flex flex-row sm:flex-col items-center sm:justify-center gap-4 hover:scale-[1.02] sm:hover:scale-[1.03] transition-transform duration-300 shadow-[0_8px_32px_rgba(0,0,0,0.15)] ring-1 ring-black/5 relative overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom,rgba(0,0,0,0.03),transparent_60%)]" />
                             <div className="w-16 h-16 rounded-full bg-black/8 flex items-center justify-center text-[#1a1a1a] shrink-0 ring-1 ring-black/10 relative z-10 transition-transform group-hover:scale-110">
@@ -768,7 +768,7 @@ export default function StoryRail({ horizontal = false }) {
                 <div className="fixed inset-0 z-[100] flex bg-[#030712] animate-in fade-in duration-200">
                     
                     {/* Left Sidebar (Settings) */}
-                    <div className="w-full md:w-80 bg-ocean-deep border-r border-ocean-border flex flex-col shrink-0 h-full fixed md:relative z-20 md:z-auto transition-transform duration-300 transform md:translate-x-0 shadow-2xl">
+                    <div className="w-full md:w-80 bg-ocean-deep border-r border-ocean-border flex flex-col shrink-0 h-full fixed md:relative z-20 md:z-auto transition-transform duration-300 transform md:translate-x-0 shadow-2xl overflow-hidden">
                         {/* Header */}
                         <div className="flex items-center gap-4 px-4 py-3 border-b border-ocean-divider bg-ocean-deep">
                             <button onClick={() => setShowCreateModal(false)} className="w-10 h-10 flex items-center justify-center rounded-full bg-ocean-card border border-ocean-divider-subtle hover:bg-ocean-surface text-ocean-text-dim hover:text-ocean-text transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
@@ -777,7 +777,7 @@ export default function StoryRail({ horizontal = false }) {
                             <h2 className="text-[17px] font-semibold text-ocean-text">Your story</h2>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto w-full no-scrollbar">
+                        <div className="flex-1 overflow-y-auto w-full no-scrollbar pb-4 md:pb-0">
                             {/* User Info */}
                             <div className="p-4 mx-4 mt-4 border border-ocean-divider-subtle rounded-[16px] bg-ocean-card shadow-[0_1px_3px_rgba(0,0,0,0.03)] flex items-center gap-3">
                                 <div className="w-12 h-12 rounded-full border border-ocean-divider overflow-hidden flex-shrink-0">
