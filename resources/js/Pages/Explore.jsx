@@ -91,109 +91,43 @@ export default function Explore({
             <Head title="Explore — Deep Tides" />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-20">
-                {/* ═══════════════════════════════════════════════════
-                    SEARCH BAR
-                ═══════════════════════════════════════════════════ */}
-                <div className="relative mb-8 max-w-2xl mx-auto">
-                    <div className="relative">
-                        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                        </svg>
-                        <input
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            placeholder="Search currents..."
-                            className="w-full pl-12 pr-10 py-3 bg-ocean-card border border-ocean-divider rounded-2xl text-sm text-ocean-text placeholder-ocean-text-dim/60 focus:border-biolum/40 transition-all"
-                        />
-                        {searchQuery && (
-                            <button onClick={() => { setSearchQuery(''); setSearchResults(null); }} className="absolute right-4 top-1/2 -translate-y-1/2 text-ocean-text-dim hover:text-ocean-text transition-colors">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                        )}
-                    </div>
-                    {isSearching && (
-                        <div className="absolute right-12 top-1/2 -translate-y-1/2">
-                            <div className="w-4 h-4 border-2 border-ocean-text-dim/30 border-t-biolum rounded-full animate-spin" />
-                        </div>
-                    )}
-                </div>
-
                 {/* ── Search Results overlay ── */}
                 {searchResults && searchQuery && (
-                    <div className="max-w-4xl mx-auto space-y-10 animate-subtle-in mb-12">
-                        {/* Highlights (Top Search Hit) */}
+                    <div className="mb-10 animate-subtle-in">
+                        {/* Matched Voyagers Horizontal Slider */}
                         {searchResults.people?.length > 0 && (
-                            <section>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="p-2 rounded-lg bg-biolum/10 text-biolum">
-                                        <Users size={18} />
-                                    </div>
-                                    <h2 className="text-lg font-black text-ocean-text tracking-tight uppercase tracking-widest">Matched Voyager</h2>
+                            <div className="w-full overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+                                <div className="flex items-center gap-4 min-w-max">
+                                    {searchResults.people.map(user => {
+                                        const nameParts = user.name.split(' ');
+                                        const firstName = nameParts[0];
+                                        const lastName = nameParts.slice(1).join(' ');
+                                        return (
+                                            <Link key={user.id} href={`/users/${user.id}`} className="flex items-center gap-3 bg-ocean-card/30 hover:bg-ocean-surface border border-ocean-divider/40 rounded-full p-1.5 pr-6 transition-all duration-300 group cursor-pointer shrink-0 shadow-sm hover:shadow-md">
+                                                <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-ocean-surface group-hover:border-biolum/50 bg-ocean-surface transition-colors relative flex items-center justify-center shrink-0">
+                                                    {user.profile_picture ? (
+                                                        <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <span className="font-bold text-ocean-text-dim text-lg uppercase">{firstName.charAt(0)}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col justify-center">
+                                                    <span className="text-[13px] font-bold text-ocean-text leading-tight group-hover:text-biolum transition-colors">{firstName}</span>
+                                                    {lastName && <span className="text-[13px] font-bold text-ocean-text leading-tight group-hover:text-biolum transition-colors">{lastName}</span>}
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {searchResults.people.slice(0, 3).map(user => (
-                                        <UserCard key={user.id} user={user} showActions={true} />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-
-                        <div className="flex items-center justify-between border-b border-ocean-divider pb-4">
-                            <h2 className="text-xl sm:text-2xl font-black text-ocean-text tracking-tight">Trending Across the Ocean</h2>
-                            <p className="text-sm text-ocean-text-dim">Results for "{searchQuery}"</p>
-                        </div>
-
-                        {searchResults.posts?.length > 0 ? (
-                            <div className="space-y-1">
-                                {searchResults.posts.map(post => (
-                                    <TrendingPostRow key={post.id} post={post} />
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="text-center py-20 border border-dashed border-ocean-divider rounded-3xl bg-ocean-card/50">
-                                <Waves className="mx-auto text-ocean-text-dim/20 mb-4" size={48} />
-                                <p className="text-ocean-text-dim font-medium italic">No matching currents found...</p>
                             </div>
                         )}
 
-                        {/* Other Categories */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8 border-t border-ocean-divider">
-                            {searchResults.schools?.length > 0 && (
-                                <section>
-                                    <h3 className="text-xs font-black text-ocean-text-dim mb-4 uppercase tracking-[0.2em]">Group Currents</h3>
-                                    <div className="space-y-3">
-                                        {searchResults.schools.map(school => (
-                                            <Link key={school.id} href={`/schools/${school.id}`} className="block p-4 bg-ocean-card border border-ocean-divider rounded-2xl hover:border-biolum/30 transition-all hover:bg-ocean-surface group">
-                                                <h4 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors">{school.name}</h4>
-                                                <p className="text-[11px] text-ocean-text-dim mt-1">{formatCount(school.members_count)} members</p>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-
-                            {searchResults.hashtags?.length > 0 && (
-                                <section>
-                                    <h3 className="text-xs font-black text-ocean-text-dim mb-4 uppercase tracking-[0.2em]">Tag Currents</h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {searchResults.hashtags.map(tag => (
-                                            <Link key={tag.id} href={`/hashtag/${tag.name.replace('#', '')}`} className="px-4 py-2 bg-ocean-card border border-ocean-divider rounded-full hover:border-biolum/30 text-sm font-bold text-biolum transition-all">
-                                                {tag.name} <span className="text-ocean-text-dim font-normal ml-1">({tag.posts_count})</span>
-                                            </Link>
-                                        ))}
-                                    </div>
-                                </section>
-                            )}
-                        </div>
                     </div>
                 )}
 
-                {(!searchResults || !searchQuery) && (
-                    <>
-                        {/* ═══════════════════════════════════════════════════
-                            FEATURED EXPLORATION — "Deep Tides" Hero
-                        ═══════════════════════════════════════════════════ */}
+                {/* ═══════════════════════════════════════════════════
+                    FEATURED EXPLORATION — "Deep Tides" Hero
+                ═══════════════════════════════════════════════════ */}
                         <section className="mb-10 animate-subtle-in">
                             {/* Section Header */}
                             <div className="flex items-end justify-between mb-5">
@@ -455,8 +389,7 @@ export default function Explore({
                                 <Link href="/settings" className="hover:text-ocean-text-muted transition-colors uppercase tracking-wider font-medium">Terms</Link>
                             </div>
                         </footer>
-                    </>
-                )}
+
             </div>
         </MainLayout>
     );

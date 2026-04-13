@@ -69,7 +69,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/events', [EventController::class, 'globalIndex'])->name('events.global');
     Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
     Route::get('/ripples', [RippleController::class, 'index'])->name('ripples');
-    Route::get('/conversations', function () { return Inertia::render('Conversations'); });
+    Route::get('/conversations/{id?}', function () { return Inertia::render('Conversations'); });
 
     // ── Saved Posts / Bookmarks ──────────────────────────────────
     Route::get('/saved', [BookmarkController::class, 'index'])->name('saved');

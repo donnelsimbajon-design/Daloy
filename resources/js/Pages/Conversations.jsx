@@ -55,6 +55,20 @@ export default function Conversations() {
         }
     }, [startUserId, conversations]);
 
+    // Handle /conversations/{id} route manually via window.location
+    useEffect(() => {
+        const pathParts = window.location.pathname.split('/');
+        const convIdStr = pathParts.pop();
+        const parsedId = parseInt(convIdStr);
+        if (parsedId && !isNaN(parsedId) && !selectedConversation && conversations.length > 0) {
+            const conv = conversations.find(c => c.id === parsedId);
+            if (conv) {
+                setSelectedConversation(conv);
+                if (window.innerWidth < 768) setMobileView('chat');
+            }
+        }
+    }, [conversations, selectedConversation]);
+
     useEffect(() => {
         if (selectedConversation) {
             setIsBlocked(false); // reset block state when switching conversations
@@ -578,7 +592,22 @@ export default function Conversations() {
                                             }
 
                                             return (
-                                                <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                                <div key={msg.id} className={`flex items-end w-full ${isMe ? 'justify-end' : 'justify-start'} mb-1`}>
+                                                    {!isMe && (
+                                                        <Link 
+                                                            href={`/users/${msg.user?.id || otherUser?.id}`} 
+                                                            className="shrink-0 mr-2 rounded-full overflow-hidden bg-ocean-surface hover:ring-2 hover:ring-biolum/50 transition-all cursor-pointer relative"
+                                                            style={{ display: 'block', width: '28px', height: '28px', minWidth: '28px', minHeight: '28px', maxWidth: '28px', maxHeight: '28px', flexShrink: 0, flexGrow: 0 }}
+                                                        >
+                                                            {(msg.user?.profile_picture || otherUser?.profile_picture) ? (
+                                                                <img src={msg.user?.profile_picture || otherUser?.profile_picture} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} alt="" />
+                                                            ) : (
+                                                                <div style={{ width: '100%', height: '100%', backgroundColor: '#0891b2', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
+                                                                    {(msg.user?.name || otherUser?.name || 'U').charAt(0)}
+                                                                </div>
+                                                            )}
+                                                        </Link>
+                                                    )}
                                                     <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed ${isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
                                                         {msg.story_id && (
                                                             <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-3 ${isMe ? 'border-white/20' : 'border-ocean-border'}`}>
@@ -656,10 +685,18 @@ export default function Conversations() {
                                                                 <svg className="w-3.5 h-3.5 opacity-50" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                                             )}
                                                             {isMe && msg.read_at && (
-                                                                <svg className="w-3.5 h-3.5 text-emerald-300" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                <div className="w-3.5 h-3.5 rounded-full overflow-hidden shrink-0 inline-block">
+                                                                    {(otherUser?.profile_picture) ? (
+                                                                        <img src={otherUser.profile_picture} className="w-full h-full object-cover" alt="Read" />
+                                                                    ) : (
+                                                                        <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-[7px] font-bold">
+                                                                            {(otherUser?.name || 'U').charAt(0)}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             )}
                                                             {isMe && !msg.read_at && msg.id && msg.id < 100000000000 && (
-                                                                <svg className="w-3.5 h-3.5 text-white/50" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                <svg className="w-3.5 h-3.5 text-ocean-text-dim/60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                                             )}
                                                         </div>
                                                     </div>

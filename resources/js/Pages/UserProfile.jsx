@@ -627,6 +627,48 @@ export default function UserProfile() {
                                 </div>
                             )}
 
+                            {/* ── FRIENDS ── */}
+                            {activeTab === 'friends' && (
+                                <div className="bg-ocean-card border border-ocean-border rounded-[20px] p-6 shadow-sm">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="text-sm font-bold text-ocean-text">Friends</h2>
+                                        <span className="text-xs font-semibold text-ocean-text-dim px-3 py-1 bg-ocean-surface rounded-full">{profileUser.friend_count ?? 0}</span>
+                                    </div>
+                                    
+                                    {friends && friends.length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {friends.map(friend => (
+                                                <Link key={friend.id} href={`/users/${friend.id}`} className="flex items-center gap-4 p-4 bg-ocean-surface border border-ocean-border rounded-xl hover:border-biolum/30 transition-all group">
+                                                    <div className="w-12 h-12 rounded-[14px] overflow-hidden bg-ocean-deep shrink-0">
+                                                        {friend.profile_picture ? (
+                                                            <img src={friend.profile_picture} alt="" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-base font-bold">
+                                                                {friend.name?.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors">{friend.name}</h3>
+                                                        <p className="text-xs text-ocean-text-dim">{friend.friend_count ?? 0} friends</p>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="py-12 flex flex-col justify-center items-center border border-dashed border-ocean-border rounded-2xl text-center">
+                                            <div className="w-12 h-12 rounded-xl bg-ocean-surface flex items-center justify-center mb-3">
+                                                <svg className="w-6 h-6 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                                                </svg>
+                                            </div>
+                                            <p className="text-ocean-text font-bold mb-1">No friends to show</p>
+                                            <p className="text-ocean-text-dim text-xs">When {profileUser.name.split(' ')[0]} connects with others, they'll appear here.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {/* ── GALLERY ── */}
                             {activeTab === 'gallery' && (
                                 <div className="bg-ocean-card border border-ocean-border rounded-[20px] p-6 shadow-sm">

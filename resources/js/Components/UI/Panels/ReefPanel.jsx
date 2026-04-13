@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { usePage, router } from '@inertiajs/react';
+import { usePage, router, Link } from '@inertiajs/react';
 import axios from 'axios';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/Components/shadcn/card';
 import { Button } from '@/Components/shadcn/button';
@@ -156,7 +156,7 @@ function GroupsPanel() {
                     <div key={group.id} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
                         <div className="flex items-center gap-3">
                             {group.profile_image ? (
-                                <img src={`/storage/${group.profile_image}`} alt={group.name} className="w-10 h-10 rounded-xl object-cover" />
+                                <img src={group.profile_image} alt={group.name} className="w-10 h-10 rounded-xl object-cover" />
                             ) : (
                                 <div className={`w-10 h-10 rounded-xl ${groupColors[i % groupColors.length]} flex items-center justify-center text-white font-bold text-sm`}>
                                     {group.initial}
@@ -293,9 +293,10 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
                         </svg>
                     </button>
-                    <button 
-                        onClick={() => { if (chat.user_id) router.visit(`/users/${chat.user_id}`); }}
+                    <Link 
+                        href={`/conversations/${chat.id}`}
                         className="flex items-center gap-3 group"
+                        title="Open in Messenger"
                     >
                         {chat.avatar ? (
                             <img src={chat.avatar} alt={chat.name} className="w-9 h-9 rounded-full object-cover shrink-0 group-hover:ring-2 group-hover:ring-biolum/50 transition-all" />
@@ -308,7 +309,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                             <h3 className="text-sm font-bold text-ocean-text leading-tight group-hover:text-biolum transition-colors">{chat.name}</h3>
                             <p className="text-[10px] text-biolum font-medium">Active now</p>
                         </div>
-                    </button>
+                    </Link>
                 </div>
 
                 {/* Call Actions + Info */}
@@ -374,7 +375,22 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                     messages.map(msg => {
                         const isSelf = msg.user_id === currentUser.id;
                         return (
-                            <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
+                            <div key={msg.id} className={`flex items-end ${isSelf ? 'justify-end' : 'justify-start'} mb-1 animate-[fadeIn_0.2s_ease-out]`}>
+                                {!isSelf && (
+                                    <Link 
+                                        href={`/conversations/${chat.id}`} 
+                                        className="shrink-0 mr-2 rounded-full overflow-hidden bg-ocean-surface hover:ring-2 hover:ring-biolum/50 transition-all cursor-pointer relative"
+                                        style={{ display: 'block', width: '24px', height: '24px', minWidth: '24px', minHeight: '24px', maxWidth: '24px', maxHeight: '24px', flexShrink: 0, flexGrow: 0 }}
+                                    >
+                                        {(msg.user?.profile_picture || chat.avatar) ? (
+                                            <img src={msg.user?.profile_picture || chat.avatar} style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', top: 0, left: 0 }} alt="" />
+                                        ) : (
+                                            <div style={{ width: '100%', height: '100%', backgroundColor: '#0891b2', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: '10px', fontWeight: 'bold' }}>
+                                                {(msg.user?.name || chat.name || 'U').charAt(0)}
+                                            </div>
+                                        )}
+                                    </Link>
+                                )}
                                 <div className={`max-w-[85%] relative text-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-ocean-divider-subtle ${isSelf ? 'bg-biolum text-white rounded-[18px] rounded-tr-sm self-end' : 'bg-ocean-card/60 text-ocean-text rounded-[18px] rounded-tl-sm self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
                                     {msg.story_id && (
                                         <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
@@ -438,9 +454,23 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                                             })()}
                                         </div>
                                     )}
-                                    <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
+                                    <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
                                         {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
+                                        {isSelf && msg.read_at && (
+                                            <div className="w-3 h-3 rounded-full overflow-hidden shrink-0 inline-block ml-0.5">
+                                                {(msg.user?.profile_picture || chat.avatar) ? (
+                                                    <img src={msg.user?.profile_picture || chat.avatar} className="w-full h-full object-cover" alt="Read" />
+                                                ) : (
+                                                    <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-[6px] font-bold">
+                                                        {(msg.user?.name || chat.name || 'U').charAt(0)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        {isSelf && !msg.read_at && (
+                                            <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         );

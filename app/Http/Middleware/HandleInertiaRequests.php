@@ -131,13 +131,16 @@ class HandleInertiaRequests extends Middleware
                 ->whereNull('read_at')
                 ->count() > 0;
 
+            $isGroup = $convo->type === 'group';
+
             return [
                 'id'        => $convo->id,
-                'user_id'   => $other?->id,
-                'name'      => $other?->name ?? 'Unknown',
-                'username'  => $other?->username ?? '',
-                'avatar'    => $other?->profile_picture ?? null,
-                'initial'   => strtoupper(substr($other?->name ?? '?', 0, 1)),
+                'type'      => $convo->type,
+                'user_id'   => $isGroup ? null : $other?->id,
+                'name'      => $isGroup ? ($convo->name ?? 'Group Chat') : ($other?->name ?? 'Unknown'),
+                'username'  => $isGroup ? '' : ($other?->username ?? ''),
+                'avatar'    => $isGroup ? $convo->avatar_url : ($other?->profile_picture ?? null),
+                'initial'   => strtoupper(substr($isGroup ? ($convo->name ?? 'Group Chat') : ($other?->name ?? '?'), 0, 1)),
                 'message'   => $latestMsg?->content ?? 'No messages yet',
                 'time'      => $latestMsg ? $latestMsg->created_at->diffForHumans(null, true) . ' ago' : '',
                 'unread'    => $unread,

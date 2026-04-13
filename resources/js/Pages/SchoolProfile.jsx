@@ -102,30 +102,32 @@ export default function SchoolProfile() {
         } catch (err) { console.error(err); }
     };
 
-    const handleCoverUpload = async (e) => {
+    const handleCoverUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         setUploadingCover(true);
-        const fd = new FormData();
-        fd.append('cover_image', file);
-        try {
-            await axios.post(`/schools/${school.id}/cover-image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-            router.reload({ only: ['school'] });
-        } catch (err) { console.error(err); }
-        setUploadingCover(false);
+        router.post(`/schools/${school.id}/cover-image`, {
+            cover_image: file
+        }, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => setUploadingCover(false),
+            onError: (err) => { console.error(err); alert('Failed to upload cover image.'); }
+        });
     };
 
-    const handleProfileUpload = async (e) => {
+    const handleProfileUpload = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         setUploadingProfile(true);
-        const fd = new FormData();
-        fd.append('profile_image', file);
-        try {
-            await axios.post(`/schools/${school.id}/profile-image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-            router.reload({ only: ['school'] });
-        } catch (err) { console.error(err); }
-        setUploadingProfile(false);
+        router.post(`/schools/${school.id}/profile-image`, {
+            profile_image: file
+        }, {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => setUploadingProfile(false),
+            onError: (err) => { console.error(err); alert('Failed to upload profile image.'); }
+        });
     };
 
     const handleSaveDetails = async () => {
