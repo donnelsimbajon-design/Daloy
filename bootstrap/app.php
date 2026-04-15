@@ -38,6 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
+            \App\Http\Middleware\CheckBannedMiddleware::class,
         ]);
 
         $middleware->alias([
@@ -51,6 +52,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(prepend: [
             \Illuminate\Cookie\Middleware\EncryptCookies::class,
             \Illuminate\Session\Middleware\StartSession::class,
+        ]);
+
+        $middleware->api(append: [
+            \App\Http\Middleware\CheckBannedMiddleware::class,
         ]);
     })
 

@@ -60,6 +60,11 @@ Route::middleware('guest')->group(function () {
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
+    // Banned Page
+    Route::get('/banned', [\App\Http\Controllers\BannedController::class, 'show'])->name('banned');
+    Route::get('/banned/appeal', [\App\Http\Controllers\BannedController::class, 'appeal'])->name('banned.appeal');
+    Route::post('/banned/appeal', [\App\Http\Controllers\BannedController::class, 'submitAppeal'])->name('banned.appeal.submit');
+
     // Auth dashboard (named 'dashboard' so redirects from login work)
     Route::get('/app', [PostController::class, 'index'])->name('dashboard');
     Route::get('/home', [PostController::class, 'index']);
@@ -274,7 +279,8 @@ Route::middleware('auth')->group(function () {
         return response()->json($reports);
     })->name('settings.my-reports');
 
-    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::post('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::get('logout', [\App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy']);
 });
 
 /*
@@ -296,6 +302,7 @@ use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\LiveMonitorController;
 use App\Http\Controllers\RolesController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\Admin\MonitoringController as AdminMonitoringController;
 
 Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'store']);
@@ -332,6 +339,15 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->group(function () {
     // Messages
     Route::get('/messages', [AdminMessageController::class, 'index'])->name('admin.messages');
     Route::post('/messages/{report}/action', [AdminMessageController::class, 'action'])->name('admin.messages.action');
+    Route::get('/messages/conversations', [AdminMessageController::class, 'conversations'])->name('admin.messages.conversations');
+
+    // Monitoring (Stories, Currents, Conversation Inspect, Call Logs)
+    Route::get('/monitoring', [AdminMonitoringController::class, 'index'])->name('admin.monitoring');
+    Route::post('/monitoring/stories/{id}/delete', [AdminMonitoringController::class, 'deleteStory'])->name('admin.monitoring.story.delete');
+    Route::get('/monitoring/conversations', [AdminMonitoringController::class, 'conversations'])->name('admin.monitoring.conversations');
+    Route::post('/monitoring/conversations/{id}/inspect', [AdminMonitoringController::class, 'inspectThread'])->name('admin.monitoring.inspect');
+    Route::get('/monitoring/call-logs', [AdminMonitoringController::class, 'callLogs'])->name('admin.monitoring.calls');
+    Route::post('/monitoring/calls/{id}/restrict', [AdminMonitoringController::class, 'restrictCaller'])->name('admin.monitoring.restrict');
 
     // Analytics
     Route::get('/analytics', AdminAnalyticsController::class)->name('admin.analytics');

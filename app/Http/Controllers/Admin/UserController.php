@@ -30,17 +30,12 @@ class UserController extends BaseAdminController
 
         if ($status = $request->input('status')) {
             if ($status === 'banned') {
-                $query->whereIn('id', ModerationAction::where('target_type', 'user')
-                    ->where('action_type', 'ban_user')->pluck('target_id'));
+                $query->whereNotNull('banned_until')->where('banned_until', '>', now());
             } elseif ($status === 'suspended') {
                 $query->whereIn('id', ModerationAction::where('target_type', 'user')
                     ->where('action_type', 'suspend_user')->pluck('target_id'));
             }
         }
-
-        $bannedIds = ModerationAction::where('target_type', 'user')
-            ->where('action_type', 'ban_user')
-            ->pluck('target_id')->toArray();
 
         $suspendedIds = ModerationAction::where('target_type', 'user')
             ->where('action_type', 'suspend_user')
@@ -52,8 +47,9 @@ class UserController extends BaseAdminController
             'username' => $user->username,
             'email' => $user->email,
             'profile_picture' => $user->profile_picture,
-            'status' => in_array($user->id, $bannedIds) ? 'banned'
+            'status' => ($user->banned_until && $user->banned_until->isFuture()) ? 'banned'
                       : (in_array($user->id, $suspendedIds) ? 'suspended' : 'active'),
+            'banned_until' => $user->banned_until ? $user->banned_until->format('M d, Y h:i A') : null,
             'role' => $user->admin
                 ? ($user->admin->role === 'super_admin' ? 'admin' : $user->admin->role)
                 : 'user',
@@ -162,29 +158,73 @@ class UserController extends BaseAdminController
         $request->validate([
             'action' => 'required|in:suspend,ban,activate,reset_password,verify,revoke_verify',
             'reason' => 'nullable|string',
+            'duration_days' => 'nullable|numeric|min:1',
         ]);
 
-        $admin = $request->user()->admin;
+        $admin = \App\Models\Admin::where('user_id', $request->user()->id)->first();
         $action = $request->action;
 
         switch ($action) {
-            case 'suspend':
             case 'ban':
+            case 'suspend':
+                $duration = $request->input('duration_days');
+                $bannedUntil = $duration ? now()->addDays((int)$duration) : now()->setYear(9999);
+                $user->update(['banned_until' => $bannedUntil]);
+
                 ModerationAction::create([
                     'admin_id' => $admin->id,
-                    'action_type' => "{$action}_user",
+                    'action_type' => $action === 'ban' ? "ban_user" : "suspend_user",
                     'target_type' => 'user',
                     'target_id' => $user->id,
-                    'reason' => $request->reason,
+                    'reason' => $request->reason . ($duration ? " (Duration: {$duration} days)" : " (Permanent)"),
                 ]);
                 break;
             case 'activate':
+                $user->update(['banned_until' => null]);
                 ModerationAction::where('target_type', 'user')
                     ->where('target_id', $user->id)
                     ->whereIn('action_type', ['suspend_user', 'ban_user'])
                     ->delete();
                 break;
             case 'reset_password':
+                $resetMethod = $request->input('reset_method', 'email');
+
+                if ($resetMethod === 'email') {
+                    \Illuminate\Support\Facades\Password::broker()->sendResetLink(['email' => $user->email]);
+
+                    ModerationAction::create([
+                        'admin_id' => $admin->id,
+                        'action_type' => "reset_password",
+                        'target_type' => 'user',
+                        'target_id' => $user->id,
+                        'reason' => 'Sent password reset link via email.',
+                    ]);
+
+                    $this->logAction($request, 'Reset User Password (Email)', [
+                        'target' => "@{$user->username}",
+                        'target_id' => $user->id,
+                    ]);
+
+                    return back()->with('success', "Password reset email successfully queued for {$user->email}.");
+                } else {
+                    $newPassword = 'Daloy!' . rand(1000, 9999);
+                    $user->update(['password' => Hash::make($newPassword)]);
+
+                    ModerationAction::create([
+                        'admin_id' => $admin->id,
+                        'action_type' => "reset_password",
+                        'target_type' => 'user',
+                        'target_id' => $user->id,
+                        'reason' => 'Admin manually generated a temporary password.',
+                    ]);
+
+                    $this->logAction($request, 'Reset User Password (Manual)', [
+                        'target' => "@{$user->username}",
+                        'target_id' => $user->id,
+                    ]);
+
+                    return back()->with('success', "Action applied!")->with('message', "Password manually reset to: {$newPassword}");
+                }
                 break;
             case 'verify':
                 $user->update(['email_verified_at' => now()]);

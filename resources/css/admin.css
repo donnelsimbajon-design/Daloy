@@ -2241,3 +2241,166 @@
     flex-shrink: 0;
     overflow: hidden;
 }
+
+/* ---------------------------------------------------------------------
+   NAV SECTION GROUPING
+--------------------------------------------------------------------- */
+.adm-nav-section {
+    margin-bottom: 2px;
+}
+
+.adm-nav-section-label {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--adm-black);
+    padding: 12px 12px 6px;
+    user-select: none;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.adm-nav-section-label:hover {
+    color: var(--adm-black);
+}
+
+.adm-nav-section + .adm-nav-section {
+    border-top: 1px solid var(--adm-border-light);
+    padding-top: 6px;
+    margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------------
+   MONITORING PAGE
+--------------------------------------------------------------------- */
+.adm-story-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.adm-story-card {
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--adm-border);
+    background: var(--adm-bg-alt);
+    position: relative;
+}
+
+.adm-story-thumb {
+    width: 100%;
+    aspect-ratio: 9/16;
+    object-fit: cover;
+    display: block;
+    background: #111;
+}
+
+.adm-story-thumb-text {
+    width: 100%;
+    aspect-ratio: 9/16;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px;
+    text-align: center;
+}
+
+.adm-story-meta {
+    padding: 10px 12px;
+}
+
+.adm-story-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.adm-story-user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--adm-accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.adm-story-delete-btn {
+    width: 100%;
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--adm-danger, #dc2626);
+    color: var(--adm-danger, #dc2626);
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.adm-story-delete-btn:hover {
+    background: var(--adm-danger, #dc2626);
+    color: #fff;
+}
+
+.adm-current-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--adm-border);
+}
+
+.adm-inspect-thread {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 500px;
+    overflow-y: auto;
+    gap: 8px;
+    padding: 12px;
+}
+
+.adm-msg-bubble {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.adm-msg-bubble-content {
+    background: var(--adm-bg-alt);
+    border: 1px solid var(--adm-border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    max-width: 80%;
+}
+
+.adm-msg-sender {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--adm-accent);
+    margin-bottom: 2px;
+}
+
+.adm-msg-text {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.adm-msg-time {
+    font-size: 10px;
+    color: var(--adm-text-dim);
+    margin-top: 4px;
+}

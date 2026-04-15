@@ -174,4 +174,48 @@ class MessageController extends BaseAdminController
 
         return back()->with('success', 'Report action applied.');
     }
+
+    /**
+     * Return all conversations (paginated) for proactive admin browsing.
+     * Used by the CONVERSATIONS tab in Messages admin page.
+     */
+    public function conversations(Request $request)
+    {
+        $this->authorizeAdmin($request, 'messages');
+
+        $search = $request->input('search', '');
+        $type   = $request->input('type', 'all');
+
+        $query = Conversation::with('participants:id,name,username,profile_picture')
+            ->withCount('messages');
+
+        if ($type === 'dm') {
+            $query->where('type', 'direct');
+        } elseif ($type === 'group') {
+            $query->where('type', 'group');
+        }
+
+        if ($search) {
+            $query->whereHas('participants', fn($q) =>
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+            );
+        }
+
+        $conversations = $query->latest()->paginate(20)->through(fn($c) => [
+            'id'             => $c->id,
+            'type'           => $c->type,
+            'name'           => $c->name,
+            'participants'   => $c->participants->map(fn($p) => [
+                'id'              => $p->id,
+                'name'            => $p->name,
+                'username'        => $p->username,
+                'profile_picture' => $p->profile_picture,
+            ]),
+            'messages_count' => $c->messages_count,
+            'created_at'     => $c->created_at?->diffForHumans(),
+        ]);
+
+        return response()->json($conversations);
+    }
 }

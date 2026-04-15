@@ -50,7 +50,9 @@ class FollowController extends Controller
         }
 
         if ($currentUser->isFollowing($targetUser)) {
-            return response()->json(['message' => 'Already following.'], 400);
+            // Bust cache just in case we hit out-of-sync state
+            \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$currentUser->id}");
+            return response()->json(['message' => 'Already following.']);
         }
 
         if ($targetUser->privacy_setting === 'private') {
@@ -70,11 +72,14 @@ class FollowController extends Controller
                 'status'       => 'pending'
             ]);
 
+            \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$currentUser->id}");
             return response()->json(['message' => 'Follow request sent.']);
         } else {
             // Public account, follow immediately
             $currentUser->following()->attach($targetUser->id);
             $this->logActivity('followed', 'social', 'User', $targetUser->id);
+            
+            \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$currentUser->id}");
             return response()->json(['message' => 'Followed successfully.']);
         }
     }

@@ -34,6 +34,7 @@ class User extends Authenticatable
         'profile_accent',
         'notifications_snoozed_until',
         'can_initiate_calls',
+        'banned_until',
     ];
 
     protected $hidden = [
@@ -53,6 +54,7 @@ class User extends Authenticatable
             'show_activity_status' => 'boolean',
             'can_initiate_calls' => 'boolean',
             'notifications_snoozed_until' => 'datetime',
+            'banned_until' => 'datetime',
         ];
     }
 

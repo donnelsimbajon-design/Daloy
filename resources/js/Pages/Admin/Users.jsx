@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react';
 import AdminLayout from '../../Layouts/AdminLayout';
 import StatusBadge from '../../Components/Admin/UI/StatusBadge';
 import Modal from '../../Components/Admin/UI/Modal';
-import { router, Link } from '@inertiajs/react';
+import { router, Link, usePage } from '@inertiajs/react';
 import axios from 'axios';
 
 export default function Users({ users = { data: [] }, totalUsers = 0, activeConnections = 0, filters = {} }) {
+    const { flash } = usePage().props;
     const [search, setSearch] = useState(filters.search || '');
     const [selectedUser, setSelectedUser] = useState(null);
     const [modalType, setModalType] = useState(null);
     const [actionMenuId, setActionMenuId] = useState(null);
     const [actionReason, setActionReason] = useState('');
+    const [durationDays, setDurationDays] = useState('');
+    const [resetMethod, setResetMethod] = useState('email');
     const [activeTab, setActiveTab] = useState('overview');
 
     // On-demand content for the selected user
@@ -60,9 +63,11 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         router.post(`/admin/users/${user.id}/action`, {
             action: action,
             reason: actionReason,
+            duration_days: durationDays || null,
+            reset_method: resetMethod,
         }, {
             preserveState: true,
-            onSuccess: () => { setModalType(null); setSelectedUser(null); setActionReason(''); },
+            onSuccess: () => { setModalType(null); setSelectedUser(null); setActionReason(''); setDurationDays(''); setResetMethod('email'); },
         });
     };
 
@@ -92,6 +97,8 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         setActiveTab(tab);
         setActionMenuId(null);
         setActionReason('');
+        setDurationDays('');
+        setResetMethod('email');
         setUserContent(null); // Reset content for fresh load
         setExpandedPost(null);
     };
@@ -107,6 +114,7 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
         setSelectedUser(null);
         setModalType(null);
         setActionReason('');
+        setDurationDays('');
         setRoleChangeUser(null);
         setCreateErrors({});
         setUserContent(null);
@@ -153,6 +161,12 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
 
     return (
         <>
+            {flash?.message && (
+                <div style={{ padding: '12px 16px', background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', borderRadius: '6px', marginBottom: '16px', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{flash.message}</span>
+                </div>
+            )}
+            
             {/* Stat Cards */}
             <div className="adm-stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                 <div className="adm-stat-card">
@@ -297,7 +311,7 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                                                                     <button className="danger" onClick={() => openModal(user, 'suspend')}>⊘ Suspend Access</button>
                                                                 )}
                                                                 {user.status !== 'active' && (
-                                                                    <button onClick={() => openModal(user, 'activate')}>✓ Activate</button>
+                                                                    <button onClick={() => openModal(user, 'activate')}>✓ Unban / Activate</button>
                                                                 )}
                                                                 <button onClick={() => openModal(user, 'reset_password')}>↻ Reset Password</button>
                                                             </div>
@@ -567,16 +581,41 @@ export default function Users({ users = { data: [] }, totalUsers = 0, activeConn
                     <div>
                         <p style={{ marginBottom: '16px', fontSize: '13px', lineHeight: '1.6' }}>
                             {modalType === 'suspend' && `Are you sure you want to suspend ${selectedUser.name}? They will be unable to access their account.`}
-                            {modalType === 'ban' && `This will permanently ban ${selectedUser.name}. This action should be reserved for serious violations.`}
-                            {modalType === 'activate' && `Reactivate ${selectedUser.name}'s account? They will regain full access.`}
-                            {modalType === 'reset_password' && `Send a password reset link to ${selectedUser.email}?`}
+                            {modalType === 'ban' && `This will ban ${selectedUser.name}. This action should be reserved for serious violations.`}
+                            {modalType === 'activate' && `Unban and reactivate ${selectedUser.name}'s account? They will regain full access via Daloy Support.`}
+                            {modalType === 'reset_password' && `Choose a method to reset ${selectedUser.name}'s password:`}
                             {modalType === 'verify' && `Mark ${selectedUser.name} as verified?`}
                             {modalType === 'revoke_verify' && `Revoke verification from ${selectedUser.name}?`}
                         </p>
+                        {modalType === 'reset_password' && (
+                            <div className="adm-form-group">
+                                <label className="adm-form-label">Password Reset Method</label>
+                                <select className="adm-filter-select" value={resetMethod} onChange={e => setResetMethod(e.target.value)} style={{ width: '100%', padding: '8px 12px' }}>
+                                    <option value="email">Send Reset Email to {selectedUser.email}</option>
+                                    <option value="manual">Generate Password Directly Here</option>
+                                </select>
+                            </div>
+                        )}
                         {(modalType === 'suspend' || modalType === 'ban') && (
                             <div className="adm-form-group">
                                 <label className="adm-form-label">Reason (required)</label>
                                 <textarea className="adm-form-textarea" value={actionReason} onChange={e => setActionReason(e.target.value)} placeholder="Enter reason for this action..." />
+                            </div>
+                        )}
+                        {(modalType === 'ban' || modalType === 'suspend') && (
+                            <div className="adm-form-group">
+                                <label className="adm-form-label">{modalType === 'ban' ? 'Ban Duration' : 'Suspension Duration'}</label>
+                                <select className="adm-filter-select" value={durationDays} onChange={e => setDurationDays(e.target.value)} style={{ width: '100%', padding: '8px 12px' }}>
+                                    <option value="">Permanent (Forever)</option>
+                                    <option value="1">1 Day</option>
+                                    <option value="3">3 Days</option>
+                                    <option value="7">1 Week</option>
+                                    <option value="14">2 Weeks</option>
+                                    <option value="30">1 Month</option>
+                                    <option value="90">3 Months</option>
+                                    <option value="180">6 Months</option>
+                                    <option value="365">1 Year</option>
+                                </select>
                             </div>
                         )}
                         <div style={{ marginTop: '12px', padding: '8px 12px', background: '#f7f7f8', borderRadius: '6px', fontSize: '11px', color: '#888' }}>

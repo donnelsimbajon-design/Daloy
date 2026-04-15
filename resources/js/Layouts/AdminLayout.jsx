@@ -11,6 +11,7 @@ const pageTitles = {
     'Admin/Reports':       'Reports Management',
     'Admin/Groups':        'Groups & Events',
     'Admin/Messages':      'Messages Monitoring',
+    'Admin/Monitoring':    'Content Monitoring',
     'Admin/Analytics':     'Analytics & Insights',
     'Admin/Activity':      'Voyager Activity',
     'Admin/LiveMonitor':   'Live Monitor',

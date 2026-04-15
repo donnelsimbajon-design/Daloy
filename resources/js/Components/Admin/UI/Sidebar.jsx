@@ -1,20 +1,42 @@
 import { Link, usePage, router } from '@inertiajs/react';
+import { useState } from 'react';
 
-/* ── Map each nav item to required permission categories ── */
-const navItems = [
-    { id: 'dashboard',     label: 'Dashboard',     page: 'Admin/Dashboard',     route: '/admin/dashboard',     icon: 'grid',      requires: null },
-    { id: 'users',         label: 'Users',          page: 'Admin/Users',          route: '/admin/users',          icon: 'users',     requires: 'users' },
-    { id: 'moderation',    label: 'Moderation',     page: 'Admin/Moderation',     route: '/admin/moderation',     icon: 'shield',    requires: 'content' },
-    { id: 'reports',       label: 'Reports',        page: 'Admin/Reports',        route: '/admin/reports',        icon: 'file',      requires: 'reports' },
-    { id: 'groups',        label: 'Groups',         page: 'Admin/Groups',         route: '/admin/groups',         icon: 'group',     requires: 'groups' },
-    { id: 'messages',      label: 'Messages',       page: 'Admin/Messages',       route: '/admin/messages',       icon: 'message',   requires: 'messages' },
-    { id: 'analytics',     label: 'Analytics',      page: 'Admin/Analytics',      route: '/admin/analytics',      icon: 'chart',     requires: 'analytics' },
-    { id: 'activity',      label: 'Activity',       page: 'Admin/Activity',       route: '/admin/activity',       icon: 'activity',  requires: 'logs' },
-    { id: 'live',          label: 'Live Monitor',   page: 'Admin/LiveMonitor',    route: '/admin/live',           icon: 'live',      requires: 'system' },
-    { id: 'announcements', label: 'Announcements',  page: 'Admin/Announcements',  route: '/admin/announcements',  icon: 'megaphone', requires: 'content' },
-    { id: 'roles',         label: 'Roles',          page: 'Admin/Roles',          route: '/admin/roles',          icon: 'key',       requires: 'system' },
-    { id: 'settings',      label: 'Settings',       page: 'Admin/Settings',       route: '/admin/settings',       icon: 'settings',  requires: 'settings' },
-    { id: 'logs',          label: 'Logs',           page: 'Admin/Logs',           route: '/admin/logs',           icon: 'log',       requires: 'logs' },
+/* ── Grouped nav sections ─────────────────────────────────────────── */
+const navSections = [
+    {
+        label: null,
+        items: [
+            { id: 'dashboard',   label: 'Dashboard',    page: 'Admin/Dashboard',   route: '/admin/dashboard',   icon: 'grid',    requires: null },
+            { id: 'live',        label: 'Live Monitor', page: 'Admin/LiveMonitor', route: '/admin/live',         icon: 'live',    requires: 'system' },
+        ],
+    },
+    {
+        label: 'Content Safety',
+        items: [
+            { id: 'moderation',  label: 'Moderation',  page: 'Admin/Moderation',  route: '/admin/moderation',  icon: 'shield',    requires: 'content' },
+            { id: 'reports',     label: 'Reports',      page: 'Admin/Reports',     route: '/admin/reports',     icon: 'file',      requires: 'reports' },
+            { id: 'messages',    label: 'Messages',     page: 'Admin/Messages',    route: '/admin/messages',    icon: 'message',   requires: 'messages' },
+            { id: 'monitoring',  label: 'Monitoring',   page: 'Admin/Monitoring',  route: '/admin/monitoring',  icon: 'eye',       requires: 'messages' },
+        ],
+    },
+    {
+        label: 'Community',
+        items: [
+            { id: 'users',         label: 'Users',         page: 'Admin/Users',         route: '/admin/users',         icon: 'users',     requires: 'users' },
+            { id: 'groups',        label: 'Groups',         page: 'Admin/Groups',        route: '/admin/groups',        icon: 'group',     requires: 'groups' },
+            { id: 'announcements', label: 'Announcements',  page: 'Admin/Announcements', route: '/admin/announcements', icon: 'megaphone', requires: 'content' },
+        ],
+    },
+    {
+        label: 'System',
+        items: [
+            { id: 'analytics', label: 'Analytics', page: 'Admin/Analytics', route: '/admin/analytics', icon: 'chart',    requires: 'analytics' },
+            { id: 'activity',  label: 'Activity',  page: 'Admin/Activity',  route: '/admin/activity',  icon: 'activity', requires: 'logs' },
+            { id: 'roles',     label: 'Roles',     page: 'Admin/Roles',     route: '/admin/roles',     icon: 'key',      requires: 'system' },
+            { id: 'settings',  label: 'Settings',  page: 'Admin/Settings',  route: '/admin/settings',  icon: 'settings', requires: 'settings' },
+            { id: 'logs',      label: 'Logs',      page: 'Admin/Logs',      route: '/admin/logs',      icon: 'log',      requires: 'logs' },
+        ],
+    },
 ];
 
 const icons = {
@@ -51,6 +73,12 @@ const icons = {
     message: (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    ),
+    eye: (
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
         </svg>
     ),
     chart: (
@@ -94,17 +122,10 @@ const icons = {
     ),
 };
 
-/**
- * Check if an admin has access to a nav item.
- * - Super admins (permissions = ['*']) see everything.
- * - `requires: null` means dashboard — always visible.
- * - Otherwise, check if any permission key starts with the category prefix.
- */
 function hasAccess(adminContext, requiredCategory) {
-    if (!requiredCategory) return true; // Dashboard always visible
+    if (!requiredCategory) return true;
     if (!adminContext?.permissions) return false;
     if (adminContext.is_super_admin || adminContext.permissions.includes('*')) return true;
-    // Check if any permission key matches or starts with the category
     return adminContext.permissions.some(
         p => p === requiredCategory || p.startsWith(requiredCategory + '.')
     );
@@ -115,8 +136,29 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
     const user = auth?.user;
     const initials = user?.name ? user.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() : 'SA';
 
-    // Filter nav items based on permissions
-    const visibleItems = navItems.filter(item => hasAccess(admin_context, item.requires));
+    const [openSections, setOpenSections] = useState(() => {
+        const initialState = {
+            'Content Safety': false,
+            'Community': false,
+            'System': false
+        };
+        // Auto-open the section of the current page
+        navSections.forEach(sec => {
+            if (sec.label && sec.items.some(item => currentPage === item.page)) {
+                initialState[sec.label] = true;
+            }
+        });
+        // Default to Content Safety if none are open (e.g. Dashboard)
+        if (!initialState['Content Safety'] && !initialState['Community'] && !initialState['System']) {
+            initialState['Content Safety'] = true;
+        }
+        return initialState;
+    });
+
+    const toggleSection = (label) => {
+        if (!label) return;
+        setOpenSections(prev => ({ ...prev, [label]: !prev[label] }));
+    };
 
     const handleLogout = (e) => {
         e.preventDefault();
@@ -130,19 +172,48 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
                 <span>Administrative Suite</span>
             </div>
 
-            <nav className="adm-sidebar-nav">
-                {visibleItems.map((item) => (
-                    <Link
-                        key={item.id}
-                        href={item.route}
-                        className={`adm-nav-item ${currentPage === item.page ? 'active' : ''}`}
-                        onClick={onNavClick}
-                        preserveState
-                    >
-                        {icons[item.icon]}
-                        <span>{item.label}</span>
-                    </Link>
-                ))}
+            <nav className="adm-sidebar-nav" style={{ overflowY: 'auto' }}>
+                {navSections.map((section, si) => {
+                    const visibleItems = section.items.filter(item => hasAccess(admin_context, item.requires));
+                    if (visibleItems.length === 0) return null;
+                    
+                    const isSectionOpen = !section.label || openSections[section.label];
+
+                    return (
+                        <div key={si} className="adm-nav-section">
+                            {section.label && (
+                                <div 
+                                    className="adm-nav-section-label"
+                                    onClick={() => toggleSection(section.label)}
+                                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                >
+                                    <span>{section.label}</span>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.2s', transform: isSectionOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            )}
+                            <div style={{
+                                overflow: 'hidden',
+                                transition: 'max-height 0.3s ease-in-out',
+                                maxHeight: isSectionOpen ? '500px' : '0px'
+                            }}>
+                                {visibleItems.map((item) => (
+                                    <Link
+                                        key={item.id}
+                                        href={item.route}
+                                        className={`adm-nav-item ${currentPage === item.page ? 'active' : ''}`}
+                                        onClick={onNavClick}
+                                        preserveState
+                                    >
+                                        {icons[item.icon]}
+                                        <span>{item.label}</span>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })}
             </nav>
 
             <div className="adm-sidebar-footer">
@@ -162,16 +233,9 @@ export default function Sidebar({ currentPage, isOpen, onNavClick }) {
                 <button
                     onClick={handleLogout}
                     style={{
-                        background: 'none',
-                        border: '1px solid #333',
-                        borderRadius: '6px',
-                        color: '#888',
-                        cursor: 'pointer',
-                        padding: '6px 12px',
-                        fontSize: '11px',
-                        marginTop: '8px',
-                        width: '100%',
-                        transition: 'all 0.2s',
+                        background: 'none', border: '1px solid #333', borderRadius: '6px',
+                        color: '#888', cursor: 'pointer', padding: '6px 12px',
+                        fontSize: '11px', marginTop: '8px', width: '100%', transition: 'all 0.2s',
                     }}
                     onMouseEnter={e => { e.target.style.color = '#fff'; e.target.style.borderColor = '#555'; }}
                     onMouseLeave={e => { e.target.style.color = '#888'; e.target.style.borderColor = '#333'; }}

@@ -68,6 +68,8 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
 
     // Poll for incoming 1-on-1 calls (skip if already in any call)
     useEffect(() => {
+        if (!currentUser) return; // Prevent polling if completely unauthenticated
+        
         let interval;
         if (!activeCall && !activeGroupCall) {
             interval = setInterval(async () => {
@@ -78,11 +80,16 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
                     } else {
                         setIncomingCall(null);
                     }
-                } catch(e) {}
+                } catch(e) {
+                    // Stop polling if we get a 401 Unauthorized (e.g. session expired or admin guard context)
+                    if (e.response && e.response.status === 401) {
+                        clearInterval(interval);
+                    }
+                }
             }, 3000);
         }
         return () => clearInterval(interval);
-    }, [activeCall, activeGroupCall]);
+    }, [activeCall, activeGroupCall, currentUser]);
 
     // Handle out-of-band initiated calls (From Conversations.jsx)
     useEffect(() => {

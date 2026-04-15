@@ -44,6 +44,11 @@ class HandleInertiaRequests extends Middleware
                 ]) : null,
             ],
             'status' => session('status'),
+            'flash' => [
+                'message' => session('message'),
+                'success' => session('success'),
+                'error' => session('error'),
+            ],
 
             // ── Deferred: only resolved when the frontend reads these props ──
             'social' => $user ? fn () => [

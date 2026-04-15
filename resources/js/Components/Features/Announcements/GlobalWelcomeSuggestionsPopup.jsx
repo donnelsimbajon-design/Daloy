@@ -10,6 +10,7 @@ export default function GlobalWelcomeSuggestionsPopup() {
     const [step, setStep] = useState(1);
     const [followingUsers, setFollowingUsers] = useState({});
     const [friendingUsers, setFriendingUsers] = useState({});
+    const [joiningGroups, setJoiningGroups] = useState({});
 
     useEffect(() => {
         if (!user || user.role === 'admin' || user.role === 'moderator') return;
