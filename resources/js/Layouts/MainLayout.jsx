@@ -5,6 +5,7 @@ import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
 
 import GlobalAnnouncementPopup from '@/Components/Features/Announcements/GlobalAnnouncementPopup';
+import GlobalWelcomeSuggestionsPopup from '@/Components/Features/Announcements/GlobalWelcomeSuggestionsPopup';
 import GlobalCallManager from '@/Components/Features/Messaging/GlobalCallManager';
 
 export default function MainLayout({ children }) {
@@ -79,6 +80,7 @@ export default function MainLayout({ children }) {
             </main>
 
             <GlobalAnnouncementPopup />
+            <GlobalWelcomeSuggestionsPopup />
         </div>
     );
 }

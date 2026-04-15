@@ -102,25 +102,36 @@ function TrendingPanel() {
     );
 }
 
-/* ── Groups Panel ───────────────────────────────────────────────────── */
-function GroupsPanel() {
+/* ── Connections Panel (Groups & Friends) ────────────────────────────── */
+function ConnectionsPanel() {
     const { reef } = usePage().props;
     const groups = reef?.suggested_groups || [];
+    const friends = reef?.suggested_friends || [];
     const [search, setSearch] = useState('');
     const [joining, setJoining] = useState(null);
+    const [activeTab, setActiveTab] = useState('groups'); // 'groups' or 'friends'
+    const [followingUsers, setFollowingUsers] = useState({});
+    const [friendingUsers, setFriendingUsers] = useState({});
 
     const groupColors = ['bg-cyan-600', 'bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-rose-600'];
+    const friendColors = ['bg-amber-600', 'bg-orange-600', 'bg-red-600', 'bg-pink-600', 'bg-purple-600'];
 
-    const filtered = useMemo(() =>
+    const filteredGroups = useMemo(() =>
         groups.filter(s =>
             s.name.toLowerCase().includes(search.toLowerCase())
         ), [search, groups]
     );
 
+    const filteredFriends = useMemo(() =>
+        friends.filter(f =>
+            f.name.toLowerCase().includes(search.toLowerCase()) || f.username.toLowerCase().includes(search.toLowerCase())
+        ), [search, friends]
+    );
+
     const handleJoin = async (groupId) => {
         setJoining(groupId);
         try {
-            await axios.post(`/schools/${groupId}/join`);
+            await axios.post(`/schools/${groupId}/toggle-membership`);
             router.reload({ only: ['reef'] });
         } catch (err) {
             console.error('Failed to join group:', err);
@@ -129,70 +140,153 @@ function GroupsPanel() {
         }
     };
 
+    const handleFollow = async (userId) => {
+        setFollowingUsers(prev => ({ ...prev, [userId]: true }));
+        try {
+            await axios.post('/api/follow', { user_id: userId });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setFollowingUsers(prev => ({ ...prev, [userId]: false }));
+        }
+    };
+
+    const handleFriendRequest = async (userId) => {
+        setFriendingUsers(prev => ({ ...prev, [userId]: true }));
+        try {
+            await axios.post('/api/friend-request/send', { receiver_id: userId });
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setFriendingUsers(prev => ({ ...prev, [userId]: false }));
+        }
+    };
     const formatMembers = (count) => {
         if (count >= 1000) return (count / 1000).toFixed(1) + 'k';
         return count.toString();
     };
 
     return (
-        <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none">
-            <CardHeader className="pb-3 border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <div className="flex items-center gap-2 mb-2">
-                    <div className="w-8 h-8 rounded-lg bg-biolum/15 flex items-center justify-center">
-                        <svg className="w-4 h-4 text-biolum" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <CardTitle className="text-sm">Suggested Groups</CardTitle>
-                        <CardDescription className="text-[10px]">Communities you might like</CardDescription>
-                    </div>
+        <Card className="animate-[fadeIn_0.25s_ease-out] shadow-none h-full flex flex-col">
+            <CardHeader className="pb-0 border-b border-ocean-divider shadow-[0_1px_2px_rgba(0,0,0,0.02)] shrink-0">
+                <div className="flex p-1 mb-3 bg-ocean-surface/60 rounded-xl border border-ocean-divider-subtle">
+                    <button
+                        onClick={() => setActiveTab('groups')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            activeTab === 'groups' 
+                            ? 'bg-ocean-card text-ocean-text shadow-sm border border-ocean-divider-subtle' 
+                            : 'text-ocean-text-dim hover:text-ocean-text'
+                        }`}
+                    >
+                        Suggested Groups
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('friends')}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            activeTab === 'friends' 
+                            ? 'bg-ocean-card text-ocean-text shadow-sm border border-ocean-divider-subtle' 
+                            : 'text-ocean-text-dim hover:text-ocean-text'
+                        }`}
+                    >
+                        Suggested Voyagers
+                    </button>
                 </div>
-                <SearchBar value={search} onChange={setSearch} placeholder="Search groups..." />
+                
+                <div className="mb-3">
+                    <SearchBar value={search} onChange={setSearch} placeholder={activeTab === 'groups' ? "Search groups..." : "Search voyagers..."} />
+                </div>
             </CardHeader>
             
-            <CardContent className="py-4 space-y-2">
-                {filtered.length > 0 ? filtered.map((group, i) => (
-                    <div key={group.id} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
-                        <div className="flex items-center gap-3">
-                            {group.profile_image ? (
-                                <img src={group.profile_image} alt={group.name} className="w-10 h-10 rounded-xl object-cover" />
-                            ) : (
-                                <div className={`w-10 h-10 rounded-xl ${groupColors[i % groupColors.length]} flex items-center justify-center text-white font-bold text-sm`}>
-                                    {group.initial}
+            <CardContent className="py-4 space-y-2 flex-1 overflow-y-auto min-h-0">
+                {activeTab === 'groups' ? (
+                    filteredGroups.length > 0 ? filteredGroups.map((group, i) => (
+                        <div key={group.id} className="flex items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)]">
+                            <div className="flex flex-1 items-center gap-3 overflow-hidden cursor-pointer" onClick={(e) => { e.preventDefault(); router.visit(`/schools/${group.id}`); }}>
+                                {group.profile_image ? (
+                                    <img src={group.profile_image} alt={group.name} className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                                ) : (
+                                    <div className={`w-10 h-10 rounded-xl shrink-0 ${groupColors[i % groupColors.length]} flex items-center justify-center text-white font-bold text-sm`}>
+                                        {group.initial}
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <h4 className="text-sm font-bold text-ocean-text tracking-[-0.01em] truncate">{group.name}</h4>
+                                    <p className="text-[11px] text-ocean-text-dim/60 truncate">{formatMembers(group.members)} members</p>
                                 </div>
-                            )}
-                            <div>
-                                <h4 className="text-sm font-bold text-ocean-text tracking-[-0.01em]">{group.name}</h4>
-                                <p className="text-[11px] text-ocean-text-dim/60">{formatMembers(group.members)} members</p>
+                            </div>
+                            <Button 
+                                onClick={(e) => { e.stopPropagation(); handleJoin(group.id); }}
+                                disabled={joining === group.id}
+                                size="sm"
+                                className="rounded-xl px-4 ml-2 shrink-0"
+                            >
+                                {joining === group.id ? '...' : 'Join'}
+                            </Button>
+                        </div>
+                    )) : groups.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                            <svg className="w-10 h-10 text-ocean-text-dim/30 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772" />
+                            </svg>
+                            <p className="text-xs text-ocean-text-dim">You've joined all available groups!</p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-ocean-text-dim italic py-3">No groups matching &quot;{search}&quot;</p>
+                    )
+                ) : (
+                    filteredFriends.length > 0 ? filteredFriends.map((friend, i) => (
+                        <div key={friend.id} onClick={() => router.visit(`/users/${friend.id}`)} className="flex flex-col xl:flex-row items-start xl:items-center justify-between p-3 rounded-[14px] bg-ocean-card/50 border border-ocean-divider-subtle hover:border-ocean-hover hover:bg-ocean-card/80 transition-all cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.02)] gap-3 xl:gap-2">
+                            <div className="flex flex-1 items-center gap-3 overflow-hidden w-full">
+                                {friend.profile_picture ? (
+                                    <img src={friend.profile_picture} alt={friend.name} className="w-10 h-10 rounded-full object-cover shrink-0" />
+                                ) : (
+                                    <div className={`w-10 h-10 rounded-full shrink-0 ${friendColors[i % friendColors.length]} flex items-center justify-center text-white font-bold text-sm`}>
+                                        {friend.initial}
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <h4 className="text-sm font-bold text-ocean-text tracking-[-0.01em] truncate">{friend.name}</h4>
+                                    <p className="text-[11px] text-ocean-text-dim/60 truncate">{friend.username}</p>
+                                </div>
+                            </div>
+                            <div className="flex shrink-0 gap-2 w-full xl:w-auto xl:ml-2">
+                                <Button 
+                                    variant="secondary"
+                                    onClick={(e) => { e.stopPropagation(); handleFriendRequest(friend.id); }}
+                                    disabled={friendingUsers[friend.id]}
+                                    size="sm"
+                                    className="flex-1 xl:flex-none rounded-xl px-0 xl:px-3 bg-ocean-surface hover:bg-ocean-divider-subtle border border-ocean-border text-xs leading-[10px]"
+                                >
+                                    {friendingUsers[friend.id] ? 'Sent' : 'Add Friend'}
+                                </Button>
+                                <Button 
+                                    onClick={(e) => { e.stopPropagation(); handleFollow(friend.id); }}
+                                    disabled={followingUsers[friend.id]}
+                                    size="sm"
+                                    className="flex-1 xl:flex-none rounded-xl px-0 xl:px-4 text-xs leading-[10px]"
+                                >
+                                    {followingUsers[friend.id] ? 'Following' : 'Follow'}
+                                </Button>
                             </div>
                         </div>
-                        <Button 
-                            onClick={() => handleJoin(group.id)}
-                            disabled={joining === group.id}
-                            size="sm"
-                            className="rounded-xl px-4"
-                        >
-                            {joining === group.id ? '...' : 'Join'}
-                        </Button>
-                    </div>
-                )) : groups.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-6 text-center">
-                        <svg className="w-10 h-10 text-ocean-text-dim/30 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772" />
-                        </svg>
-                        <p className="text-xs text-ocean-text-dim">You've joined all available groups!</p>
-                    </div>
-                ) : (
-                    <p className="text-xs text-ocean-text-dim italic py-3">No groups matching &quot;{search}&quot;</p>
+                    )) : friends.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-6 text-center">
+                            <svg className="w-10 h-10 text-ocean-text-dim/30 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" />
+                            </svg>
+                            <p className="text-xs text-ocean-text-dim">No more voyagers to suggest!</p>
+                        </div>
+                    ) : (
+                        <p className="text-xs text-ocean-text-dim italic py-3">No voyagers matching &quot;{search}&quot;</p>
+                    )
                 )}
             </CardContent>
 
             {/* Browse all */}
-            <div className="px-4 pb-4">
+            <div className="px-4 pb-4 shrink-0">
                 <Button variant="secondary" className="w-full rounded-xl" asChild>
-                    <a href="/schools">
-                        Browse All Groups
+                    <a href={activeTab === 'groups' ? "/schools" : "/voyagers"}>
+                        {activeTab === 'groups' ? "Browse All Groups" : "Show All Voyagers"}
                     </a>
                 </Button>
             </div>
@@ -1453,7 +1547,7 @@ export default function ReefPanel({ activePanel }) {
             {/* Panel content */}
             <div key={activePanel} className={isCurrents ? 'flex-1 flex flex-col min-h-0' : 'h-full'}>
                 {activePanel === 'trending' && <TrendingPanel />}
-                {activePanel === 'groups' && <GroupsPanel />}
+                {activePanel === 'groups' && <ConnectionsPanel />}
                 {activePanel === 'messages' && <MessagesPanel />}
                 {activePanel === 'announcements' && <AnnouncementsPanel />}
                 {activePanel === 'language' && <LanguagePanel />}

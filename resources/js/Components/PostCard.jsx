@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
 import PostActions from '@/Components/PostActions';
 import CommentsSection from '@/Components/Comments/CommentsSection';
 import ShareModal from '@/Components/ShareModal';
-import { Globe2, Users, Lock, Heart } from 'lucide-react';
+import { Globe2, Users, Lock, Heart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
 export default function PostCard({ post }) {
     const currentUser = usePage().props?.auth?.user;
@@ -32,6 +33,8 @@ export default function PostCard({ post }) {
     const [votedOptionId, setVotedOptionId] = useState(post.poll?.user_voted_option_id || null);
 
     const menuRef = useRef(null);
+    const touchStartX = useRef(null);
+    const [lightboxIndex, setLightboxIndex] = useState(null);
 
     useEffect(() => {
         const handleClick = (e) => {
@@ -42,6 +45,27 @@ export default function PostCard({ post }) {
         document.addEventListener('mousedown', handleClick);
         return () => document.removeEventListener('mousedown', handleClick);
     }, []);
+
+    // Lightbox keyboard navigation
+    const handleLightboxKey = useCallback((e) => {
+        if (lightboxIndex === null) return;
+        if (e.key === 'Escape') setLightboxIndex(null);
+        if (e.key === 'ArrowRight') setLightboxIndex(prev => Math.min(prev + 1, (post.media || []).length - 1));
+        if (e.key === 'ArrowLeft') setLightboxIndex(prev => Math.max(prev - 1, 0));
+    }, [lightboxIndex, post.media]);
+
+    useEffect(() => {
+        if (lightboxIndex !== null) {
+            document.addEventListener('keydown', handleLightboxKey);
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.removeEventListener('keydown', handleLightboxKey);
+            document.body.style.overflow = '';
+        };
+    }, [lightboxIndex, handleLightboxKey]);
 
     const handleReact = async (type) => {
         const prevReaction = userReaction;
@@ -395,7 +419,7 @@ export default function PostCard({ post }) {
                             {mediaItems[0].type === 'video' ? (
                                 <video src={mediaItems[0].url} className="w-full max-h-[600px] object-contain" controls muted />
                             ) : (
-                                <img src={mediaItems[0].url} alt="Post media" className="w-full h-auto max-h-[600px] object-contain" />
+                                <img src={mediaItems[0].url} alt="Post media" className="w-full h-auto max-h-[600px] object-contain cursor-pointer" onClick={() => setLightboxIndex(0)} />
                             )}
                             {mediaItems[0].type !== 'video' && <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-black/15 to-transparent pointer-events-none" />}
                         </div>
@@ -413,7 +437,7 @@ export default function PostCard({ post }) {
                                     {media.type === 'video' ? (
                                         <video src={media.url} className="absolute inset-0 w-full h-full object-cover" controls muted />
                                     ) : (
-                                        <img src={media.url} alt="Post media" className="absolute inset-0 w-full h-full object-cover" />
+                                        <img src={media.url} alt="Post media" className="absolute inset-0 w-full h-full object-cover cursor-pointer" onClick={() => setLightboxIndex(index)} />
                                     )}
                                     {media.type !== 'video' && <div className="absolute inset-x-0 bottom-0 h-[40%] bg-gradient-to-t from-ocean-deep/30 to-transparent pointer-events-none" />}
                                 </div>
@@ -422,6 +446,67 @@ export default function PostCard({ post }) {
                     )}
                 </div>
             )}
+
+            {/* ── Image Lightbox (Portal) ────────────────────────────── */}
+            {lightboxIndex !== null && mediaItems[lightboxIndex] && createPortal(
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center"
+                    style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+                    onClick={() => setLightboxIndex(null)}
+                    onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+                    onTouchEnd={(e) => {
+                        if (touchStartX.current === null) return;
+                        const diff = e.changedTouches[0].clientX - touchStartX.current;
+                        if (diff > 60) setLightboxIndex(prev => Math.max(prev - 1, 0));
+                        if (diff < -60) setLightboxIndex(prev => Math.min(prev + 1, mediaItems.length - 1));
+                        touchStartX.current = null;
+                    }}
+                >
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
+                        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                    >
+                        <X size={20} />
+                    </button>
+
+                    {mediaItems.length > 1 && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 sm:top-6 z-10 px-3 py-1 rounded-full bg-white/10 border border-white/8 text-white text-xs font-bold">
+                            {lightboxIndex + 1} / {mediaItems.length}
+                        </div>
+                    )}
+
+                    {lightboxIndex > 0 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev - 1); }}
+                            className="absolute left-2 sm:left-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                        >
+                            <ChevronLeft size={24} />
+                        </button>
+                    )}
+
+                    {lightboxIndex < mediaItems.length - 1 && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev + 1); }}
+                            className="absolute right-2 sm:right-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                        >
+                            <ChevronRight size={24} />
+                        </button>
+                    )}
+
+                    <img
+                        src={mediaItems[lightboxIndex].url}
+                        alt={`Image ${lightboxIndex + 1}`}
+                        className="max-w-[95vw] max-h-[90vh] sm:max-w-[85vw] sm:max-h-[85vh] object-contain rounded-xl select-none"
+                        style={{ animation: 'lbFadeIn 0.2s ease-out' }}
+                        onClick={(e) => e.stopPropagation()}
+                        draggable={false}
+                    />
+
+                    <style>{`
+                        @keyframes lbFadeIn { from { opacity:0; transform:scale(0.96) } to { opacity:1; transform:scale(1) } }
+                    `}</style>
+                </div>
+            , document.body)}
 
             {/* Fallback: single image from old format */}
             {mediaItems.length === 0 && post.media_urls && post.media_urls.length > 0 && (!post.has_content_warning || cwRevealed) && (

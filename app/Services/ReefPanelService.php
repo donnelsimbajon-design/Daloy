@@ -63,6 +63,44 @@ class ReefPanelService
     }
 
     /**
+     * Get suggested friends for the user.
+     * Excludes current user, already followed users, and blocked users.
+     */
+    public static function getSuggestedFriends(?int $userId = null): array
+    {
+        if (!$userId) return [];
+        $cacheKey = "reef:suggested_friends:{$userId}";
+
+        return Cache::remember($cacheKey, 600, function () use ($userId) {
+            $followingIds = DB::table('follows')->where('user_id', $userId)->pluck('following_id')->toArray();
+            $followingIds[] = $userId;
+
+            $user = \App\Models\User::find($userId);
+            $allBlockedIds = [];
+            if ($user) {
+                $blocked = $user->blockedUsers()->pluck('blocked_user_id')->toArray();
+                $blockedBy = $user->blockedBy()->pluck('user_id')->toArray();
+                $allBlockedIds = array_unique(array_merge($blocked, $blockedBy));
+            }
+            
+            $excludeIds = array_merge($followingIds, $allBlockedIds);
+
+            return \App\Models\User::whereNotIn('id', $excludeIds)
+                ->inRandomOrder()
+                ->take(5)
+                ->get(['id', 'name', 'username', 'profile_picture', 'bio'])
+                ->map(fn($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'username' => '@' . $u->username,
+                    'profile_picture' => $u->profile_picture,
+                    'bio' => $u->bio,
+                    'initial' => strtoupper(substr($u->name, 0, 1)),
+                ])->toArray();
+        });
+    }
+
+    /**
      * Get groups the user has already joined, including active currents status,
      * user role, and active session details.
      * Non-cached to make sure active currents state is fresh.

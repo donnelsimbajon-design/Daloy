@@ -63,6 +63,7 @@ class HandleInertiaRequests extends Middleware
                 'trending_hashtags' => \App\Services\ReefPanelService::getTrendingHashtags(),
                 'popular_today'     => \App\Services\ReefPanelService::getPopularToday(),
                 'suggested_groups'  => \App\Services\ReefPanelService::getSuggestedGroups($user?->id),
+                'suggested_friends' => \App\Services\ReefPanelService::getSuggestedFriends($user?->id),
                 'my_groups'         => \App\Services\ReefPanelService::getMyGroups($user?->id),
             ],
 

@@ -68,6 +68,7 @@ export default function Landing() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [heroRef, heroVisible] = useReveal(0.01);
+    const [currentVideo, setCurrentVideo] = useState(1);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 40);
@@ -81,15 +82,15 @@ export default function Landing() {
     };
 
     const features = [
-        { icon: Waves,         title: 'Deep Flow Feed',      description: 'Your personalized content stream powered by real connections — posts, stories, and moments from the people you follow.' },
-        { icon: Users,         title: 'Schools',             description: 'Join or create communities around shared interests. Every school is a dedicated space for conversation, events, and collaboration.' },
-        { icon: Video,         title: 'Group Calls',         description: 'Crystal-clear HD video calls with up to dozens of participants. Screen sharing, in-call chat, and host controls built in.' },
+        { icon: Waves, title: 'Deep Flow Feed', description: 'Your personalized content stream powered by real connections — posts, stories, and moments from the people you follow.' },
+        { icon: Users, title: 'Schools', description: 'Join or create communities around shared interests. Every school is a dedicated space for conversation, events, and collaboration.' },
+        { icon: Video, title: 'Group Calls', description: 'Crystal-clear HD video calls with up to dozens of participants. Screen sharing, in-call chat, and host controls built in.' },
         { icon: MessageSquare, title: 'Real-Time Messaging', description: 'Instant 1-on-1 and group conversations with media sharing, read receipts, and live typing indicators.' },
-        { icon: Music,         title: 'Currents Music',      description: 'Live synchronized music sessions inside Schools. Everyone in the current hears the same track at the same moment.' },
-        { icon: Bell,          title: 'Ripples',             description: 'Smart, prioritized notifications that keep you in the loop on what truly matters — without the noise.' },
-        { icon: Globe,         title: 'Events',              description: 'Discover and organize events within your schools and across the platform. RSVP, share, and bring your community together.' },
-        { icon: ShieldCheck,   title: 'Privacy First',       description: 'Granular controls over who sees your content, who can message you, and a silent mutual-block system that protects everyone.' },
-        { icon: Search,        title: 'Explore',             description: 'Surface trending content, discover voyagers with shared interests, and find your next school through smart search.' },
+        { icon: Music, title: 'Currents Music', description: 'Live synchronized music sessions inside Schools. Everyone in the current hears the same track at the same moment.' },
+        { icon: Bell, title: 'Ripples', description: 'Smart, prioritized notifications that keep you in the loop on what truly matters — without the noise.' },
+        { icon: Globe, title: 'Events', description: 'Discover and organize events within your schools and across the platform. RSVP, share, and bring your community together.' },
+        { icon: ShieldCheck, title: 'Privacy First', description: 'Granular controls over who sees your content, who can message you, and a silent mutual-block system that protects everyone.' },
+        { icon: Search, title: 'Explore', description: 'Surface trending content, discover voyagers with shared interests, and find your next school through smart search.' },
     ];
 
     return (
@@ -109,10 +110,10 @@ export default function Landing() {
 
                         {/* Desktop */}
                         <div className="hidden md:flex items-center gap-6">
-                            <button onClick={() => scrollTo('about')} className="text-white/50 hover:text-white text-sm font-medium transition-colors cursor-pointer">About</button>
-                            <button onClick={() => scrollTo('features')} className="text-white/50 hover:text-white text-sm font-medium transition-colors cursor-pointer">Features</button>
-                            <Link href="/login" className="text-white/70 hover:text-white text-sm font-medium transition-colors">Sign in</Link>
-                            <Link href="/register" className="bg-white text-black text-sm font-semibold px-4 py-2 rounded-full hover:bg-white/90 transition-all duration-200 hover:scale-[1.02]">Get started</Link>
+                            <button onClick={() => scrollTo('about')} className="flex items-center text-white/60 hover:text-white text-sm font-semibold transition-colors cursor-pointer tracking-wide pt-[1px]">About</button>
+                            <button onClick={() => scrollTo('features')} className="flex items-center text-white/60 hover:text-white text-sm font-semibold transition-colors cursor-pointer tracking-wide pt-[1px]">Features</button>
+                            <Link href="/login" className="flex items-center text-white/80 hover:text-white text-sm font-bold transition-colors tracking-wide pt-[1px]">Sign in</Link>
+                            <Link href="/register" className="bg-white text-black text-sm font-bold px-5 py-2.5 rounded-full hover:bg-gray-200 transition-all duration-200 hover:scale-105 ml-1">Get started</Link>
                         </div>
 
                         {/* Mobile */}
@@ -135,40 +136,53 @@ export default function Landing() {
                 </nav>
 
                 {/* ── Hero ────────────────────────────────────────────── */}
-                <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 text-center overflow-hidden">
-                    <div className="absolute inset-0 pointer-events-none opacity-[0.03]"
-                        style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)', backgroundSize: '80px 80px' }} />
-                    <div className="absolute inset-0 pointer-events-none"
-                        style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 50%, transparent 30%, black 100%)' }} />
+                <section className="relative min-h-screen flex flex-col justify-center px-6 sm:px-12 md:px-20 overflow-hidden">
+                    {/* Background Video Layer */}
+                    <div className="absolute inset-0 pointer-events-none z-0 bg-black">
+                        <video
+                            key={currentVideo}
+                            src={`/video/video${currentVideo}.mp4`}
+                            autoPlay
+                            muted
+                            playsInline
+                            onEnded={() => setCurrentVideo(v => v === 1 ? 2 : 1)}
+                            className="w-full h-full object-cover opacity-100 transition-opacity duration-1000 animate-[fadeIn_2s_ease-out]"
+                        />
+                        {/* Just a simple gradient to blend the top nav and bottom content seamlessly into the black page theme */}
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black" />
+                    </div>
 
                     <div ref={heroRef} style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity 0.9s ease, transform 0.9s ease' }}
-                        className="relative z-10 max-w-4xl mx-auto w-full">
+                        className="relative z-10 max-w-6xl mx-auto w-full text-left">
 
-                        <div className="inline-flex items-center gap-2 border border-white/15 rounded-full px-3 sm:px-4 py-1 sm:py-1.5 mb-6 sm:mb-8 text-white/50 text-[10px] sm:text-xs font-medium uppercase tracking-widest">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
+                        <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 mb-6 text-white text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-xl bg-white/5 shadow-xl transition-transform hover:scale-105 cursor-default">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/50 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-white/80"></span>
+                            </span>
                             Social Media, Redefined
                         </div>
 
-                        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl xl:text-[6.5rem] font-bold leading-[1] tracking-[-0.04em] text-white mb-4 sm:mb-6">
+                        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.05] tracking-tight text-white mb-6 drop-shadow-2xl max-w-3xl">
                             Dive into
                             <br />
-                            <span className="italic font-light text-white/60">the current.</span>
+                            <span className="italic font-normal text-white/80 pb-1 inline-block">the current.</span>
                         </h1>
 
-                        <p className="text-white/40 text-base sm:text-lg md:text-xl max-w-xl mx-auto mb-8 sm:mb-12 leading-relaxed font-light px-2">
+                        <p className="text-white/70 text-base md:text-lg max-w-xl mb-10 leading-relaxed font-medium drop-shadow-lg pr-4">
                             Daloy is an ocean-themed social platform where communities flow naturally —
                             real connections, live experiences, and meaningful conversations.
                         </p>
 
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                             <Link href="/register"
-                                className="group inline-flex items-center justify-center gap-2 bg-white text-black font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-full hover:bg-white/90 transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] text-sm w-full sm:w-auto">
+                                className="group inline-flex items-center justify-center gap-2 bg-white text-black font-bold px-6 py-3.5 rounded-full hover:bg-gray-200 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] text-sm w-full sm:w-auto">
                                 Start voyaging
-                                <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Link>
-                            <button onClick={() => scrollTo('about')} className="inline-flex items-center gap-2 text-white/50 hover:text-white text-sm font-medium transition-colors cursor-pointer">
+                            <button onClick={() => scrollTo('about')} className="inline-flex items-center gap-2 text-white/60 hover:text-white text-sm font-semibold transition-colors cursor-pointer pl-2 group">
                                 Learn more
-                                <ChevronDown className="w-4 h-4 animate-bounce" />
+                                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform opacity-50 group-hover:opacity-100" />
                             </button>
                         </div>
                     </div>
@@ -266,10 +280,10 @@ function AboutLeft() {
 function AboutRight() {
     const [ref, visible] = useReveal();
     const pillars = [
-        { icon: Heart,       label: 'Real Connections', sub: 'Built around people, not engagement' },
-        { icon: ShieldCheck, label: 'Your Privacy',      sub: 'Silent blocks, granular controls' },
-        { icon: Zap,         label: 'Live Experiences',  sub: 'Calls, events, music — all real-time' },
-        { icon: Hash,        label: 'Niche Communities', sub: 'Schools for every interest' },
+        { icon: Heart, label: 'Real Connections', sub: 'Built around people, not engagement' },
+        { icon: ShieldCheck, label: 'Your Privacy', sub: 'Silent blocks, granular controls' },
+        { icon: Zap, label: 'Live Experiences', sub: 'Calls, events, music — all real-time' },
+        { icon: Hash, label: 'Niche Communities', sub: 'Schools for every interest' },
     ];
     return (
         <div ref={ref} style={{ opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(24px)', transition: 'opacity 0.8s ease 0.15s, transform 0.8s ease 0.15s' }}
