@@ -66,10 +66,21 @@ class FollowController extends Controller
                 return response()->json(['message' => 'Follow request already sent.']);
             }
 
-            FollowRequest::create([
+            $followReq = FollowRequest::create([
                 'follower_id'  => $currentUser->id,
                 'following_id' => $targetUser->id,
                 'status'       => 'pending'
+            ]);
+
+            \App\Models\Ripple::create([
+                'user_id' => $targetUser->id,
+                'sender_id' => $currentUser->id,
+                'type' => 'follow_request',
+                'notifiable_type' => 'App\\Models\\FollowRequest',
+                'notifiable_id' => $followReq->id,
+                'data' => [
+                    'message' => "{$currentUser->name} wants to follow you",
+                ]
             ]);
 
             \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$currentUser->id}");
@@ -79,6 +90,17 @@ class FollowController extends Controller
             $currentUser->following()->attach($targetUser->id);
             $this->logActivity('followed', 'social', 'User', $targetUser->id);
             
+            \App\Models\Ripple::create([
+                'user_id' => $targetUser->id,
+                'sender_id' => $currentUser->id,
+                'type' => 'follow',
+                'notifiable_type' => 'App\\Models\\User',
+                'notifiable_id' => $currentUser->id,
+                'data' => [
+                    'message' => "{$currentUser->name} started following you",
+                ]
+            ]);
+
             \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$currentUser->id}");
             return response()->json(['message' => 'Followed successfully.']);
         }

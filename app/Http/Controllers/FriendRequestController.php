@@ -101,6 +101,18 @@ class FriendRequestController extends Controller
             'status'      => 'pending'
         ]);
 
+        \App\Models\Ripple::create([
+            'user_id' => $receiverId,
+            'sender_id' => $sender->id,
+            'type' => 'friend_request',
+            'notifiable_type' => 'App\\Models\\FriendRequest',
+            'notifiable_id' => $friendRequest->id,
+            'data' => [
+                'message' => "{$sender->name} sent you a friend request",
+                'request_id' => $friendRequest->id
+            ]
+        ]);
+
         \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$sender->id}");
         \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends_{$sender->id}");
 

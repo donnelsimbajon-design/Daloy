@@ -163,6 +163,22 @@ class SchoolController extends Controller
             return response()->json(['message' => 'Left the group.', 'is_member' => false]);
         } else {
             $school->members()->attach($user->id, ['role' => 'member']);
+            
+            // Notify the group creator
+            if ($school->created_by && $school->created_by !== $user->id) {
+                \App\Models\Ripple::create([
+                    'user_id' => $school->created_by,
+                    'sender_id' => $user->id,
+                    'type' => 'group_join',
+                    'notifiable_type' => 'App\\Models\\School',
+                    'notifiable_id' => $school->id,
+                    'data' => [
+                        'message' => "{$user->name} joined your group {$school->name}",
+                        'school_id' => $school->id
+                    ]
+                ]);
+            }
+
             \Illuminate\Support\Facades\Cache::forget("reef:suggested_groups:{$user->id}");
             return response()->json(['message' => 'Joined the group.', 'is_member' => true]);
         }
