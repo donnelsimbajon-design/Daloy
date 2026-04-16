@@ -152,17 +152,18 @@ class SchoolController extends Controller
     {
         $user = Auth::user();
 
-        if ($school->created_by === $user->id) {
-            return response()->json(['message' => 'Creator cannot leave the group.'], 400);
-        }
-
         $isMember = $school->members()->where('user_id', $user->id)->exists();
 
         if ($isMember) {
+            if ($school->created_by === $user->id) {
+                return response()->json(['message' => 'Creator cannot leave the group.'], 400);
+            }
             $school->members()->detach($user->id);
+            \Illuminate\Support\Facades\Cache::forget("reef:suggested_groups:{$user->id}");
             return response()->json(['message' => 'Left the group.', 'is_member' => false]);
         } else {
             $school->members()->attach($user->id, ['role' => 'member']);
+            \Illuminate\Support\Facades\Cache::forget("reef:suggested_groups:{$user->id}");
             return response()->json(['message' => 'Joined the group.', 'is_member' => true]);
         }
     }

@@ -101,6 +101,9 @@ class FriendRequestController extends Controller
             'status'      => 'pending'
         ]);
 
+        \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends:{$sender->id}");
+        \Illuminate\Support\Facades\Cache::forget("reef:suggested_friends_{$sender->id}");
+
         return response()->json(['message' => 'Friend request sent successfully.', 'request' => $friendRequest]);
     }
 

@@ -64,7 +64,7 @@ class ReefPanelService
 
     /**
      * Get suggested friends for the user.
-     * Excludes current user, already followed users, and blocked users.
+     * Excludes current user, already followed users, friends, users with pending requests, and blocked users.
      */
     public static function getSuggestedFriends(?int $userId = null): array
     {
@@ -73,7 +73,12 @@ class ReefPanelService
 
         return Cache::remember($cacheKey, 600, function () use ($userId) {
             $followingIds = DB::table('follows')->where('user_id', $userId)->pluck('following_id')->toArray();
-            $followingIds[] = $userId;
+            
+            $friendIds1 = DB::table('friends')->where('user_id', $userId)->pluck('friend_id')->toArray();
+            $friendIds2 = DB::table('friends')->where('friend_id', $userId)->pluck('user_id')->toArray();
+            
+            $requestIds1 = DB::table('friend_requests')->where('sender_id', $userId)->where('status', 'pending')->pluck('receiver_id')->toArray();
+            $requestIds2 = DB::table('friend_requests')->where('receiver_id', $userId)->where('status', 'pending')->pluck('sender_id')->toArray();
 
             $user = \App\Models\User::find($userId);
             $allBlockedIds = [];
@@ -83,7 +88,15 @@ class ReefPanelService
                 $allBlockedIds = array_unique(array_merge($blocked, $blockedBy));
             }
             
-            $excludeIds = array_merge($followingIds, $allBlockedIds);
+            $excludeIds = array_unique(array_merge(
+                [$userId], 
+                $followingIds, 
+                $friendIds1,
+                $friendIds2, 
+                $requestIds1, 
+                $requestIds2, 
+                $allBlockedIds
+            ));
 
             return \App\Models\User::whereNotIn('id', $excludeIds)
                 ->inRandomOrder()

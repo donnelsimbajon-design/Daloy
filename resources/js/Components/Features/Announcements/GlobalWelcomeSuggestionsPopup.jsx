@@ -11,6 +11,11 @@ export default function GlobalWelcomeSuggestionsPopup() {
     const [followingUsers, setFollowingUsers] = useState({});
     const [friendingUsers, setFriendingUsers] = useState({});
     const [joiningGroups, setJoiningGroups] = useState({});
+    
+    // Track successful actions permanently during this session
+    const [successFollows, setSuccessFollows] = useState({});
+    const [successFriends, setSuccessFriends] = useState({});
+    const [successGroups, setSuccessGroups] = useState({});
 
     useEffect(() => {
         if (!user || user.role === 'admin' || user.role === 'moderator') return;
@@ -44,6 +49,7 @@ export default function GlobalWelcomeSuggestionsPopup() {
         setFollowingUsers(prev => ({ ...prev, [userId]: true }));
         try {
             await axios.post('/api/follow', { user_id: userId });
+            setSuccessFollows(prev => ({ ...prev, [userId]: true }));
         } catch (err) {
             console.error(err);
         } finally {
@@ -55,6 +61,7 @@ export default function GlobalWelcomeSuggestionsPopup() {
         setFriendingUsers(prev => ({ ...prev, [userId]: true }));
         try {
             await axios.post('/api/friend-request/send', { receiver_id: userId });
+            setSuccessFriends(prev => ({ ...prev, [userId]: true }));
         } catch (err) {
             console.error(err);
         } finally {
@@ -66,6 +73,7 @@ export default function GlobalWelcomeSuggestionsPopup() {
         setJoiningGroups(prev => ({ ...prev, [groupId]: true }));
         try {
             await axios.post(`/schools/${groupId}/toggle-membership`);
+            setSuccessGroups(prev => ({ ...prev, [groupId]: true }));
             router.reload({ only: ['reef'] });
         } catch (err) {
             console.error(err);
@@ -174,31 +182,33 @@ export default function GlobalWelcomeSuggestionsPopup() {
                                         <div className="flex gap-2 sm:ml-2 sm:shrink-0 w-full sm:w-auto">
                                             <button 
                                                 onClick={() => handleFriendRequest(friend.id)}
-                                                disabled={friendingUsers[friend.id]}
+                                                disabled={friendingUsers[friend.id] || successFriends[friend.id]}
                                                 className="flex-1 sm:flex-none"
                                                 style={{
                                                     background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20,
                                                     padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
                                                     transition: 'all 0.2s',
+                                                    opacity: successFriends[friend.id] ? 0.5 : 1
                                                 }}
                                                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                                                 onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
                                             >
-                                                {friendingUsers[friend.id] ? 'Sent' : 'Add Friend'}
+                                                {successFriends[friend.id] ? 'Requested' : (friendingUsers[friend.id] ? 'Sending...' : 'Add Friend')}
                                             </button>
                                             <button 
                                                 onClick={() => handleFollow(friend.id)}
-                                                disabled={followingUsers[friend.id]}
+                                                disabled={followingUsers[friend.id] || successFollows[friend.id]}
                                                 className="flex-1 sm:flex-none"
                                                 style={{
                                                     background: '#fff', color: '#0A0A0D', border: 'none', borderRadius: 20,
                                                     padding: '6px 14px', fontSize: 12, fontWeight: 800, cursor: 'pointer',
                                                     transition: 'background 0.2s',
+                                                    opacity: successFollows[friend.id] ? 0.5 : 1
                                                 }}
                                                 onMouseEnter={e => e.currentTarget.style.background = '#f0f0f0'}
                                                 onMouseLeave={e => e.currentTarget.style.background = '#fff'}
                                             >
-                                                {followingUsers[friend.id] ? 'Following' : 'Follow'}
+                                                {successFollows[friend.id] ? 'Following' : (followingUsers[friend.id] ? 'Wait...' : 'Follow')}
                                             </button>
                                         </div>
                                     </div>
@@ -239,14 +249,15 @@ export default function GlobalWelcomeSuggestionsPopup() {
                                         </div>
                                         <button 
                                             onClick={() => handleJoinGroup(group.id)}
-                                            disabled={joiningGroups[group.id]}
+                                            disabled={joiningGroups[group.id] || successGroups[group.id]}
                                             className="w-full sm:w-auto sm:ml-2 sm:shrink-0"
                                             style={{
                                                 background: '#fff', color: '#000', border: 'none', borderRadius: 20,
                                                 padding: '6px 14px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                                                opacity: successGroups[group.id] ? 0.5 : 1
                                             }}
                                         >
-                                            {joiningGroups[group.id] ? 'Joined' : 'Join'}
+                                            {successGroups[group.id] ? 'Joined' : (joiningGroups[group.id] ? 'Joining...' : 'Join')}
                                         </button>
                                     </div>
                                 ))}

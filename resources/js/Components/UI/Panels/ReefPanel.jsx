@@ -112,6 +112,11 @@ function ConnectionsPanel() {
     const [activeTab, setActiveTab] = useState('groups'); // 'groups' or 'friends'
     const [followingUsers, setFollowingUsers] = useState({});
     const [friendingUsers, setFriendingUsers] = useState({});
+    
+    // UX Tracking
+    const [successFollows, setSuccessFollows] = useState({});
+    const [successFriends, setSuccessFriends] = useState({});
+    const [successGroups, setSuccessGroups] = useState({});
 
     const groupColors = ['bg-cyan-600', 'bg-blue-600', 'bg-indigo-600', 'bg-emerald-600', 'bg-purple-600', 'bg-rose-600'];
     const friendColors = ['bg-amber-600', 'bg-orange-600', 'bg-red-600', 'bg-pink-600', 'bg-purple-600'];
@@ -132,6 +137,7 @@ function ConnectionsPanel() {
         setJoining(groupId);
         try {
             await axios.post(`/schools/${groupId}/toggle-membership`);
+            setSuccessGroups(prev => ({ ...prev, [groupId]: true }));
             router.reload({ only: ['reef'] });
         } catch (err) {
             console.error('Failed to join group:', err);
@@ -144,6 +150,7 @@ function ConnectionsPanel() {
         setFollowingUsers(prev => ({ ...prev, [userId]: true }));
         try {
             await axios.post('/api/follow', { user_id: userId });
+            setSuccessFollows(prev => ({ ...prev, [userId]: true }));
         } catch (err) {
             console.error(err);
         } finally {
@@ -155,6 +162,7 @@ function ConnectionsPanel() {
         setFriendingUsers(prev => ({ ...prev, [userId]: true }));
         try {
             await axios.post('/api/friend-request/send', { receiver_id: userId });
+            setSuccessFriends(prev => ({ ...prev, [userId]: true }));
         } catch (err) {
             console.error(err);
         } finally {
@@ -216,11 +224,12 @@ function ConnectionsPanel() {
                             </div>
                             <Button 
                                 onClick={(e) => { e.stopPropagation(); handleJoin(group.id); }}
-                                disabled={joining === group.id}
+                                disabled={joining === group.id || successGroups[group.id]}
                                 size="sm"
                                 className="rounded-xl px-4 ml-2 shrink-0"
+                                style={{ opacity: successGroups[group.id] ? 0.5 : 1 }}
                             >
-                                {joining === group.id ? '...' : 'Join'}
+                                {successGroups[group.id] ? 'Joined' : (joining === group.id ? '...' : 'Join')}
                             </Button>
                         </div>
                     )) : groups.length === 0 ? (
@@ -253,19 +262,21 @@ function ConnectionsPanel() {
                                 <Button 
                                     variant="secondary"
                                     onClick={(e) => { e.stopPropagation(); handleFriendRequest(friend.id); }}
-                                    disabled={friendingUsers[friend.id]}
+                                    disabled={friendingUsers[friend.id] || successFriends[friend.id]}
                                     size="sm"
                                     className="flex-1 xl:flex-none rounded-xl px-0 xl:px-3 bg-ocean-surface hover:bg-ocean-divider-subtle border border-ocean-border text-xs leading-[10px]"
+                                    style={{ opacity: successFriends[friend.id] ? 0.5 : 1 }}
                                 >
-                                    {friendingUsers[friend.id] ? 'Sent' : 'Add Friend'}
+                                    {successFriends[friend.id] ? 'Requested' : (friendingUsers[friend.id] ? 'Sent' : 'Add Friend')}
                                 </Button>
                                 <Button 
                                     onClick={(e) => { e.stopPropagation(); handleFollow(friend.id); }}
-                                    disabled={followingUsers[friend.id]}
+                                    disabled={followingUsers[friend.id] || successFollows[friend.id]}
                                     size="sm"
                                     className="flex-1 xl:flex-none rounded-xl px-0 xl:px-4 text-xs leading-[10px]"
+                                    style={{ opacity: successFollows[friend.id] ? 0.5 : 1 }}
                                 >
-                                    {followingUsers[friend.id] ? 'Following' : 'Follow'}
+                                    {successFollows[friend.id] ? 'Following' : (followingUsers[friend.id] ? 'Wait...' : 'Follow')}
                                 </Button>
                             </div>
                         </div>
