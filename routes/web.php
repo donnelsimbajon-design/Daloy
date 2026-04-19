@@ -206,6 +206,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/calls/status', [App\Http\Controllers\MessagingCallController::class, 'checkStatus'])->name('api.calls.status');
     Route::post('/api/calls/action', [App\Http\Controllers\MessagingCallController::class, 'action'])->name('api.calls.action');
     Route::post('/api/messages/{message}/react', [MessagingController::class, 'reactToMessage'])->name('api.messages.react');
+    Route::put('/api/messages/{message}', [MessagingController::class, 'editMessage'])->name('api.messages.edit');
     Route::delete('/api/messages/{message}', [MessagingController::class, 'deleteMessage'])->name('api.messages.delete');
     Route::post('/api/conversations/{conversation}/typing', [MessagingController::class, 'typing'])->name('api.conversations.typing');
     Route::get('/api/conversations/{conversation}/typing', [MessagingController::class, 'getTyping'])->name('api.conversations.typing.get');

@@ -4,7 +4,7 @@ import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 
 
-export default function StoryRail({ horizontal = false }) {
+export default function StoryRail({ horizontal = false, hidden = false, forcedStoryUserId = null, onCloseForced = null }) {
     const { auth } = usePage().props;
     const user = auth.user;
     const [stories, setStories] = useState([]);
@@ -62,17 +62,43 @@ export default function StoryRail({ horizontal = false }) {
     };
 
     useEffect(() => {
-        fetchStories();
+        fetchStories().then(() => {
+            const urlParams = new URL(window.location.href).searchParams;
+            const openStory = urlParams.get('open_story');
+            if (openStory) {
+                // we need to wait for groupedStories to be set by fetchStories
+                // It's handled in the next effect
+            }
+        });
     }, []);
 
-    // Initialize local likes state from fetched stories
+    // Initialize local likes state from fetched stories and handle URL parameter
     useEffect(() => {
         if (stories.length > 0) {
             const likes = {};
             stories.forEach(s => likes[s.id] = s.is_liked);
             setLikedStories(likes);
         }
-    }, [stories]);
+        
+        // Auto-open story from URL parameter or forced prop
+        if (groupedStories.length > 0) {
+            const urlParams = new URL(window.location.href).searchParams;
+            const openStoryId = forcedStoryUserId || urlParams.get('open_story');
+            if (openStoryId && !selectedStory) {
+                const group = groupedStories.find(g => g.user.id == openStoryId);
+                if (group) {
+                    setSelectedStory(group.items[0]);
+                    // remove param if it was from URL
+                    if (!forcedStoryUserId) {
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                } else if (forcedStoryUserId && onCloseForced) {
+                    // if forced user has no stories anymore, immediately close
+                    onCloseForced();
+                }
+            }
+        }
+    }, [stories, groupedStories]);
 
     // Live polling for owner & View recording for non-owners
     useEffect(() => {
@@ -303,8 +329,9 @@ export default function StoryRail({ horizontal = false }) {
             setSelectedStory(stories[currentIndex + 1]);
         } else {
             setSelectedStory(null); // End of stories
+            if (onCloseForced) onCloseForced();
         }
-    }, [selectedStory, stories]);
+    }, [selectedStory, stories, onCloseForced]);
 
     const handlePrevStory = React.useCallback(() => {
         if (!selectedStory) return;
@@ -332,135 +359,142 @@ export default function StoryRail({ horizontal = false }) {
     }, [selectedStory, handleNextStory]);
 
     return (
-        <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-full pt-3'} relative`}>
-            {/* Continuous vertical guide line — only for vertical mode */}
-            {!horizontal && (
-                <div
-                    className="absolute top-[72px] bottom-[40px] pointer-events-none z-0"
-                    style={{
-                        left: 'calc(50% - 0.5px)',
-                        width: '1px',
-                        backgroundColor: 'var(--color-ocean-divider-subtle)',
-                        boxShadow: '0 0 3px rgba(0, 0, 0, 0.03)',
-                        maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
-                        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
-                    }}
-                />
-            )}
-
-            {/* Header - only for vertical */}
-            {!horizontal && (
-                <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Story</h3>
-            )}
-
-            {/* Scroll Up Button - Vertical only */}
-            {!horizontal && (
-                <button
-                    onClick={() => scroll('up')}
-                    className="mb-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm"
-                >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
-                </button>
-            )}
-
-            {/* Stories List */}
-            <div
-                ref={scrollContainerRef}
-                className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-1 w-full' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-3 sm:gap-5 no-scrollbar pb-4 relative z-[1]`}
-            >
-                {/* Your Story Avatar */}
-                <div className="flex flex-col items-center gap-2 group cursor-pointer shrink-0" onClick={() => setShowCreateMenu(true)}>
-                    <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleFileSelect} 
-                        accept="image/*,video/*" 
-                        className="hidden" 
-                    />
-                    <div className={`relative p-1 rounded-full group-hover:scale-105 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-2 border-ocean-border border-dashed p-0.5 group-hover:border-biolum/50 overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative transition-colors">
-                            {user?.profile_picture ? (
-                                <img src={user.profile_picture} alt={user.name} className="w-full h-full rounded-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                            ) : (
-                                <div className="w-full h-full rounded-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
-                                    {user?.name?.charAt(0)}
-                                </div>
-                            )}
-                        </div>
-                        <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-biolum border-2 border-ocean-surface flex items-center justify-center text-white text-sm font-bold shadow-sm z-20 group-hover:scale-110 transition-transform">
-                            {uploading ? (
-                                <svg className="w-3 h-3 animate-spin text-biolum-foreground" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            ) : (
-                                <svg className="w-3.5 h-3.5 text-biolum-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                            )}
-                        </div>
-                    </div>
-                    <span className="text-[11px] font-semibold text-ocean-text-dim tracking-wide truncate max-w-[72px]">Your Story</span>
-                </div>
-
-                {/* Other Stories Avatars */}
-                {groupedStories.map((group) => {
-                    const firstStory = group.items[0];
-                    return (
+        <>
+            {!hidden && (
+                <div className={`flex ${horizontal ? 'flex-row h-auto w-full px-2' : 'flex-col items-center h-full pt-3'} relative`}>
+                    {/* Continuous vertical guide line — only for vertical mode */}
+                    {!horizontal && (
                         <div
-                            key={group.user.id}
-                            className="flex flex-col items-center gap-2 group cursor-pointer shrink-0 relative hover-lift"
-                            onClick={() => setSelectedStory(group.items[0])}
+                            className="absolute top-[72px] bottom-[40px] pointer-events-none z-0"
+                            style={{
+                                left: 'calc(50% - 0.5px)',
+                                width: '1px',
+                                backgroundColor: 'var(--color-ocean-divider-subtle)',
+                                boxShadow: '0 0 3px rgba(0, 0, 0, 0.03)',
+                                maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
+                                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)',
+                            }}
+                        />
+                    )}
+
+                    {/* Header - only for vertical */}
+                    {!horizontal && (
+                        <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Story</h3>
+                    )}
+
+                    {/* Scroll Up Button - Vertical only */}
+                    {!horizontal && (
+                        <button
+                            onClick={() => scroll('up')}
+                            className="mb-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm"
                         >
-                            <div className="p-[3px] rounded-full bg-gradient-to-tr from-biolum via-biolum-bright to-ocean-border transition-all duration-300 group-hover:scale-[1.03]">
-                                <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
-                                    {firstStory.type === 'text' ? (
-                                        <div className="w-full h-full bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] flex items-center justify-center p-2 text-center">
-                                            <span className="text-[8px] font-bold text-white leading-tight line-clamp-4 break-words shadow-sm">
-                                                {firstStory.content}
-                                            </span>
-                                        </div>
-                                    ) : firstStory.image ? (
-                                        firstStory.type === 'video' ? (
-                                            <video src={firstStory.image} className="w-full h-full object-cover bg-black" muted playsInline />
-                                        ) : (
-                                            <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
-                                        )
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                    )}
+
+                    {/* Stories List */}
+                    <div
+                        ref={scrollContainerRef}
+                        className={`flex-1 flex ${horizontal ? 'flex-row overflow-x-auto py-2 px-1 w-full' : 'flex-col items-center overflow-y-auto no-scrollbar scroll-smooth'} gap-3 sm:gap-5 no-scrollbar pb-4 relative z-[1]`}
+                    >
+                        {/* Your Story Avatar */}
+                        <div className="flex flex-col items-center gap-2 group cursor-pointer shrink-0" onClick={() => setShowCreateMenu(true)}>
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleFileSelect} 
+                                accept="image/*,video/*" 
+                                className="hidden" 
+                            />
+                            <div className={`relative p-1 rounded-full group-hover:scale-105 transition-all duration-300 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-2 border-ocean-border border-dashed p-0.5 group-hover:border-biolum/50 overflow-hidden bg-ocean-surface flex flex-col items-center justify-center relative transition-colors">
+                                    {user?.profile_picture ? (
+                                        <img src={user.profile_picture} alt={user.name} className="w-full h-full rounded-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
-                                            {group.user.name.charAt(0)}
+                                        <div className="w-full h-full rounded-full flex items-center justify-center bg-ocean-surface text-ocean-text-dim text-2xl font-bold opacity-30">
+                                            {user?.name?.charAt(0)}
                                         </div>
                                     )}
                                 </div>
-                                {/* Mini Avatar Overlay */}
-                                <div className="absolute bottom-[20px] right-0 w-6 h-6 rounded-full border-[2px] border-ocean-card bg-ocean-surface overflow-hidden shadow-sm z-10">
-                                    {group.user.profile_picture ? (
-                                        <img src={group.user.profile_picture} className="w-full h-full object-cover" />
+                                <div className="absolute bottom-1 right-1 w-6 h-6 rounded-full bg-biolum border-2 border-ocean-surface flex items-center justify-center text-white text-sm font-bold shadow-sm z-20 group-hover:scale-110 transition-transform">
+                                    {uploading ? (
+                                        <svg className="w-3 h-3 animate-spin text-biolum-foreground" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                                     ) : (
-                                        <div className="w-full h-full bg-ocean-text flex items-center justify-center text-[9px] font-bold text-ocean-surface uppercase font-sans">
-                                            {group.user.name.charAt(0)}
-                                        </div>
+                                        <svg className="w-3.5 h-3.5 text-biolum-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                                     )}
                                 </div>
                             </div>
-                            <span className="text-[11px] font-semibold text-ocean-text group-hover:text-ocean-text/80 tracking-wide truncate max-w-[60px] sm:max-w-[72px] text-center transition-colors">
-                                {group.user.name.split(' ')[0]}
-                            </span>
+                            <span className="text-[11px] font-semibold text-ocean-text-dim tracking-wide truncate max-w-[72px]">Your Story</span>
                         </div>
-                    );
-                })}
-            </div>
 
-            {/* Scroll Down Button - Vertical only */}
-            {!horizontal && (
-                <button
-                    onClick={() => scroll('down')}
-                    className="mt-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm animate-bounce"
-                >
-                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
-                </button>
+                        {/* Other Stories Avatars */}
+                        {groupedStories.map((group) => {
+                            const firstStory = group.items[0];
+                            return (
+                                <div
+                                    key={group.user.id}
+                                    className="flex flex-col items-center gap-2 group cursor-pointer shrink-0 relative hover-lift"
+                                    onClick={() => setSelectedStory(group.items[0])}
+                                >
+                                    <div className="p-[3px] rounded-full bg-gradient-to-tr from-biolum via-biolum-bright to-ocean-border transition-all duration-300 group-hover:scale-[1.03]">
+                                        <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
+                                            {firstStory.type === 'text' ? (
+                                                <div className="w-full h-full bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] flex items-center justify-center p-2 text-center">
+                                                    <span className="text-[8px] font-bold text-white leading-tight line-clamp-4 break-words shadow-sm">
+                                                        {firstStory.content}
+                                                    </span>
+                                                </div>
+                                            ) : firstStory.image ? (
+                                                firstStory.type === 'video' ? (
+                                                    <video src={firstStory.image} className="w-full h-full object-cover bg-black" muted playsInline />
+                                                ) : (
+                                                    <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                                )
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
+                                                    {group.user.name.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {/* Mini Avatar Overlay */}
+                                        <div className="absolute bottom-[20px] right-0 w-6 h-6 rounded-full border-[2px] border-ocean-card bg-ocean-surface overflow-hidden shadow-sm z-10">
+                                            {group.user.profile_picture ? (
+                                                <img src={group.user.profile_picture} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="w-full h-full bg-ocean-text flex items-center justify-center text-[9px] font-bold text-ocean-surface uppercase font-sans">
+                                                    {group.user.name.charAt(0)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-semibold text-ocean-text group-hover:text-ocean-text/80 tracking-wide truncate max-w-[60px] sm:max-w-[72px] text-center transition-colors">
+                                        {group.user.name.split(' ')[0]}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Scroll Down Button - Vertical only */}
+                    {!horizontal && (
+                        <button
+                            onClick={() => scroll('down')}
+                            className="mt-2 p-1 text-ocean-text-dim hover:text-biolum transition-colors z-[2] bg-ocean-deep/80 rounded-full backdrop-blur-sm animate-bounce"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                    )}
+                </div>
             )}
 
             {/* Story Viewer Modal - Rendered via Portal to avoid being trapped in sidebar layout */}
             {selectedStory && typeof document !== 'undefined' && createPortal(
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ocean-deep/80 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-300">
                     {/* Background Close Click Area */}
-                    <div className="absolute inset-0 z-0" onClick={() => setSelectedStory(null)} />
+                    <div className="absolute inset-0 z-0" onClick={() => {
+                        setSelectedStory(null);
+                        if (onCloseForced) onCloseForced();
+                    }} />
 
                     {/* Navigation Buttons (Desktop) */}
                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 md:px-10 z-[110] pointer-events-none hidden md:flex">
@@ -495,6 +529,7 @@ export default function StoryRail({ horizontal = false }) {
                                         try {
                                             await axios.post(`/stories/${selectedStory.id}/archive`);
                                             setSelectedStory(null);
+                                            if (onCloseForced) onCloseForced();
                                             fetchStories();
                                         } catch (err) { console.error(err); }
                                     }}
@@ -512,6 +547,7 @@ export default function StoryRail({ horizontal = false }) {
                                         try {
                                             await axios.delete(`/stories/${selectedStory.id}`);
                                             setSelectedStory(null);
+                                            if (onCloseForced) onCloseForced();
                                             fetchStories();
                                         } catch (err) { console.error(err); }
                                     }}
@@ -525,7 +561,10 @@ export default function StoryRail({ horizontal = false }) {
                             </>
                         )}
                         <button
-                            onClick={() => setSelectedStory(null)}
+                            onClick={() => {
+                                setSelectedStory(null);
+                                if (onCloseForced) onCloseForced();
+                            }}
                             className="p-3 text-ocean-text-muted hover:text-white transition-all hover:rotate-90 bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10"
                         >
                             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -955,6 +994,6 @@ export default function StoryRail({ horizontal = false }) {
                     animation: story-progress 5s linear forwards;
                 }
             `}} />
-        </div>
+        </>
     );
 }

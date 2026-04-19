@@ -109,6 +109,29 @@ class UserProfileController extends Controller
                         ->map->count()
                         ->toArray();
                     $post->is_bookmarked = $post->bookmarks()->where('user_id', $authUser->id)->exists();
+
+                    // Poll — serialize as plain array
+                    if ($post->poll) {
+                        $vote = $post->poll->votes()->where('user_id', $authUser->id)->first();
+                        $totalVotes = $post->poll->options->sum('votes_count');
+                        $post->poll = [
+                            'id'                   => $post->poll->id,
+                            'question'             => $post->poll->question,
+                            'expires_at'           => $post->poll->expires_at,
+                            'user_voted'           => $vote !== null,
+                            'user_voted_option_id' => $vote?->option_id,
+                            'total_votes'          => $totalVotes,
+                            'options'              => $post->poll->options->map(function ($opt) use ($totalVotes) {
+                                return [
+                                    'id'          => $opt->id,
+                                    'label'       => $opt->label,
+                                    'votes_count' => $opt->votes_count,
+                                    'percentage'  => $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0,
+                                ];
+                            })->values()->all(),
+                        ];
+                    }
+
                     return $post;
                 });
         }
@@ -173,6 +196,28 @@ class UserProfileController extends Controller
         // Interest tags
         $userInterests = $user->interestTags()->get();
 
+        // Check if user has an active story viewable by auth user
+        $hasActiveStory = false;
+        if (!$isBlocked) {
+            $hasActiveStory = \App\Models\Story::where('user_id', $user->id)
+                ->where('expires_at', '>', now())
+                ->whereNull('archived_at')
+                ->where(function ($query) use ($isSelf, $isFriend, $isCloseFriend) {
+                    $query->where('visibility', 'public');
+                    if ($isSelf) {
+                        $query->orWhereIn('visibility', ['friends', 'private', 'close_friends']);
+                    } else {
+                        if ($isFriend) {
+                            $query->orWhere('visibility', 'friends');
+                        }
+                        if ($isCloseFriend) {
+                            $query->orWhere('visibility', 'close_friends');
+                        }
+                    }
+                })
+                ->exists();
+        }
+
         return Inertia::render('UserProfile', [
             'profileUser' => array_merge($user->only([
                 'id', 'name', 'username', 'bio', 'about', 'profile_picture',
@@ -183,6 +228,7 @@ class UserProfileController extends Controller
                 'follower_count'  => $followerCount,
                 'following_count' => $followingCount,
                 'post_count'      => $postCount,
+                'has_active_story'=> $hasActiveStory,
             ]),
             'isSelf'           => $isSelf,
             'isFollowing'      => $isFollowing,

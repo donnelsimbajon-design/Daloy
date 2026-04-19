@@ -61,11 +61,18 @@ class PostController extends Controller
             'repostOf.user:id,name,username,profile_picture',
             'repostOf.media',
         ])
-            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds, $user, $friendIds, $closeFriendOfIds) {
-                // Posts from feed users (public + followers visibility)
-                $query->where(function ($q) use ($feedUserIds) {
+            ->where(function ($query) use ($feedUserIds, $joinedSchoolIds, $user, $friendIds, $closeFriendOfIds, $excludeFromFeed) {
+                // All public posts from non-blocked users (global discovery)
+                $query->where(function ($q) use ($excludeFromFeed) {
+                    $q->where('visibility', 'public')
+                      ->whereNotIn('user_id', $excludeFromFeed)
+                      ->whereNull('school_id'); // exclude school-only posts from global feed
+                });
+
+                // Also show followers-only posts from people you follow/friend
+                $query->orWhere(function ($q) use ($feedUserIds) {
                     $q->whereIn('user_id', $feedUserIds)
-                      ->whereIn('visibility', ['public', 'followers']);
+                      ->where('visibility', 'followers');
                 });
 
                 // Close friends visibility: only if I'm in their close friends
@@ -108,21 +115,32 @@ class PostController extends Controller
             // Reaction counts grouped by type
             $post->reaction_counts = $this->getReactionCounts($post);
 
-            // Poll vote status
+            // Poll vote status — serialize as a plain array so Inertia passes all fields
             if ($post->poll) {
                 $vote = $post->poll->votes()->where('user_id', $userId)->first();
-                $post->poll->user_voted = $vote !== null;
-                $post->poll->user_voted_option_id = $vote?->option_id;
                 $totalVotes = $post->poll->options->sum('votes_count');
-                $post->poll->total_votes = $totalVotes;
-                $post->poll->options->transform(function ($opt) use ($totalVotes) {
-                    $opt->percentage = $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0;
-                    return $opt;
-                });
+
+                $post->poll = [
+                    'id'                   => $post->poll->id,
+                    'question'             => $post->poll->question,
+                    'expires_at'           => $post->poll->expires_at,
+                    'user_voted'           => $vote !== null,
+                    'user_voted_option_id' => $vote?->option_id,
+                    'total_votes'          => $totalVotes,
+                    'options'              => $post->poll->options->map(function ($opt) use ($totalVotes) {
+                        return [
+                            'id'          => $opt->id,
+                            'label'       => $opt->label,
+                            'votes_count' => $opt->votes_count,
+                            'percentage'  => $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0,
+                        ];
+                    })->values()->all(),
+                ];
             }
 
             return $post;
         });
+
 
         return Inertia::render('Dashboard', [
             'posts' => $posts,
@@ -155,14 +173,24 @@ class PostController extends Controller
 
         if ($post->poll) {
             $vote = $post->poll->votes()->where('user_id', $userId)->first();
-            $post->poll->user_voted = $vote !== null;
-            $post->poll->user_voted_option_id = $vote?->option_id;
             $totalVotes = $post->poll->options->sum('votes_count');
-            $post->poll->total_votes = $totalVotes;
-            $post->poll->options->transform(function ($opt) use ($totalVotes) {
-                $opt->percentage = $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0;
-                return $opt;
-            });
+
+            $post->poll = [
+                'id'                   => $post->poll->id,
+                'question'             => $post->poll->question,
+                'expires_at'           => $post->poll->expires_at,
+                'user_voted'           => $vote !== null,
+                'user_voted_option_id' => $vote?->option_id,
+                'total_votes'          => $totalVotes,
+                'options'              => $post->poll->options->map(function ($opt) use ($totalVotes) {
+                    return [
+                        'id'          => $opt->id,
+                        'label'       => $opt->label,
+                        'votes_count' => $opt->votes_count,
+                        'percentage'  => $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0,
+                    ];
+                })->values()->all(),
+            ];
         }
 
         return Inertia::render('Post/Show', [
@@ -223,8 +251,8 @@ class PostController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id);
-                $url = Storage::url($path);
+                $path = $file->store('posts/' . $post->id, 'public');
+                $url = '/storage/' . $path;
 
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
@@ -241,11 +269,12 @@ class PostController extends Controller
             $post->update(['media_urls' => $mediaUrls]);
         }
 
+        $hasPoll = false;
         // Create poll if provided
-        if (!empty($validated['poll_question']) && !empty($validated['poll_options'])) {
+        if (!empty($validated['poll_options']) && is_array($validated['poll_options']) && count(array_filter($validated['poll_options'])) >= 2) {
             $poll = Poll::create([
                 'post_id' => $post->id,
-                'question' => $validated['poll_question'],
+                'question' => !empty($validated['poll_question']) ? $validated['poll_question'] : 'Poll',
                 'expires_at' => $validated['poll_expires_at'] ?? null,
             ]);
 
@@ -257,6 +286,7 @@ class PostController extends Controller
                     ]);
                 }
             }
+            $hasPoll = true;
         }
 
         // Parse and store hashtags
@@ -316,7 +346,7 @@ class PostController extends Controller
             }
         }
 
-        return back()->with('status', 'post-created');
+        return redirect()->route('dashboard')->with('status', 'post-created');
     }
 
     /**

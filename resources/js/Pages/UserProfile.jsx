@@ -3,6 +3,7 @@ import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/UI/Cards/PostCard';
 import CreatePostModal from '@/Components/Features/Posts/CreatePostModal';
+import StoryRail from '@/Components/Features/Stories/StoryRail';
 import axios from 'axios';
 
 /* ── Stat Pill ──────────────────────────────────────────────────────────── */
@@ -54,6 +55,9 @@ export default function UserProfile() {
     const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [archivedStories, setArchivedStories] = useState([]);
     const [loadingArchived, setLoadingArchived] = useState(false);
+    const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+    const [fullscreenMedia, setFullscreenMedia] = useState(null);
+    const [forceStoryOpen, setForceStoryOpen] = useState(false);
 
     const coverInputRef = useRef(null);
     const avatarInputRef = useRef(null);
@@ -298,7 +302,10 @@ export default function UserProfile() {
 
 
             {/* ── ═══════ FULL-WIDTH HEADER ═══════ ── */}
-            <div className="absolute top-0 left-0 w-full h-[160px] sm:h-[240px] md:h-[320px]">
+            <div 
+                className={`absolute top-0 left-0 w-full h-[160px] sm:h-[240px] md:h-[320px] ${profileUser.background_picture ? 'cursor-pointer' : ''}`}
+                onClick={() => profileUser.background_picture && setFullscreenMedia(profileUser.background_picture)}
+            >
                 {profileUser.background_picture ? (
                     <img src={profileUser.background_picture} alt="Cover" className="w-full h-full object-cover" />
                 ) : (
@@ -314,11 +321,72 @@ export default function UserProfile() {
                 <div className="flex flex-col items-center text-center -mt-12 sm:-mt-16 md:-mt-20">
                     {/* Avatar positioned "inside" the background */}
                     <div className="relative group/avatar">
-                        <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full ring-4 ring-ocean-deep bg-ocean-card flex items-center justify-center text-ocean-text font-bold text-3xl sm:text-4xl overflow-hidden shadow-sm">
-                            {profileUser.profile_picture
-                                ? <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" />
-                                : <span className="text-ocean-text-dim">{avatarText}</span>}
+                        <div 
+                            className={`relative rounded-full cursor-pointer transition-transform hover:scale-[1.02] active:scale-95 ${profileUser.has_active_story ? 'p-[3px] bg-white/10' : ''}`}
+                            onClick={() => {
+                                if (profileUser.has_active_story) {
+                                    setShowAvatarMenu(!showAvatarMenu);
+                                } else {
+                                    if (profileUser.profile_picture) setFullscreenMedia(profileUser.profile_picture);
+                                }
+                            }}
+                        >
+                            {profileUser.has_active_story && (
+                                <div className="absolute inset-0 rounded-full animate-spin flex items-center justify-center pointer-events-none" 
+                                     style={{ 
+                                         animationDuration: '2.5s',
+                                         background: 'conic-gradient(from 180deg at 50% 50%, transparent 0%, transparent 40%, rgba(255,255,255,0.5) 80%, white 100%)',
+                                         filter: 'drop-shadow(0 0 6px white)'
+                                     }} 
+                                />
+                            )}
+                            <div className="w-24 h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 rounded-full border-4 border-ocean-card bg-ocean-card flex items-center justify-center text-ocean-text font-bold text-3xl sm:text-4xl overflow-hidden relative z-10 shadow-lg">
+                                {profileUser.profile_picture
+                                    ? <img src={profileUser.profile_picture} alt={profileUser.name} className="w-full h-full object-cover" />
+                                    : <span className="text-ocean-text-dim">{avatarText}</span>}
+                            </div>
                         </div>
+
+                        {/* Avatar Menu - Shadcn Minimalist Style */}
+                        {showAvatarMenu && (
+                            <>
+                                <div className="fixed inset-0 z-[40]" onClick={() => setShowAvatarMenu(false)} />
+                                <div className="absolute top-[105%] left-1/2 -translate-x-1/2 mt-3 w-56 bg-[#171717] border border-white/[0.08] rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.5)] z-[50] py-1.5 animate-in fade-in zoom-in-95 duration-200">
+                                    <button 
+                                        onClick={() => {
+                                            setShowAvatarMenu(false);
+                                            setForceStoryOpen(true);
+                                        }}
+                                        className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-white/[0.06] transition-colors"
+                                    >
+                                        <svg className="w-5 h-5 text-white/90 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                                            <path d="M21 15l-5-5L5 21"/>
+                                        </svg>
+                                        <span className="text-white/90 font-medium text-[15px]">View Story</span>
+                                    </button>
+                                    
+                                    {profileUser.profile_picture && (
+                                        <>
+                                            <div className="w-full h-px bg-white/[0.06] my-1" />
+                                            <button 
+                                                onClick={() => {
+                                                    setShowAvatarMenu(false);
+                                                    setFullscreenMedia(profileUser.profile_picture);
+                                                }}
+                                                className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-white/[0.06] transition-colors"
+                                            >
+                                                <svg className="w-5 h-5 text-white/90 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                                                </svg>
+                                                <span className="text-white/90 font-medium text-[15px]">View Profile Picture</span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </>
+                        )}
 
                         {isSelf && (
                             <button onClick={() => setShowMediaModal(true)}
@@ -845,7 +913,41 @@ export default function UserProfile() {
                 </div>
             )}
 
+            {/* ── ═══════ FULLSCREEN MEDIA VIEWER ═══════ ── */}
+            {fullscreenMedia && (
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in duration-200">
+                    <button 
+                        onClick={() => setFullscreenMedia(null)} 
+                        className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                    >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                    <div className="relative w-full h-full max-w-7xl max-h-screen p-4 sm:p-12 flex items-center justify-center animate-in zoom-in-95 duration-300" onClick={() => setFullscreenMedia(null)}>
+                        <img 
+                            src={fullscreenMedia} 
+                            alt="Fullscreen media" 
+                            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                </div>
+            )}
+
             <CreatePostModal isOpen={showCreatePost} onClose={() => setShowCreatePost(false)} />
+
+            {/* ── ═══════ HIDDEN STORY RAIL LOCALLY ═══════ ── */}
+            {forceStoryOpen && (
+                <div style={{ display: 'none' }}>
+                    <StoryRail 
+                        horizontal={true} 
+                        hidden={true} 
+                        forcedStoryUserId={profileUser.id} 
+                        onCloseForced={() => setForceStoryOpen(false)} 
+                    />
+                </div>
+            )}
         </MainLayout>
     );
 }

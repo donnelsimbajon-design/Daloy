@@ -24,6 +24,10 @@ export default function PostCard({ post }) {
     const [showShareModal, setShowShareModal] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(null);
 
+    // Poll state
+    const [pollData, setPollData] = useState(post.poll || null);
+    const [votedOptionId, setVotedOptionId] = useState(post.poll?.user_voted_option_id || null);
+
     const menuRef = useRef(null);
     const touchStartX = useRef(null);
 
@@ -80,6 +84,30 @@ export default function PostCard({ post }) {
         }
     };
 
+    const handlePollVote = async (optionId) => {
+        if (!pollData) return;
+        // Optimistic update
+        const prevData = pollData;
+        const prevVoted = votedOptionId;
+        setVotedOptionId(optionId);
+        try {
+            const response = await axios.post(`/polls/${pollData.id}/vote`, { option_id: optionId });
+            setVotedOptionId(response.data.voted_option_id);
+            setPollData(prev => ({
+                ...prev,
+                user_voted: true,
+                user_voted_option_id: response.data.voted_option_id,
+                total_votes: response.data.total_votes,
+                options: response.data.options,
+            }));
+        } catch (error) {
+            // Revert on error
+            setVotedOptionId(prevVoted);
+            setPollData(prevData);
+            console.error('Vote error:', error);
+        }
+    };
+
     const handleUpdate = () => {
         router.put(`/posts/${post.id}`, {
             content: editContent,
@@ -113,7 +141,7 @@ export default function PostCard({ post }) {
     };
 
     return (
-        <div className="bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider overflow-hidden hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
+        <div className="bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-4 pb-0">
                 <div className="flex items-center gap-3">
@@ -242,6 +270,73 @@ export default function PostCard({ post }) {
                 )}
             </div>
 
+            {/* Poll */}
+            {pollData && (
+                <div className="mx-4 mb-3">
+                    <div className="p-3 bg-ocean-surface/40 border border-ocean-divider rounded-xl">
+                        <h4 className="text-sm font-bold text-ocean-text mb-3">{pollData.question}</h4>
+                        <div className="space-y-2">
+                            {(pollData.options || []).map((option) => {
+                                const isVoted = votedOptionId === option.id;
+                                const hasVoted = !!votedOptionId;
+                                const pct = option.percentage || 0;
+
+                                return (
+                                    <button
+                                        key={option.id}
+                                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePollVote(option.id); }}
+                                        className={`relative w-full text-left rounded-xl overflow-hidden transition-all border ${
+                                            isVoted
+                                                ? 'border-biolum/40 bg-biolum/10'
+                                                : 'border-ocean-border hover:border-biolum/30 hover:bg-biolum/5 cursor-pointer'
+                                        }`}
+                                    >
+                                        {/* Background progress bar — shown after voting */}
+                                        {hasVoted && (
+                                            <div
+                                                className={`absolute inset-y-0 left-0 rounded-xl transition-all duration-700 ${isVoted ? 'bg-biolum/15' : 'bg-ocean-surface/40'}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        )}
+                                        <div className="relative flex items-center justify-between px-4 py-2.5">
+                                            <span className={`text-sm font-medium ${isVoted ? 'text-biolum' : 'text-ocean-text'}`}>
+                                                {option.label}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                {hasVoted && (
+                                                    <span className="text-xs font-bold text-ocean-text-dim">
+                                                        {pct}%
+                                                    </span>
+                                                )}
+                                                {isVoted && (
+                                                    <svg className="w-3.5 h-3.5 text-biolum" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="flex items-center justify-between mt-2">
+                            <p className="text-[11px] text-ocean-text-dim">
+                                {pollData.total_votes || 0} vote{(pollData.total_votes || 0) !== 1 ? 's' : ''}
+                                {pollData.expires_at && ` · Ends ${new Date(pollData.expires_at).toLocaleDateString()}`}
+                            </p>
+                            {votedOptionId && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setVotedOptionId(null); }}
+                                    className="text-[11px] text-ocean-text-dim hover:text-biolum transition-colors"
+                                >
+                                    Change vote
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Media Gallery */}
             {mediaItems.length > 0 && (
                 <div className="px-4 pb-3">
@@ -362,9 +457,9 @@ export default function PostCard({ post }) {
                 </div>
             )}
 
-            {/* Delete Confirmation — Black & White Overlay Modal */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center" onClick={() => setShowDeleteConfirm(false)}>
+            {/* Delete Confirmation — teleported via portal to avoid overflow-hidden clipping */}
+            {showDeleteConfirm && createPortal(
+                <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setShowDeleteConfirm(false)}>
                     {/* Backdrop with B&W filter */}
                     <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" style={{ backdropFilter: 'blur(8px) grayscale(1)' }} />
 
@@ -437,7 +532,7 @@ export default function PostCard({ post }) {
                         }
                     `}</style>
                 </div>
-            )}
+            , document.body)}
 
             {/* Footer */}
             <div className="px-3 sm:px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
@@ -466,12 +561,16 @@ export default function PostCard({ post }) {
                 )}
             </div>
 
-            {/* Share Modal */}
-            <ShareModal
-                isOpen={showShareModal}
-                onClose={() => setShowShareModal(false)}
-                postUrl={`${window.location.origin}/posts/${post.id}`}
-            />
+            {/* Share Modal — rendered via portal at body level */}
+            {showShareModal && createPortal(
+                <ShareModal
+                    isOpen={showShareModal}
+                    onClose={() => setShowShareModal(false)}
+                    postUrl={`${window.location.origin}/posts/${post.id}`}
+                    postId={post.id}
+                />,
+                document.body
+            )}
         </div>
     );
 }

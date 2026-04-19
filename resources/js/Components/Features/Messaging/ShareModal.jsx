@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import axios from 'axios';
 
-export default function ShareModal({ isOpen, onClose, postUrl }) {
+export default function ShareModal({ isOpen, onClose, postUrl, postId }) {
     const [view, setView] = useState('main'); // main, qr, message
     const [copied, setCopied] = useState(false);
 
@@ -58,8 +58,9 @@ export default function ShareModal({ isOpen, onClose, postUrl }) {
         try {
             await axios.post('/share/send', {
                 recipient_id: selectedUser.id,
-                post_url: postUrl,
-                message: message
+                post_id:      postId || null,
+                post_url:     postUrl,
+                message:      message
             });
             setSent(true);
             setTimeout(() => {

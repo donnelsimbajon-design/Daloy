@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useForm, usePage } from '@inertiajs/react';
+import { useForm, usePage, router } from '@inertiajs/react';
 import { Globe2, Users2, Heart, Lock, Flame, Waves, Snail, Sparkles } from 'lucide-react';
 
 export default function CreatePostModal({ isOpen, onClose }) {
@@ -12,7 +12,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
     const [showVisMenu, setShowVisMenu] = useState(false);
     const [showVelMenu, setShowVelMenu] = useState(false);
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, processing, errors, reset } = useForm({
         content: '',
         visibility: 'public',
         location_tag: '',
@@ -20,7 +20,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
         media: [],
         // New fields
         poll_question: '',
-        poll_options: ['', ''],
+        poll_options: ['Yes', 'No'],
         poll_expires_at: '',
         has_content_warning: false,
         content_warning_label: '',
@@ -28,39 +28,33 @@ export default function CreatePostModal({ isOpen, onClose }) {
         repost_of_id: null,
     });
 
-    // Focus textarea when modal opens
+    // Focus textarea when modal opens, and reset state when modal closes
     useEffect(() => {
         if (isOpen && textareaRef.current) {
             setTimeout(() => textareaRef.current?.focus(), 200);
+        }
+        if (!isOpen) {
+            reset();
+            setMediaPreviews([]);
+            setShowPollBuilder(false);
+            setShowCwInput(false);
         }
     }, [isOpen]);
 
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
-        const currentCount = data.media.length;
-        const remaining = 4 - currentCount;
-        const newFiles = files.slice(0, remaining);
+        if (data.media.length + files.length > 4) {
+            alert('You can only upload up to 4 media files');
+            return;
+        }
 
-        if (newFiles.length === 0) return;
+        setData('media', [...data.media, ...files]);
 
-        // Add files to form data
-        setData('media', [...data.media, ...newFiles]);
-
-        // Generate previews
-        newFiles.forEach((file) => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                setMediaPreviews((prev) => [
-                    ...prev,
-                    {
-                        url: ev.target.result,
-                        type: file.type.startsWith('video/') ? 'video' : 'image',
-                        name: file.name,
-                    },
-                ]);
-            };
-            reader.readAsDataURL(file);
-        });
+        const newPreviews = files.map(file => ({
+            url: URL.createObjectURL(file),
+            type: file.type.startsWith('video/') ? 'video' : 'image'
+        }));
+        setMediaPreviews(prev => [...prev, ...newPreviews]);
 
         // Reset file input
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -94,23 +88,22 @@ export default function CreatePostModal({ isOpen, onClose }) {
 
         const formData = new FormData();
         formData.append('content', data.content || '');
-        formData.append('visibility', data.visibility);
+        formData.append('visibility', data.visibility || 'public');
         formData.append('location_tag', data.location_tag || '');
-        formData.append('flow_velocity', data.flow_velocity);
-        formData.append('comment_permission', data.comment_permission);
+        formData.append('flow_velocity', data.flow_velocity || 'steady');
+        formData.append('comment_permission', data.comment_permission || 'everyone');
+        
         data.media.forEach((file, i) => {
             formData.append(`media[${i}]`, file);
         });
 
-        // Content Warning
         if (data.has_content_warning) {
             formData.append('has_content_warning', '1');
             formData.append('content_warning_label', data.content_warning_label || '');
         }
 
-        // Poll
-        if (showPollBuilder && data.poll_question.trim()) {
-            formData.append('poll_question', data.poll_question);
+        if (showPollBuilder && (data.poll_question.trim() || data.poll_options.some(opt => opt.trim()))) {
+            formData.append('poll_question', data.poll_question.trim() || 'Poll');
             data.poll_options.filter(o => o.trim()).forEach((opt, i) => {
                 formData.append(`poll_options[${i}]`, opt);
             });
@@ -119,14 +112,13 @@ export default function CreatePostModal({ isOpen, onClose }) {
             }
         }
 
-        // Repost
         if (data.repost_of_id) {
             formData.append('repost_of_id', data.repost_of_id);
         }
 
-        post('/posts', {
-            data: formData,
+        router.post('/posts', formData, {
             forceFormData: true,
+            preserveScroll: true,
             onSuccess: () => {
                 reset();
                 setMediaPreviews([]);

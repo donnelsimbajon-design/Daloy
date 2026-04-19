@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import axios from 'axios';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/Components/shadcn/dropdown-menu';
 
 /* ── Static data (swap with API later) ───────────────────────────────── */
 const trendingCurrents = [
@@ -172,7 +173,26 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     const [messageText, setMessageText] = React.useState('');
     const [messages, setMessages] = React.useState([]);
     const [loading, setLoading] = React.useState(true);
+    const [editingMessage, setEditingMessage] = React.useState(null);
+    const [editContent, setEditContent] = React.useState('');
+    const [attachment, setAttachment] = React.useState(null);
+    const [attachmentPreview, setAttachmentPreview] = React.useState(null);
     const messagesEndRef = React.useRef(null);
+    const attachmentInputRef = React.useRef(null);
+
+    const handleFileSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setAttachment(file);
+        setAttachmentPreview({ url: URL.createObjectURL(file), type: file.type.startsWith('video') ? 'video' : 'image' });
+        e.target.value = '';
+    };
+
+    const clearAttachment = () => {
+        if (attachmentPreview) URL.revokeObjectURL(attachmentPreview.url);
+        setAttachment(null);
+        setAttachmentPreview(null);
+    };
     
     // Fetch live messages
     React.useEffect(() => {
@@ -181,17 +201,20 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             try {
                 const res = await axios.get(`/api/messages/${chat.id}`);
                 if (isMounted) {
-                    setMessages(res.data.data.reverse());
+                    const serverMessages = res.data.data.reverse();
+                    setMessages(prev => {
+                        const serverIds = new Set(serverMessages.map(m => m.id));
+                        const pending = prev.filter(m => typeof m.id === 'number' && m.id > 9999999999 && !serverIds.has(m.id));
+                        return [...serverMessages, ...pending];
+                    });
                     setLoading(false);
                 }
             } catch (err) {
-                console.error("Failed to load generic chat:", err);
+                console.error('Failed to load chat:', err);
                 if (isMounted) setLoading(false);
             }
         };
         fetchMessages();
-        
-        // Optional polling every 3 seconds to stay updated
         const interval = setInterval(fetchMessages, 3000);
         return () => {
             isMounted = false;
@@ -206,30 +229,74 @@ function ChatThreadView({ chat, onBack, currentUser }) {
 
     const handleSend = async (e) => {
         if (e) e.preventDefault();
-        if (!messageText.trim()) return;
-        
-        const contentToSend = messageText.trim();
-        setMessageText('');
+        if (!messageText.trim() && !attachment) return;
 
-        // Optimistic UI update
+        const contentToSend = messageText.trim();
+        const currentAttachment = attachment;
+        // Capture blob URL BEFORE clearing state — it's still needed for optimistic display
+        const previewUrl = attachmentPreview?.url;
+        const previewType = attachmentPreview?.type;
+
+        // Clear UI: reset state but do NOT revoke blob URL yet (optimistic message still needs it)
+        setMessageText('');
+        setAttachment(null);
+        setAttachmentPreview(null);
+
+        // Optimistic UI — image/video shows immediately from blob URL
         const tempId = Date.now();
         setMessages(prev => [...prev, {
             id: tempId,
             user_id: currentUser.id,
-            content: contentToSend,
+            content: contentToSend || null,
+            media_url: previewUrl || null,
+            media_type: previewType || null,
             created_at: new Date().toISOString()
         }]);
 
         try {
-            const res = await axios.post('/api/messages/send', {
-                conversation_id: chat.id,
-                content: contentToSend
+            const formData = new FormData();
+            formData.append('conversation_id', chat.id);
+            if (contentToSend) formData.append('content', contentToSend);
+            if (currentAttachment) formData.append('file', currentAttachment);
+
+            const res = await axios.post('/api/messages/send', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
+            // Server confirmed — now safe to revoke blob and swap in real URL
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
             setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
         } catch (err) {
-            console.error("Failed to send message:", err);
-            // Revert on failure
+            console.error('Failed to send message:', err);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
             setMessages(prev => prev.filter(m => m.id !== tempId));
+        }
+    };
+
+    const handleEdit = async (e) => {
+        if (e) e.preventDefault();
+        if (!editContent.trim() || !editingMessage) return;
+        
+        try {
+            const res = await axios.put(`/api/messages/${editingMessage.id}`, { content: editContent });
+            setMessages(prev => prev.map(m => m.id === editingMessage.id ? res.data.message : m));
+            setEditingMessage(null);
+            setEditContent('');
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to edit message.');
+        }
+    };
+
+    const handleDelete = async (messageId, scope = 'me') => {
+        if (!confirm('Are you sure you want to delete this message?')) return;
+        try {
+            await axios.delete(`/api/messages/${messageId}`, { data: { scope } });
+            if (scope === 'everyone') {
+                setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_for_everyone_at: new Date().toISOString() } : m));
+            } else {
+                setMessages(prev => prev.filter(m => m.id !== messageId));
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete message.');
         }
     };
 
@@ -250,7 +317,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
     };
 
     return (
-        <div className="flex flex-col h-[60vh] min-h-[400px] flex-1 animate-[slideInRight_0.2s_ease-out]">
+        <div className="flex flex-col h-[60vh] min-h-[400px] flex-1 bg-ocean-card rounded-2xl border border-ocean-border overflow-hidden animate-[slideInRight_0.2s_ease-out] p-4">
             {/* Header */}
             <div className="flex items-center justify-between pb-4 border-b border-ocean-divider shrink-0">
                 <div className="flex items-center gap-3">
@@ -294,7 +361,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto w-full no-scrollbar py-4 space-y-4">
+            <div className="flex-1 overflow-y-auto w-full no-scrollbar py-3 space-y-3 bg-ocean-deep/60 rounded-xl -mx-1 px-2">
                 {loading ? (
                     <div className="flex justify-center py-10 opacity-50">
                         <svg className="w-6 h-6 animate-spin text-biolum" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -304,49 +371,193 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                 ) : (
                     messages.map(msg => {
                         const isSelf = msg.user_id === currentUser.id;
+                        const meta = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
                         return (
-                            <div key={msg.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'} animate-[fadeIn_0.2s_ease-out]`}>
-                                <div className={`max-w-[85%] rounded-[18px] ${isSelf ? 'bg-biolum text-white rounded-tr-sm shadow-[0_1px_3px_rgba(25,25,112,0.15)]' : 'bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text rounded-tl-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)]'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
-                                    {msg.story_id && (
-                                        <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
-                                            {msg.story ? (
-                                                <>
-                                                    <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
-                                                        {msg.story.type === 'video' ? (
-                                                            <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
-                                                        ) : (
-                                                            <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}&apos;s story</span>
-                                                        {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="flex-1 py-1 flex items-center gap-1.5">
-                                                    <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                                    <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                            <div key={msg.id} className={`flex ${isSelf ? 'justify-end group flex-row-reverse' : 'justify-start group'} items-center mb-1 animate-[fadeIn_0.2s_ease-out]`}>
+
+                                {/* Dropdown Menu for Message Actions (same as Conversations) */}
+                                <div className={`opacity-0 group-hover:opacity-100 transition-opacity self-center ${isSelf ? 'mr-1.5' : 'ml-1.5'}`}>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="p-1.5 rounded-full hover:bg-black/10 text-ocean-text-dim hover:text-white transition-colors">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><circle cx="5" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/></svg>
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align={isSelf ? 'end' : 'start'} className="w-44 border-ocean-border bg-ocean-card shadow-2xl">
+                                            {isSelf && !msg.deleted_for_everyone_at && msg.content && (
+                                                <DropdownMenuItem
+                                                    onClick={() => { setEditingMessage(msg); setEditContent(msg.content); }}
+                                                    className="cursor-pointer text-sm font-semibold flex items-center gap-2 text-white hover:bg-ocean-surface focus:bg-ocean-surface"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" /></svg>
+                                                    Edit
+                                                </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuItem
+                                                onClick={() => handleDelete(msg.id, 'me')}
+                                                className="cursor-pointer text-sm font-semibold flex items-center gap-2 text-white hover:bg-ocean-surface focus:bg-ocean-surface"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                                                Delete for Me
+                                            </DropdownMenuItem>
+                                            {isSelf && (
+                                                <DropdownMenuItem
+                                                    onClick={() => handleDelete(msg.id, 'everyone')}
+                                                    className="cursor-pointer text-sm font-semibold flex items-center gap-2 text-white hover:bg-ocean-surface focus:bg-ocean-surface"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                    Delete for Everyone
+                                                </DropdownMenuItem>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
+
+                                {/* ── Shared Post: standalone card layout ── */}
+                                {meta?.type === 'shared_post' && !msg.deleted_for_everyone_at ? (
+                                    <div className="flex flex-col max-w-[90%]">
+                                        <a
+                                            href={meta.post_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block rounded-2xl overflow-hidden border border-ocean-border bg-ocean-card hover:opacity-90 transition-opacity shadow-md"
+                                        >
+                                            {/* Author row */}
+                                            <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+                                                <div className="w-6 h-6 rounded-full bg-biolum/30 overflow-hidden shrink-0 flex items-center justify-center text-[9px] font-bold text-biolum">
+                                                    {meta.author_avatar ? (
+                                                        <img src={meta.author_avatar} className="w-full h-full object-cover" alt="" />
+                                                    ) : (
+                                                        (meta.author_name || 'U').charAt(0)
+                                                    )}
+                                                </div>
+                                                <span className="text-[11px] font-bold text-ocean-text truncate">
+                                                    {meta.author_name || 'Daloy Post'}
+                                                </span>
+                                                <span className="ml-auto text-[9px] font-bold uppercase tracking-widest shrink-0 text-ocean-text-dim/70">
+                                                    Shared Post
+                                                </span>
+                                            </div>
+
+                                            {/* Media preview */}
+                                            {meta.media_url && (
+                                                <div className="w-full bg-black/30 overflow-hidden max-h-40">
+                                                    {meta.media_type === 'video' ? (
+                                                        <video src={meta.media_url} className="w-full max-h-40 object-cover block pointer-events-none" muted />
+                                                    ) : (
+                                                        <img src={meta.media_url} alt="post" className="w-full max-h-40 object-cover block" />
+                                                    )}
                                                 </div>
                                             )}
-                                        </div>
-                                    )}
 
-                                    {msg.media_url && (
-                                        <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl' : 'rounded-[14px]'}`}>
-                                            {msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
-                                                <video src={msg.media_url} className="w-full max-h-48 object-contain bg-black pointer-events-none" />
-                                            ) : (
-                                                <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover pointer-events-none" alt="attachment" />
+                                            {/* Content snippet */}
+                                            {meta.content && (
+                                                <p className="px-3 py-2 text-[12px] leading-relaxed line-clamp-3 text-ocean-text">
+                                                    {meta.content}
+                                                </p>
                                             )}
-                                        </div>
-                                    )}
+                                            {!meta.content && !meta.media_url && (
+                                                <p className="px-3 py-2 text-[11px] italic text-ocean-text-dim">
+                                                    Tap to view post
+                                                </p>
+                                            )}
 
-                                    {msg.content && <p className="text-sm break-words leading-relaxed">{msg.content}</p>}
-                                    <p className={`text-[9px] mt-1 text-right ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
-                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
-                                </div>
+                                            {/* View Post footer */}
+                                            <div className="flex items-center gap-1.5 px-3 py-2.5 border-t border-ocean-border text-[11px] font-bold text-biolum">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                                                View Post
+                                            </div>
+                                        </a>
+                                        {/* Timestamp outside the card */}
+                                        <div className={`text-[9px] mt-1 flex items-center gap-1 ${isSelf ? 'justify-end text-ocean-text-dim/70' : 'text-ocean-text-dim'}`}>
+                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {isSelf && <svg className="w-3 h-3 text-biolum" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // ── Normal bubble (text, media, deleted) ──
+                                    <div
+                                        className={`max-w-[85%] relative overflow-hidden ${
+                                            msg.deleted_for_everyone_at
+                                                ? 'italic opacity-60 bg-ocean-card/60 border border-ocean-divider-subtle text-ocean-text px-4 py-2.5 rounded-[20px]'
+                                                : (!msg.content?.trim() && msg.media_url)
+                                                    ? (isSelf ? 'rounded-[20px] rounded-tr-[4px]' : 'rounded-[20px] rounded-tl-[4px]')
+                                                    : isSelf
+                                                        ? 'px-4 py-2.5 rounded-[20px] rounded-tr-[4px] bg-biolum text-white shadow-[0_1px_3px_rgba(25,25,112,0.15)]'
+                                                        : 'px-4 py-2.5 rounded-[20px] rounded-tl-[4px] bg-ocean-surface text-ocean-text shadow-[0_1px_3px_rgba(0,0,0,0.04)]'
+                                        } transition-all`}
+                                    >
+                                        {msg.deleted_for_everyone_at ? (
+                                            <div className="flex items-center gap-2 text-[11px] text-ocean-text-dim">
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                                                This message was deleted
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {msg.story_id && (
+                                                    <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
+                                                        {msg.story ? (
+                                                            <>
+                                                                <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
+                                                                    {msg.story.type === 'video' ? (
+                                                                        <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
+                                                                    ) : (
+                                                                        <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                                    <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}&apos;s story</span>
+                                                                    {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <div className="flex-1 py-1 flex items-center gap-1.5">
+                                                                <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                                <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                                {/* Media attachment */}
+                                                {msg.media_url && (() => {
+                                                    const isVideo = /\.(mp4|webm|mov)/i.test(msg.media_url) ||
+                                                        (msg.media_url.startsWith('blob:') && msg.media_type === 'video');
+                                                    const isMediaOnly = !msg.content?.trim();
+                                                    return (
+                                                        <div className={`relative ${isMediaOnly ? 'w-full overflow-hidden' : 'w-full overflow-hidden rounded-xl bg-black/10 mb-2'}`}>
+                                                            {isVideo ? (
+                                                                <video src={msg.media_url} className="w-full max-h-56 object-contain bg-black block" controls crossOrigin="anonymous" style={{ display: 'block' }} />
+                                                            ) : (
+                                                                <img src={msg.media_url} className="w-full h-auto max-h-56 object-cover block" alt="attachment" crossOrigin="anonymous" style={{ display: 'block' }} />
+                                                            )}
+                                                            {isMediaOnly && (
+                                                                <div className="absolute bottom-1.5 right-2 flex items-center gap-1.5">
+                                                                    {msg.edited_at && <span className="text-[9px] text-white/80 bg-black/40 rounded-full px-1.5 py-0.5">(edited)</span>}
+                                                                    <span className="text-[9px] text-white/90 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                        {isSelf && <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                {msg.content && <p className="text-sm break-words leading-relaxed">{msg.content}</p>}
+
+                                                {/* Timestamp inside bubble for text/mixed messages */}
+                                                {(!(!msg.content?.trim() && msg.media_url)) && (
+                                                    <div className={`text-[9px] mt-1 flex items-center gap-1 ${isSelf ? 'justify-end text-white/70' : 'text-ocean-text-dim'}`}>
+                                                        {msg.edited_at && <span className="mr-1 italic opacity-70">(edited)</span>}
+                                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {isSelf && <svg className="w-3 h-3 ml-0.5 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         );
                     })
@@ -354,21 +565,68 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Attachment Preview */}
+            {attachmentPreview && (
+                <div className="pt-3 px-1 shrink-0">
+                    <div className="relative inline-flex rounded-xl overflow-hidden border border-ocean-border bg-black/20">
+                        {attachmentPreview.type === 'video' ? (
+                            <video src={attachmentPreview.url} className="max-h-28 max-w-[160px] object-cover" />
+                        ) : (
+                            <img src={attachmentPreview.url} className="max-h-28 max-w-[160px] object-cover" alt="preview" />
+                        )}
+                        <button
+                            type="button"
+                            onClick={clearAttachment}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+                        >
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Input Area */}
-            <form onSubmit={handleSend} className="pt-4 pb-2 border-t border-ocean-divider flex items-center gap-2 shrink-0">
-                <button type="button" className="p-2 rounded-full text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum transition-colors shrink-0">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                </button>
-                <input 
-                    type="text" 
-                    value={messageText}
-                    onChange={e => setMessageText(e.target.value)}
-                    placeholder="Type a message..."
-                    className="flex-1 bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all placeholder:text-ocean-text-dim"
+            <form onSubmit={editingMessage ? handleEdit : handleSend} className="pt-3 pb-2 border-t border-ocean-divider flex items-center gap-2 shrink-0">
+                {/* Hidden file input */}
+                <input
+                    ref={attachmentInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
                 />
-                <button 
+                {/* Attach button — only shown when not editing */}
+                {!editingMessage && (
+                    <button
+                        type="button"
+                        onClick={() => attachmentInputRef.current?.click()}
+                        title="Attach image or video"
+                        className={`p-2 rounded-full transition-colors shrink-0 ${
+                            attachment
+                                ? 'text-biolum bg-biolum/15 hover:bg-biolum/25'
+                                : 'text-ocean-text-dim hover:bg-ocean-surface hover:text-biolum'
+                        }`}
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                    </button>
+                )}
+                <div className="flex-1 relative flex items-center">
+                    <input
+                        type="text"
+                        value={editingMessage ? editContent : messageText}
+                        onChange={e => editingMessage ? setEditContent(e.target.value) : setMessageText(e.target.value)}
+                        placeholder={editingMessage ? 'Edit message...' : (attachment ? 'Add a caption...' : 'Type a message...')}
+                        className="w-full bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2 text-sm text-ocean-text focus:outline-none focus:border-biolum/50 focus:ring-1 focus:ring-biolum/30 transition-all placeholder:text-ocean-text-dim"
+                    />
+                    {editingMessage && (
+                        <button type="button" onClick={() => { setEditingMessage(null); setEditContent(''); }} className="absolute right-3 p-0.5 text-ocean-text-dim hover:text-red-400 bg-ocean-card rounded-full" title="Cancel edit">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                    )}
+                </div>
+                <button
                     type="submit"
-                    disabled={!messageText.trim()}
+                    disabled={editingMessage ? !editContent.trim() : (!messageText.trim() && !attachment)}
                     className="p-2 rounded-full text-biolum hover:bg-biolum/10 disabled:opacity-50 disabled:hover:bg-transparent transition-colors shrink-0"
                 >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
@@ -431,7 +689,9 @@ function MessagesPanel() {
                                 <p className={`text-xs font-semibold ${msg.unread ? 'text-ocean-text' : 'text-ocean-text-dim'}`}>{msg.name}</p>
                                 <span className="text-[10px] text-ocean-text-dim shrink-0">{msg.time}</span>
                             </div>
-                            <p className={`text-[11px] mt-0.5 truncate ${msg.unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim'}`}>{msg.message}</p>
+                            <p className={`text-[11px] mt-0.5 truncate ${msg.unread ? 'text-ocean-text font-medium' : 'text-ocean-text-dim'}`}>
+                                {msg.message?.startsWith('http') ? '📎 Shared a post' : (msg.message || '📷 Attachment')}
+                            </p>
                         </div>
                         {msg.unread && <div className="w-2 h-2 rounded-full bg-biolum shrink-0 mt-2" />}
                     </button>

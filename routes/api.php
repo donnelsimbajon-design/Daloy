@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/messages/send', [MessagingController::class, 'sendMessage']);
     Route::get('/messages/{conversation}', [MessagingController::class, 'messages']);
     Route::post('/messages/{message}/react', [MessagingController::class, 'reactToMessage']);
+    Route::put('/messages/{message}', [MessagingController::class, 'editMessage']);
     Route::delete('/messages/{message}', [MessagingController::class, 'deleteMessage']);
     
     // Typing Indicators

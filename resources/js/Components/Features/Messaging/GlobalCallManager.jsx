@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import AgoraRTC from 'agora-rtc-sdk-ng';
+import Draggable from 'react-draggable';
 import { Phone, PhoneOff, Video, Mic, MicOff, VideoOff, Maximize, Minimize2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { router } from '@inertiajs/react';
@@ -117,7 +118,17 @@ export default function GlobalCallManager({ activeCallParam, onClearActiveCallPa
                     const res = await axios.get(`/api/calls/status?channel_name=${activeCall.channel_name}`);
                     if (res.data.status === 'rejected' || res.data.status === 'canceled') {
                         setActiveCall(null);
-                        alert("Call " + res.data.status);
+                        
+                        let displayMessage = 'The call was ended.';
+                        if (res.data.status === 'rejected') {
+                            displayMessage = 'The person you are calling is currently unavailable.';
+                        } else if (res.data.status === 'canceled') {
+                            displayMessage = 'The call was cancelled before being answered.';
+                        }
+                        
+                        // Fire a toast event instead of browser alert
+                        const toastEvent = new CustomEvent('toast:show', { detail: { type: 'error', message: displayMessage } });
+                        window.dispatchEvent(toastEvent);
                     } else if (res.data.status === 'accepted') {
                         setActiveCall(prev => ({ ...prev, connectedStatus: true }));
                     }
@@ -219,8 +230,8 @@ function IncomingCallToast({ call, onAccept, onReject }) {
     }, []);
 
     return (
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[999] bg-ocean-card border ring-1 ring-white/10 border-ocean-divider shadow-2xl rounded-2xl p-4 flex flex-col items-center gap-4 animate-[slideDown_0.3s_ease-out] w-80">
-            <Avatar className="w-20 h-20 ring-4 ring-biolum/30 animate-pulse">
+        <div className="fixed top-4 md:top-8 left-1/2 -translate-x-1/2 z-[999] bg-ocean-card border ring-1 ring-white/10 border-ocean-divider shadow-2xl rounded-2xl p-4 flex flex-col items-center gap-4 animate-[slideDown_0.3s_ease-out] w-[90vw] max-w-[20rem]">
+            <Avatar className="w-16 h-16 md:w-20 md:h-20 ring-4 ring-biolum/30 animate-pulse">
                 {call.caller_avatar && <AvatarImage src={call.caller_avatar} />}
                 <AvatarFallback className="bg-ocean-deep text-ocean-text text-xl">
                     {call.caller_name[0]}
@@ -249,8 +260,10 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
     const [localAudioTrack, setLocalAudioTrack] = useState(null);
     const [micMuted, setMicMuted] = useState(false);
     const [videoMuted, setVideoMuted] = useState(false);
+    const [dragging, setDragging] = useState(false);
     const localVideoRef = useRef(null);
     const clientRef = useRef(null);
+    const nodeRef = useRef(null);
 
     // Audio context for caller waiting ringtone
     const audioCtxRef = useRef(null);
@@ -261,10 +274,19 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
         let mounted = true;
         const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
         clientRef.current = client;
+        let createdTracks = [];
 
         const initCall = async () => {
             try {
-                await client.join(app_id, channel_name, token, uid);
+                // Safely parse app_id and token
+                const safeAppId = app_id ? String(app_id).replace(/^"|"$/g, '') : '';
+                const safeToken = token ? String(token).replace(/^"|"$/g, '') : '';
+
+                if (!safeAppId) {
+                    throw new Error("Agora App ID is missing or invalid. Check your .env configuration.");
+                }
+
+                await client.join(safeAppId, channel_name, safeToken, uid);
                 
                 client.on("user-published", async (user, mediaType) => {
                     await client.subscribe(user, mediaType);
@@ -290,27 +312,94 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
                     setRemoteUsers(prev => prev.filter(u => u.uid !== user.uid));
                 });
 
+                if (!mounted) {
+                    client.leave();
+                    return;
+                }
+
                 if (type === 'video') {
-                    const [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
+                    let tracks;
+                    let isAudioOnlyFallback = false;
+                    try {
+                        tracks = await AgoraRTC.createMicrophoneAndCameraTracks();
+                    } catch (trackErr) {
+                        try {
+                            if (trackErr.message && (trackErr.message.includes('NOT_READABLE') || trackErr.message.includes('Device in use'))) {
+                                console.warn("Camera/Mic in use, retrying in 1 second...");
+                                await new Promise(r => setTimeout(r, 1000));
+                                if (!mounted) { client.leave(); return; }
+                                tracks = await AgoraRTC.createMicrophoneAndCameraTracks();
+                            } else {
+                                throw trackErr;
+                            }
+                        } catch (fallbackErr) {
+                            console.warn("Could not get camera, falling back to audio only...", fallbackErr);
+                            try {
+                                const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                                tracks = [audioTrack, null];
+                                isAudioOnlyFallback = true;
+                            } catch (criticalErr) {
+                                console.warn("Could not get microphone either. Joining with no media.", criticalErr);
+                                tracks = [null, null];
+                                isAudioOnlyFallback = true;
+                            }
+                        }
+                    }
+                    const [audioTrack, videoTrack] = tracks;
+                    createdTracks = tracks.filter(Boolean);
                     if (mounted) {
-                        setLocalAudioTrack(audioTrack);
-                        setLocalVideoTrack(videoTrack);
-                        await client.publish([audioTrack, videoTrack]);
-                        if (localVideoRef.current) videoTrack.play(localVideoRef.current);
+                        if (audioTrack) setLocalAudioTrack(audioTrack);
+                        if (videoTrack) setLocalVideoTrack(videoTrack);
+                        if (createdTracks.length > 0) {
+                            await client.publish(createdTracks);
+                        }
+                        if (videoTrack && localVideoRef.current) videoTrack.play(localVideoRef.current);
+                        
+                        if (isAudioOnlyFallback) {
+                            setVideoMuted(true);
+                            if (!audioTrack) setMicMuted(true);
+                            const toastEvent = new CustomEvent('toast:show', { detail: { type: 'info', message: "Camera or Mic access denied/unavailable. Joined with limited media." } });
+                            window.dispatchEvent(toastEvent);
+                        }
                     } else {
-                        audioTrack.close(); videoTrack.close();
+                        createdTracks.forEach(t => { t.stop(); t.close(); });
                     }
                 } else {
-                    const audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    let audioTrack = null;
+                    try {
+                        audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                    } catch (trackErr) {
+                        if (trackErr.message && (trackErr.message.includes('NOT_READABLE') || trackErr.message.includes('Device in use'))) {
+                            console.warn("Mic in use, retrying in 1 second...");
+                            await new Promise(r => setTimeout(r, 1000));
+                            if (!mounted) { client.leave(); return; }
+                            try {
+                                audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+                            } catch (e) {
+                                console.warn("Mic still in use or denied, joining without mic.");
+                            }
+                        } else {
+                            console.warn("Could not get microphone. Joining without media...", trackErr);
+                        }
+                    }
+                    createdTracks = audioTrack ? [audioTrack] : [];
                     if (mounted) {
-                        setLocalAudioTrack(audioTrack);
-                        await client.publish([audioTrack]);
+                        if (audioTrack) {
+                            setLocalAudioTrack(audioTrack);
+                            await client.publish([audioTrack]);
+                        } else {
+                            setMicMuted(true);
+                            const toastEvent = new CustomEvent('toast:show', { detail: { type: 'info', message: "Microphone access denied or unavailable. Joined to listen." } });
+                            window.dispatchEvent(toastEvent);
+                        }
                     } else {
-                        audioTrack.close();
+                        if (audioTrack) { audioTrack.stop(); audioTrack.close(); }
                     }
                 }
             } catch (err) {
                 console.error("Agora call failed:", err);
+                const toastEvent = new CustomEvent('toast:show', { detail: { type: 'error', message: err.message || "Failed to connect to Agora Call Server" } });
+                window.dispatchEvent(toastEvent);
                 handleHangup();
             }
         };
@@ -318,8 +407,9 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
 
         return () => {
             mounted = false;
-            localAudioTrack?.stop(); localAudioTrack?.close();
-            localVideoTrack?.stop(); localVideoTrack?.close();
+            createdTracks.forEach(track => {
+                track?.stop(); track?.close();
+            });
             client.leave();
             stopRingtone(oscillatorRef, ringIntRef);
         };
@@ -334,19 +424,22 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
         }
     }, [isCaller, connectedStatus]);
 
-    // Auto-Cancel if no one is in the call for 5 seconds (after connection is established)
+    // Auto-Cancel if no answer within 15 seconds
     useEffect(() => {
-        let emptyTimeout;
-        const isActiveSession = isCaller ? connectedStatus : true;
+        let noAnswerTimeout;
         
-        if (isActiveSession && remoteUsers.length === 0) {
-            emptyTimeout = setTimeout(() => {
+        if (isCaller && !connectedStatus) {
+            noAnswerTimeout = setTimeout(() => {
+                const toastEvent = new CustomEvent('toast:show', { 
+                    detail: { type: 'info', message: "No answer, call ended automatically." } 
+                });
+                window.dispatchEvent(toastEvent);
                 handleHangup();
-            }, 5000);
+            }, 15000);
         }
 
-        return () => clearTimeout(emptyTimeout);
-    }, [remoteUsers.length, connectedStatus, isCaller]);
+        return () => clearTimeout(noAnswerTimeout);
+    }, [isCaller, connectedStatus]);
 
     const handleHangup = async () => {
         localAudioTrack?.stop(); localAudioTrack?.close();
@@ -366,14 +459,16 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
         onEnd();
     };
 
-    const toggleMic = async () => {
+    const toggleMic = async (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
         if (localAudioTrack) {
             await localAudioTrack.setMuted(!micMuted);
             setMicMuted(!micMuted);
         }
     };
 
-    const toggleVideo = async () => {
+    const toggleVideo = async (e) => {
+        if (e && e.stopPropagation) e.stopPropagation();
         if (localVideoTrack) {
             await localVideoTrack.setMuted(!videoMuted);
             setVideoMuted(!videoMuted);
@@ -387,20 +482,35 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
 
     if (isMinimized) {
         return (
-            <div className="fixed top-20 right-6 z-[100] w-48 aspect-[3/4] bg-ocean-card border border-ocean-divider shadow-2xl rounded-xl overflow-hidden cursor-move transition-transform hover:scale-105" onClick={onToggleMinimize}>
-                {primaryRemote && primaryRemote.hasVideo ? (
-                    <div id={`remote-video-${primaryRemote.uid}`} className="w-full h-full object-cover" />
-                ) : type === 'video' ? (
-                    <div ref={localVideoRef} className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-biolum/20">
-                        <Phone className="w-8 h-8 text-biolum" />
+            <Draggable
+                nodeRef={nodeRef}
+                handle=".drag-handle"
+                onStart={() => setDragging(true)}
+                onStop={() => { setTimeout(() => setDragging(false), 100) }}
+            >
+                <div
+                    ref={nodeRef}
+                    className="fixed top-24 right-4 md:top-20 md:right-6 z-[100] w-28 md:w-48 aspect-[3/4] bg-ocean-card border border-ocean-divider shadow-2xl rounded-xl overflow-hidden" 
+                    onClick={(e) => {
+                        if (dragging) return;
+                        onToggleMinimize();
+                    }}
+                >
+                    <div className="drag-handle absolute top-0 left-0 right-0 h-8 z-20 cursor-move" />
+                    {primaryRemote && primaryRemote.hasVideo ? (
+                        <div id={`remote-video-${primaryRemote.uid}`} className="w-full h-full object-cover" />
+                    ) : type === 'video' ? (
+                        <div ref={localVideoRef} className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-biolum/20">
+                            <Phone className="w-8 h-8 text-biolum" />
+                        </div>
+                    )}
+                    <div className="absolute top-2 right-2 p-1.5 z-30 bg-black/50 rounded-md hover:bg-black/70 text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}>
+                        <Maximize className="w-4 h-4" />
                     </div>
-                )}
-                <div className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-md hover:bg-black/70 text-white cursor-pointer" onClick={(e) => { e.stopPropagation(); onToggleMinimize(); }}>
-                    <Maximize className="w-4 h-4" />
                 </div>
-            </div>
+            </Draggable>
         );
     }
 
@@ -422,17 +532,17 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
 
             {/* Local Video PIP Bottom Right */}
             {type === 'video' && (
-                <div className="absolute bottom-28 right-6 md:bottom-10 md:right-10 w-28 md:w-48 aspect-[3/4] bg-zinc-800 rounded-xl overflow-hidden shadow-2xl ring-2 ring-white/20 z-10">
+                <div className="absolute bottom-24 right-4 md:bottom-10 md:right-10 w-24 md:w-32 lg:w-48 aspect-[3/4] bg-zinc-800 rounded-xl overflow-hidden shadow-2xl ring-2 ring-white/20 z-10 transition-all">
                     <div ref={localVideoRef} className="w-full h-full object-cover" />
                     {!connectedStatus && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><p className="text-white text-xs font-bold">You</p></div>}
                 </div>
             )}
 
             {/* Header Controls */}
-            <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none">
+            <div className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent z-10 pointer-events-none">
                 <div className="text-white pointer-events-auto">
-                    <h2 className="text-lg font-bold drop-shadow-md">Direct Call</h2>
-                    <p className="text-sm text-white/70">Secure WebRTC Session</p>
+                    <h2 className="text-base md:text-lg font-bold drop-shadow-md">Direct Call</h2>
+                    <p className="text-xs md:text-sm text-white/70">Secure WebRTC Session</p>
                 </div>
                 <button onClick={onToggleMinimize} className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur pointer-events-auto transition-colors">
                     <Minimize2 className="w-5 h-5" />
@@ -440,17 +550,17 @@ function AgoraCallSession({ callData, isMinimized, onToggleMinimize, onEnd }) {
             </div>
 
             {/* Bottom Controls */}
-            <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-xl px-6 py-4 rounded-full z-10 border border-white/10 shadow-2xl hover:bg-black/70 transition-colors">
-                <button onClick={toggleMic} className={`p-4 rounded-full transition-colors ${micMuted ? 'bg-white/20 text-rose-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                    {micMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
+            <div className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-3 md:gap-4 bg-black/60 backdrop-blur-xl px-4 md:px-6 py-3 md:py-4 rounded-full z-10 border border-white/10 shadow-2xl hover:bg-black/70 transition-colors w-max max-w-[95vw]">
+                <button onClick={toggleMic} className={`p-3 md:p-4 rounded-full transition-colors ${micMuted ? 'bg-white/20 text-rose-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                    {micMuted ? <MicOff className="w-5 h-5 md:w-6 md:h-6" /> : <Mic className="w-5 h-5 md:w-6 md:h-6" />}
                 </button>
                 {type === 'video' && (
-                    <button onClick={toggleVideo} className={`p-4 rounded-full transition-colors ${videoMuted ? 'bg-white/20 text-rose-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
-                        {videoMuted ? <VideoOff className="w-6 h-6" /> : <Video className="w-6 h-6" />}
+                    <button onClick={toggleVideo} className={`p-3 md:p-4 rounded-full transition-colors ${videoMuted ? 'bg-white/20 text-rose-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                        {videoMuted ? <VideoOff className="w-5 h-5 md:w-6 md:h-6" /> : <Video className="w-5 h-5 md:w-6 md:h-6" />}
                     </button>
                 )}
-                <button onClick={handleHangup} className="p-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-colors">
-                    <PhoneOff className="w-6 h-6" />
+                <button onClick={handleHangup} className="p-3 md:p-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white shadow-[0_0_15px_rgba(244,63,94,0.4)] transition-colors">
+                    <PhoneOff className="w-5 h-5 md:w-6 md:h-6" />
                 </button>
             </div>
         </div>

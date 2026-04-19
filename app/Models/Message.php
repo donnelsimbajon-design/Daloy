@@ -9,13 +9,15 @@ class Message extends Model
 {
     use SoftDeletes;
 
-    protected $fillable = ['conversation_id', 'user_id', 'content', 'media_url', 'read_at', 'reply_to_id', 'deleted_for_everyone_at', 'story_id'];
+    protected $fillable = ['conversation_id', 'user_id', 'content', 'metadata', 'media_url', 'read_at', 'reply_to_id', 'deleted_for_everyone_at', 'story_id', 'edited_at'];
 
     protected function casts(): array
     {
         return [
-            'read_at' => 'datetime',
+            'read_at'                 => 'datetime',
             'deleted_for_everyone_at' => 'datetime',
+            'edited_at'               => 'datetime',
+            'metadata'                => 'array',
         ];
     }
 

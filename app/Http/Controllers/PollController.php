@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Auth;
 class PollController extends Controller
 {
     /**
-     * Vote on a poll option.
+     * Vote on a poll option (or change existing vote).
      */
     public function vote(Request $request, Poll $poll): JsonResponse
     {
@@ -27,29 +27,32 @@ class PollController extends Controller
             return response()->json(['message' => 'This poll has expired.'], 422);
         }
 
+        // Verify option belongs to this poll
+        $option = PollOption::where('id', $request->option_id)
+            ->where('poll_id', $poll->id)
+            ->firstOrFail();
+
         // Check if user already voted
         $existingVote = PollVote::where('poll_id', $poll->id)
             ->where('user_id', $user->id)
             ->first();
 
         if ($existingVote) {
-            return response()->json(['message' => 'You have already voted in this poll.'], 422);
+            // Allow vote change — decrement old option, update vote, increment new option
+            if ($existingVote->option_id !== $option->id) {
+                PollOption::where('id', $existingVote->option_id)->decrement('votes_count');
+                $existingVote->update(['option_id' => $option->id]);
+                $option->increment('votes_count');
+            }
+        } else {
+            // New vote
+            PollVote::create([
+                'poll_id'   => $poll->id,
+                'option_id' => $option->id,
+                'user_id'   => $user->id,
+            ]);
+            $option->increment('votes_count');
         }
-
-        // Verify option belongs to this poll
-        $option = PollOption::where('id', $request->option_id)
-            ->where('poll_id', $poll->id)
-            ->firstOrFail();
-
-        // Create vote
-        PollVote::create([
-            'poll_id' => $poll->id,
-            'option_id' => $option->id,
-            'user_id' => $user->id,
-        ]);
-
-        // Increment vote count
-        $option->increment('votes_count');
 
         // Return updated poll data
         $poll->load('options');
@@ -57,18 +60,18 @@ class PollController extends Controller
 
         $options = $poll->options->map(function ($opt) use ($totalVotes) {
             return [
-                'id' => $opt->id,
-                'label' => $opt->label,
+                'id'          => $opt->id,
+                'label'       => $opt->label,
                 'votes_count' => $opt->votes_count,
-                'percentage' => $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0,
+                'percentage'  => $totalVotes > 0 ? round(($opt->votes_count / $totalVotes) * 100) : 0,
             ];
         });
 
         return response()->json([
-            'voted' => true,
+            'voted'           => true,
             'voted_option_id' => $option->id,
-            'options' => $options,
-            'total_votes' => $totalVotes,
+            'options'         => $options,
+            'total_votes'     => $totalVotes,
         ]);
     }
 }

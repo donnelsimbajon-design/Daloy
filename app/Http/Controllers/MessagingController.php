@@ -124,7 +124,8 @@ class MessagingController extends Controller
 
         $mediaUrl = null;
         if ($request->hasFile('file')) {
-            $mediaUrl = Storage::url($request->file('file')->store('message_attachments'));
+            $path = $request->file('file')->store('message_attachments', 'public');
+            $mediaUrl = '/storage/' . $path;
         } elseif ($request->filled('media_url')) {
             $mediaUrl = $request->input('media_url');
         }
@@ -250,10 +251,6 @@ class MessagingController extends Controller
         $scope = $request->input('scope', 'me');
 
         if ($scope === 'everyone') {
-            // Only within 5 minutes
-            if ($message->created_at->diffInMinutes(now()) > 5) {
-                return response()->json(['message' => 'You can only delete messages within 5 minutes.'], 422);
-            }
             $message->update(['deleted_for_everyone_at' => now()]);
         } else {
             $message->delete(); // soft delete for me
@@ -262,6 +259,33 @@ class MessagingController extends Controller
         return response()->json(['deleted' => true]);
     }
 
+    /**
+     * Edit a message.
+     */
+    public function editMessage(Request $request, Message $message): JsonResponse
+    {
+        $user = Auth::user();
+
+        if ($message->user_id !== $user->id) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+
+        if ($message->deleted_for_everyone_at !== null) {
+             return response()->json(['message' => 'Cannot edit deleted messages.'], 422);
+        }
+
+        $request->validate([
+            'content' => 'required|string',
+        ]);
+
+        $message->update([
+            'content' => $request->content,
+            'edited_at' => now(),
+        ]);
+
+        return response()->json(['edited' => true, 'message' => $message->fresh(['user', 'replyTo', 'replyTo.user', 'messageReactions.user'])]);
+    }
     /**
      * Record typing indicator.
      */

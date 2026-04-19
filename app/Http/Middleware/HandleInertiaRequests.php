@@ -147,7 +147,13 @@ class HandleInertiaRequests extends Middleware
                 'username'  => $isGroup ? '' : ($other?->username ?? ''),
                 'avatar'    => $isGroup ? $convo->avatar_url : ($other?->profile_picture ?? null),
                 'initial'   => strtoupper(substr($isGroup ? ($convo->name ?? 'Group Chat') : ($other?->name ?? '?'), 0, 1)),
-                'message'   => $latestMsg?->content ?? 'No messages yet',
+                'message'   => $latestMsg ? (
+                    $latestMsg->content ?? (
+                        (isset($latestMsg->metadata) && is_array($latestMsg->metadata) && ($latestMsg->metadata['type'] ?? '') === 'shared_post') ? '📎 Shared a post' : (
+                            $latestMsg->media_url ? '📎 Sent an attachment' : 'No messages yet'
+                        )
+                    )
+                ) : 'No messages yet',
                 'time'      => $latestMsg ? $latestMsg->created_at->diffForHumans(null, true) . ' ago' : '',
                 'unread'    => $unread,
             ];

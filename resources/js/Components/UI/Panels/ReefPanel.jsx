@@ -322,7 +322,12 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             try {
                 const res = await axios.get(`/api/messages/${chat.id}`);
                 if (isMounted) {
-                    setMessages(res.data.data.reverse());
+                    const serverMessages = res.data.data.reverse();
+                    setMessages(prev => {
+                        const serverIds = new Set(serverMessages.map(m => m.id));
+                        const pending = prev.filter(m => typeof m.id === 'number' && m.id > 9999999999 && !serverIds.has(m.id));
+                        return [...serverMessages, ...pending];
+                    });
                     setLoading(false);
                     if (chat.unread) {
                         router.reload({ only: ['social'] });
@@ -349,6 +354,23 @@ function ChatThreadView({ chat, onBack, currentUser }) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    const handleStartCall = async (type) => {
+        try {
+            const res = await axios.post(`/api/conversations/${chat.id}/call`, { type });
+            window.dispatchEvent(new CustomEvent('daloy:start-call', { detail: res.data }));
+
+            const formData = new FormData();
+            formData.append('conversation_id', chat.id);
+            formData.append('content', `SYSTEM_CALL_${type.toUpperCase()}`);
+            await axios.post('/api/messages/send', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Failed to initialize call. Please check credentials or try again.');
+        }
+    };
+
     const handleSend = async (e) => {
         if (e) e.preventDefault();
         if (!messageText.trim() && !attachment) return;
@@ -365,6 +387,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
             user_id: currentUser.id,
             content: contentToSend,
             media_url: currentAttachment ? URL.createObjectURL(currentAttachment) : null,
+            media_type: currentAttachment && currentAttachment.type.startsWith('video') ? 'video' : 'image',
             created_at: new Date().toISOString()
         }]);
 
@@ -422,10 +445,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                     <Button 
                         variant="ghost" size="icon" 
                         className="rounded-full text-ocean-text-dim hover:text-biolum hover:bg-biolum/10 transition-colors"
-                        onClick={() => {
-                            const callEvent = new CustomEvent('daloy:start-call', { detail: { conversation_id: chat.id, type: 'audio', channel_name: `call_${chat.id}_${Date.now()}` } });
-                            window.dispatchEvent(callEvent);
-                        }}
+                        onClick={() => handleStartCall('audio')}
                         title="Audio Call"
                     >
                         <Phone className="w-4 h-4" />
@@ -433,10 +453,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                     <Button 
                         variant="ghost" size="icon" 
                         className="rounded-full text-ocean-text-dim hover:text-biolum hover:bg-biolum/10 transition-colors"
-                        onClick={() => {
-                            const callEvent = new CustomEvent('daloy:start-call', { detail: { conversation_id: chat.id, type: 'video', channel_name: `call_${chat.id}_${Date.now()}` } });
-                            window.dispatchEvent(callEvent);
-                        }}
+                        onClick={() => handleStartCall('video')}
                         title="Video Call"
                     >
                         <Video className="w-4 h-4" />
@@ -479,6 +496,7 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                 ) : (
                     messages.map(msg => {
                         const isSelf = msg.user_id === currentUser.id;
+                        const meta = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
                         return (
                             <div key={msg.id} className={`flex items-end ${isSelf ? 'justify-end' : 'justify-start'} mb-1 animate-[fadeIn_0.2s_ease-out]`}>
                                 {!isSelf && (
@@ -496,87 +514,158 @@ function ChatThreadView({ chat, onBack, currentUser }) {
                                         )}
                                     </Link>
                                 )}
-                                <div className={`max-w-[85%] relative text-sm shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-ocean-divider-subtle ${isSelf ? 'bg-biolum text-white rounded-[18px] rounded-tr-sm self-end' : 'bg-ocean-card/60 text-ocean-text rounded-[18px] rounded-tl-sm self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
-                                    {msg.story_id && (
-                                        <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
-                                            {msg.story ? (
-                                                <>
-                                                    <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
-                                                        {msg.story.type === 'video' ? (
-                                                            <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
-                                                        ) : (
-                                                            <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                        <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}'s story</span>
-                                                        {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="flex-1 py-1 flex items-center gap-1.5">
-                                                    <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                                                    <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
+                                {/* ── Shared Post: standalone card (no bubble) ── */}
+                                {meta?.type === 'shared_post' ? (
+                                    <div className="flex flex-col max-w-[85%]">
+                                        <a
+                                            href={meta.post_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="block rounded-2xl overflow-hidden border border-ocean-border bg-ocean-card shadow-md hover:opacity-90 transition-opacity"
+                                        >
+                                            {/* Author row */}
+                                            <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+                                                <div className="w-6 h-6 rounded-full bg-biolum/20 overflow-hidden shrink-0 flex items-center justify-center text-[9px] font-bold text-biolum">
+                                                    {meta.author_avatar ? (
+                                                        <img src={meta.author_avatar} className="w-full h-full object-cover" alt="" />
+                                                    ) : (
+                                                        (meta.author_name || 'U').charAt(0)
+                                                    )}
+                                                </div>
+                                                <span className="text-[11px] font-bold text-ocean-text truncate">
+                                                    {meta.author_name || 'Daloy Post'}
+                                                </span>
+                                                <span className="ml-auto text-[9px] font-bold uppercase tracking-widest shrink-0 text-ocean-text-dim/70">
+                                                    Shared Post
+                                                </span>
+                                            </div>
+
+                                            {/* Media preview */}
+                                            {meta.media_url && (
+                                                <div className="w-full bg-black/20 overflow-hidden max-h-40">
+                                                    {meta.media_type === 'video' ? (
+                                                        <video src={meta.media_url} className="w-full max-h-40 object-cover block pointer-events-none" muted />
+                                                    ) : (
+                                                        <img src={meta.media_url} alt="post" className="w-full max-h-40 object-cover block" />
+                                                    )}
                                                 </div>
                                             )}
-                                        </div>
-                                    )}
-                                    {msg.media_url && (
-                                        <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl border border-black/10' : 'rounded-[14px] ' + (isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
-                                            {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
-                                                <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover" alt="attachment" />
-                                            ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
-                                                <video src={msg.media_url} controls className="w-full max-h-48 object-contain bg-black" />
-                                            ) : (
-                                                <a href={msg.media_url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 p-2 hover:bg-black/5 transition-colors ${isSelf ? 'text-white' : 'text-ocean-text'}`}>
-                                                    <div className={`p-1.5 rounded-lg shrink-0 ${isSelf ? 'bg-white/20' : 'bg-biolum/20 text-biolum'}`}><FileText size={16} /></div>
-                                                    <span className="truncate text-xs font-semibold underline decoration-transparent hover:decoration-current transition-all">Attachment</span>
-                                                </a>
+
+                                            {/* Content snippet */}
+                                            {meta.content && (
+                                                <p className="px-3 py-2 text-[12px] leading-relaxed line-clamp-3 text-ocean-text">
+                                                    {meta.content}
+                                                </p>
                                             )}
+                                            {!meta.content && !meta.media_url && (
+                                                <p className="px-3 py-2 text-[11px] italic text-ocean-text-dim">
+                                                    Tap to view post
+                                                </p>
+                                            )}
+
+                                            {/* View Post footer */}
+                                            <div className="flex items-center gap-1.5 px-3 py-2.5 border-t border-ocean-border text-[11px] font-bold text-biolum">
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                                                View Post
+                                            </div>
+                                        </a>
+                                        {/* Timestamp below the card */}
+                                        <div className={`text-[9px] mt-1 flex items-center gap-1 ${isSelf ? 'justify-end text-ocean-text-dim/70' : 'text-ocean-text-dim'}`}>
+                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {isSelf && <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>}
                                         </div>
-                                    )}
-                                    {msg.content && (
-                                        <div className="text-sm break-words whitespace-pre-wrap">
-                                            {(() => {
-                                                let text = msg.content;
-                                                let callType = null;
-                                                if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
-                                                    text = "Started a Video call";
-                                                    callType = 'video';
-                                                } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
-                                                    text = "Started an Audio call";
-                                                    callType = 'audio';
-                                                }
-                                                if (callType) {
-                                                    return (
-                                                        <div className="flex items-center gap-2 opacity-90">
-                                                            {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
-                                                            <span className="italic font-medium">{text}</span>
+                                    </div>
+                                ) : (
+                                    // ── Normal bubble ──
+                                    <div
+                                        className={`max-w-[85%] relative text-sm ${(!msg.content && msg.media_url) ? 'bg-transparent text-ocean-text' : ('shadow-[0_1px_3px_rgba(0,0,0,0.04)] border border-ocean-divider-subtle px-4 py-2.5 ' + (isSelf ? 'bg-biolum text-white rounded-[18px] rounded-tr-sm self-end' : 'bg-ocean-card/60 text-ocean-text rounded-[18px] rounded-tl-sm self-start'))}`}
+                                        style={(!msg.content && msg.media_url) ? { background: 'none', backgroundColor: 'transparent', padding: 0, border: 'none', boxShadow: 'none' } : undefined}
+                                    >
+                                        {msg.story_id && (
+                                            <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-2 ${isSelf ? 'border-white/20' : 'border-ocean-border'}`}>
+                                                {msg.story ? (
+                                                    <>
+                                                        <div className="w-8 h-12 rounded overflow-hidden shrink-0 bg-black/20">
+                                                            {msg.story.type === 'video' ? (
+                                                                <video src={msg.story.media_url} className="w-full h-full object-cover pointer-events-none" />
+                                                            ) : (
+                                                                <img src={msg.story.media_url} alt="Story" className="w-full h-full object-cover pointer-events-none" />
+                                                            )}
                                                         </div>
-                                                    );
-                                                }
-                                                return <p>{text}</p>;
-                                            })()}
-                                        </div>
-                                    )}
-                                    <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
-                                        {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        {isSelf && msg.read_at && (
-                                            <div className="w-3 h-3 rounded-full overflow-hidden shrink-0 inline-block ml-0.5">
-                                                {(msg.user?.profile_picture || chat.avatar) ? (
-                                                    <img src={msg.user?.profile_picture || chat.avatar} className="w-full h-full object-cover" alt="Read" />
+                                                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                            <span className={`text-[8px] font-bold uppercase tracking-widest ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>Replied to {msg.story.user?.name?.split(' ')[0]}&apos;s story</span>
+                                                            {msg.story.content && <span className={`text-[10px] font-semibold truncate ${isSelf ? 'text-white/90' : 'text-ocean-text'}`}>{msg.story.content}</span>}
+                                                        </div>
+                                                    </>
                                                 ) : (
-                                                    <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-[6px] font-bold">
-                                                        {(msg.user?.name || chat.name || 'U').charAt(0)}
+                                                    <div className="flex-1 py-1 flex items-center gap-1.5">
+                                                        <svg className={`w-3.5 h-3.5 ${isSelf ? 'text-white/40' : 'text-ocean-text-dim/40'}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                                        <span className={`text-[10px] italic font-medium tracking-wide ${isSelf ? 'text-white/60' : 'text-ocean-text-dim'}`}>Story is no longer available</span>
                                                     </div>
                                                 )}
                                             </div>
                                         )}
-                                        {isSelf && !msg.read_at && (
-                                            <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                        {msg.media_url && (() => {
+                                            const isVideoUrl = msg.media_url.match(/\.(mp4|webm|mov)$/i);
+                                            const isBlobVideo = msg.media_url.startsWith('blob:') && msg.media_type === 'video';
+                                            return (
+                                                <div className={`w-full overflow-hidden ${msg.content ? 'bg-black/10 mb-2 rounded-xl border border-black/10' : 'rounded-[14px] ' + (isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
+                                                    {(isVideoUrl || isBlobVideo) ? (
+                                                        <video src={msg.media_url} controls className="w-full max-h-48 object-contain bg-black block" style={{ display: 'block' }} />
+                                                    ) : (msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:')) ? (
+                                                        <img src={msg.media_url} className="w-full h-auto max-h-48 object-cover block" alt="attachment" style={{ display: 'block' }} />
+                                                    ) : (
+                                                        <a href={msg.media_url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 p-2 hover:bg-black/5 transition-colors ${isSelf ? 'text-white' : 'text-ocean-text'}`}>
+                                                            <div className={`p-1.5 rounded-lg shrink-0 ${isSelf ? 'bg-white/20' : 'bg-biolum/20 text-biolum'}`}><FileText size={16} /></div>
+                                                            <span className="truncate text-xs font-semibold underline decoration-transparent hover:decoration-current transition-all">Attachment</span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+                                        {msg.content && (
+                                            <div className="text-sm break-words whitespace-pre-wrap">
+                                                {(() => {
+                                                    let text = msg.content;
+                                                    let callType = null;
+                                                    if (text.includes('Started a video call') || text === 'SYSTEM_CALL_VIDEO') {
+                                                        text = "Started a Video call";
+                                                        callType = 'video';
+                                                    } else if (text.includes('Started a audio call') || text.includes('Started a phone call') || text === 'SYSTEM_CALL_AUDIO') {
+                                                        text = "Started an Audio call";
+                                                        callType = 'audio';
+                                                    }
+                                                    if (callType) {
+                                                        return (
+                                                            <div className="flex items-center gap-2 opacity-90">
+                                                                {callType === 'video' ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+                                                                <span className="italic font-medium">{text}</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return <p>{text}</p>;
+                                                })()}
+                                            </div>
                                         )}
+                                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] ${isSelf ? 'text-white/70' : 'text-ocean-text-dim'}`}>
+                                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {isSelf && msg.read_at && (
+                                                <div className="w-3 h-3 rounded-full overflow-hidden shrink-0 inline-block ml-0.5">
+                                                    {(msg.user?.profile_picture || chat.avatar) ? (
+                                                        <img src={msg.user?.profile_picture || chat.avatar} className="w-full h-full object-cover" alt="Read" />
+                                                    ) : (
+                                                        <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-[6px] font-bold">
+                                                            {(msg.user?.name || chat.name || 'U').charAt(0)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {isSelf && !msg.read_at && (
+                                                <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         );
                     })

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -41,13 +42,14 @@ class ShareController extends Controller
     }
 
     /**
-     * Send a post to a user as a message.
+     * Send a post to a user as a rich message with preview card.
      */
     public function sendToUser(Request $request)
     {
         $validated = $request->validate([
             'recipient_id' => 'required|exists:users,id',
-            'post_url'     => 'required|url',
+            'post_id'      => 'nullable|exists:posts,id',
+            'post_url'     => 'required|string',
             'message'      => 'nullable|string|max:500',
         ]);
 
@@ -65,34 +67,63 @@ class ShareController extends Controller
             }
         }
 
-        // 1. Find or create conversation
-        // This is a simple 1-on-1 implementation
+        // Build rich post metadata snapshot
+        $metadata = null;
+        if (!empty($validated['post_id'])) {
+            $post = Post::with(['user:id,name,username,profile_picture', 'media'])->find($validated['post_id']);
+            if ($post) {
+                // Get first media item (image or video)
+                $firstMedia = $post->media->first();
+
+                $metadata = [
+                    'type'           => 'shared_post',
+                    'post_id'        => $post->id,
+                    'post_url'       => $validated['post_url'],
+                    'content'        => $post->content ? mb_substr($post->content, 0, 200) : null,
+                    'author_name'    => $post->user?->name,
+                    'author_avatar'  => $post->user?->profile_picture,
+                    'media_url'      => $firstMedia?->url ?? ($post->media_urls[0] ?? null),
+                    'media_type'     => $firstMedia?->type ?? null,
+                ];
+            }
+        }
+
+        // Fallback simple metadata if no post_id
+        if (!$metadata) {
+            $metadata = [
+                'type'     => 'shared_post',
+                'post_url' => $validated['post_url'],
+            ];
+        }
+
+        // Find or create 1-on-1 conversation
         $conversation = Conversation::whereHas('participants', function ($q) use ($authId) {
             $q->where('user_id', $authId);
         })->whereHas('participants', function ($q) use ($recipientId) {
             $q->where('user_id', $recipientId);
-        })->where('type', 'private') // Assuming 'type' column exists for direct vs group
+        })->where('type', 'direct')
         ->first();
 
         if (!$conversation) {
             DB::transaction(function () use (&$conversation, $authId, $recipientId) {
-                $conversation = Conversation::create(['type' => 'private']);
+                $conversation = Conversation::create(['type' => 'direct']);
                 $conversation->participants()->attach([$authId, $recipientId]);
             });
         }
 
-        // 2. Create message
-        $content = "Shared a post: " . $validated['post_url'];
+        // Build content string (optional user note + link as fallback for older clients)
+        $content = null;
         if (!empty($validated['message'])) {
-            $content = $validated['message'] . "\n\n" . $content;
+            $content = $validated['message'];
         }
 
-        Message::create([
+        $message = Message::create([
             'conversation_id' => $conversation->id,
-            'user_id' => $authId,
-            'content' => $content,
+            'user_id'         => $authId,
+            'content'         => $content,
+            'metadata'        => $metadata,
         ]);
 
-        return response()->json(['message' => 'Sent successfully']);
+        return response()->json(['message' => 'Sent successfully', 'conversation_id' => $conversation->id]);
     }
 }

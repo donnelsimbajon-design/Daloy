@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import axios from 'axios';
-import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone, Users, PhoneCall, Plus, LogOut } from 'lucide-react';
+import { ShieldAlert, Mail, AlertTriangle, Ban, Sword, ClipboardList, CheckCircle, X, Flag, FileText, Video, Phone, Users, PhoneCall, Plus, LogOut, Edit3, Trash2, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/Components/shadcn/avatar';
 import { ScrollArea } from '@/Components/shadcn/scroll-area';
 import { Input } from '@/Components/shadcn/input';
@@ -38,6 +38,9 @@ export default function Conversations() {
     const [groupCallActive, setGroupCallActive] = useState(null);
     const [inviteUsername, setInviteUsername] = useState('');
     const [inviteSending, setInviteSending] = useState(false);
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [editContent, setEditContent] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState(null); // { messageId, scope }
     const messagesEndRef = useRef(null);
     const attachmentInputRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -82,8 +85,13 @@ export default function Conversations() {
         }
     }, [selectedConversation]);
 
+    const prevMsgLenRef = useRef(0);
     useEffect(() => {
-        scrollToBottom();
+        // Only scroll to bottom when NEW messages arrive, not on edits/deletes
+        if (messages.length > prevMsgLenRef.current) {
+            scrollToBottom();
+        }
+        prevMsgLenRef.current = messages.length;
     }, [messages]);
 
     const scrollToBottom = () => {
@@ -118,7 +126,12 @@ export default function Conversations() {
         if (!background) setLoading(true);
         try {
             const res = await axios.get(`/api/messages/${conversationId}`);
-            setMessages(res.data.data.reverse());
+            setMessages(prev => {
+                const serverMessages = res.data.data.reverse();
+                const serverIds = new Set(serverMessages.map(m => m.id));
+                const pending = prev.filter(m => typeof m.id === 'number' && m.id > 9999999999 && !serverIds.has(m.id));
+                return [...serverMessages, ...pending];
+            });
             if (!background) {
                 router.reload({ only: ['social'] });
             }
@@ -168,8 +181,9 @@ export default function Conversations() {
             id: tempId,
             conversation_id: selectedConversation.id,
             user_id: auth.user.id,
-            content: newMessage,
+            content: newMessage || null,
             media_url: attachment ? URL.createObjectURL(attachment) : null,
+            media_type: attachment && attachment.type.startsWith('video') ? 'video' : 'image',
             created_at: new Date().toISOString(),
             user: auth.user
         };
@@ -199,6 +213,40 @@ export default function Conversations() {
             }
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleEditMessage = async (e) => {
+        if (e) e.preventDefault();
+        if (!editContent.trim() || !editingMessage) return;
+        
+        try {
+            const res = await axios.put(`/api/messages/${editingMessage.id}`, { content: editContent });
+            setMessages(prev => prev.map(m => m.id === editingMessage.id ? res.data.message : m));
+            setEditingMessage(null);
+            setEditContent('');
+        } catch (err) {
+            console.error('Edit failed:', err.response?.data?.message);
+        }
+    };
+
+    const handleDeleteMessage = (messageId, scope = 'me') => {
+        setDeleteConfirm({ messageId, scope });
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteConfirm) return;
+        const { messageId, scope } = deleteConfirm;
+        setDeleteConfirm(null);
+        try {
+            await axios.delete(`/api/messages/${messageId}`, { data: { scope } });
+            if (scope === 'everyone') {
+                setMessages(prev => prev.map(m => m.id === messageId ? { ...m, deleted_for_everyone_at: new Date().toISOString() } : m));
+            } else {
+                setMessages(prev => prev.filter(m => m.id !== messageId));
+            }
+        } catch (err) {
+            alert(err.response?.data?.message || 'Failed to delete message.');
         }
     };
 
@@ -253,7 +301,7 @@ export default function Conversations() {
             });
         } catch (err) {
             console.error(err);
-            alert('Failed to initialize call. Please check credentials or try again.');
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: { type: 'error', message: 'Failed to initialize call. Please check credentials or try again.' } }));
         }
     };
 
@@ -445,7 +493,9 @@ export default function Conversations() {
                                                 {conv.latest_message ? (
                                                     isSystemMessage(conv.latest_message.content)
                                                         ? getSystemMessageText(conv.latest_message.content)
-                                                        : conv.latest_message.content
+                                                        : conv.latest_message.metadata?.type === 'shared_post'
+                                                            ? '📎 Shared a post'
+                                                            : (conv.latest_message.content || '📷 Attachment')
                                                 ) : 'No messages'}
                                             </p>
                                         </div>
@@ -579,6 +629,7 @@ export default function Conversations() {
                                     <div className="p-4 md:p-6 flex flex-col space-y-4">
                                         {messages.map((msg) => {
                                             const isMe = msg.user_id === auth.user.id;
+                                            const meta = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
 
                                             // System messages
                                             if (isSystemMessage(msg.content)) {
@@ -592,7 +643,7 @@ export default function Conversations() {
                                             }
 
                                             return (
-                                                <div key={msg.id} className={`flex items-end w-full ${isMe ? 'justify-end' : 'justify-start'} mb-1`}>
+                                                <div key={msg.id} className={`flex items-end w-full group mb-1 ${isMe ? 'flex-row-reverse' : ''}`}>
                                                     {!isMe && (
                                                         <Link 
                                                             href={`/users/${msg.user?.id || otherUser?.id}`} 
@@ -608,8 +659,97 @@ export default function Conversations() {
                                                             )}
                                                         </Link>
                                                     )}
-                                                    <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed ${isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start'} ${(!msg.content && msg.media_url) ? 'p-1 pb-1.5' : 'px-4 py-2.5'}`}>
-                                                        {msg.story_id && (
+
+                                                    {meta?.type === 'shared_post' && !msg.deleted_for_everyone_at ? (
+                                                        /* ── Shared Post: standalone card (no bubble) ── */
+                                                        <div className="flex flex-col max-w-[85%] md:max-w-[70%]">
+                                                            <a
+                                                                href={meta.post_url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className="block rounded-2xl overflow-hidden border border-ocean-border bg-ocean-card shadow-md hover:opacity-90 transition-opacity"
+                                                            >
+                                                                {/* Author row */}
+                                                                <div className="flex items-center gap-2 px-3 pt-3 pb-1.5">
+                                                                    <div className="w-7 h-7 rounded-full bg-biolum/20 overflow-hidden shrink-0 flex items-center justify-center text-[10px] font-bold text-biolum">
+                                                                        {meta.author_avatar ? (
+                                                                            <img src={meta.author_avatar} className="w-full h-full object-cover" alt="" />
+                                                                        ) : (
+                                                                            (meta.author_name || 'U').charAt(0)
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-[13px] font-bold text-ocean-text truncate">
+                                                                        {meta.author_name || 'Daloy Post'}
+                                                                    </span>
+                                                                    <span className="ml-auto text-[10px] font-bold uppercase tracking-widest shrink-0 text-ocean-text-dim/70">
+                                                                        Shared Post
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Media preview */}
+                                                                {meta.media_url && (
+                                                                    <div className="w-full bg-black/20 overflow-hidden max-h-64">
+                                                                        {meta.media_type === 'video' ? (
+                                                                            <video src={meta.media_url} className="w-full max-h-64 object-cover block pointer-events-none" muted />
+                                                                        ) : (
+                                                                            <img src={meta.media_url} alt="post" className="w-full max-h-64 object-cover block" />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Content snippet */}
+                                                                {meta.content && (
+                                                                    <p className="px-3 py-2.5 text-sm leading-relaxed line-clamp-3 text-ocean-text">
+                                                                        {meta.content}
+                                                                    </p>
+                                                                )}
+                                                                {!meta.content && !meta.media_url && (
+                                                                    <p className="px-3 py-2.5 text-sm italic text-ocean-text-dim">
+                                                                        Tap to view post
+                                                                    </p>
+                                                                )}
+
+                                                                {/* View Post footer */}
+                                                                <div className="flex items-center gap-2 px-3 py-2.5 border-t border-ocean-border text-[12px] font-bold text-biolum">
+                                                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                                                                    View Post
+                                                                </div>
+                                                            </a>
+                                                            {/* Timestamp + read receipt below card */}
+                                                            <div className={`flex items-center gap-1.5 mt-1 text-[10px] font-semibold ${isMe ? 'justify-end text-ocean-text-dim/70' : 'text-ocean-text-dim'}`}>
+                                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                {isMe && msg.read_at && (
+                                                                    <div className="w-3.5 h-3.5 rounded-full overflow-hidden shrink-0 inline-block">
+                                                                        {otherUser?.profile_picture ? (
+                                                                            <img src={otherUser.profile_picture} className="w-full h-full object-cover" alt="Read" />
+                                                                        ) : (
+                                                                            <div className="w-full h-full bg-cyan-600 flex justify-center items-center text-white text-[7px] font-bold">
+                                                                                {(otherUser?.name || 'U').charAt(0)}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                                {isMe && !msg.read_at && msg.id && msg.id < 100000000000 && (
+                                                                    <svg className="w-3.5 h-3.5 text-ocean-text-dim/60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        /* ── Normal bubble ── */
+                                                        <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed overflow-hidden
+                                                            ${(!msg.content && msg.media_url && !msg.deleted_for_everyone_at)
+                                                                ? (isMe ? 'rounded-[20px] rounded-tr-[4px] self-end' : 'rounded-[20px] rounded-tl-[4px] self-start')
+                                                                : (isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end px-4 py-2.5' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start px-4 py-2.5')
+                                                            }
+                                                            ${msg.deleted_for_everyone_at ? 'italic opacity-60 bg-ocean-surface text-ocean-text px-4 py-2.5' : ''}`}>
+                                                        {msg.deleted_for_everyone_at ? (
+                                                            <div className="flex items-center gap-2 text-sm text-ocean-text-dim">
+                                                                <Ban className="w-4 h-4" />
+                                                                This message was deleted
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                {msg.story_id && (
                                                             <div className={`w-full overflow-hidden pb-1 border-b mb-2 flex items-center gap-3 ${isMe ? 'border-white/20' : 'border-ocean-border'}`}>
                                                                 {msg.story ? (
                                                                     <>
@@ -632,16 +772,83 @@ export default function Conversations() {
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                                )}
+                                                                {/* ── Shared Post Card ── */}
+                                                        {meta?.type === 'shared_post' && (
+                                                            <a
+                                                                href={meta.post_url}
+                                                                target="_blank"
+                                                                rel="noreferrer"
+                                                                className={`block w-full rounded-xl overflow-hidden border transition-all hover:opacity-90 mb-1 ${isMe ? 'border-white/20 bg-white/10' : 'border-ocean-border bg-ocean-surface/60'}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                {/* Author row */}
+                                                                <div className={`flex items-center gap-2 px-3 pt-2.5 pb-1.5`}>
+                                                                    <div className="w-5 h-5 rounded-full bg-biolum/20 overflow-hidden shrink-0 flex items-center justify-center text-[9px] font-bold text-biolum">
+                                                                        {meta.author_avatar ? (
+                                                                            <img src={meta.author_avatar} className="w-full h-full object-cover" alt="" />
+                                                                        ) : (
+                                                                            (meta.author_name || 'U').charAt(0)
+                                                                        )}
+                                                                    </div>
+                                                                    <span className={`text-[11px] font-bold truncate ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
+                                                                        {meta.author_name || 'Daloy Post'}
+                                                                    </span>
+                                                                    <span className={`ml-auto text-[9px] font-bold uppercase tracking-widest shrink-0 ${isMe ? 'text-white/40' : 'text-ocean-text-dim/50'}`}>
+                                                                        Shared Post
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* Media preview */}
+                                                                {meta.media_url && (
+                                                                    <div className="w-full bg-black/20 overflow-hidden max-h-48">
+                                                                        {meta.media_type === 'video' ? (
+                                                                            <video
+                                                                                src={meta.media_url}
+                                                                                className="w-full max-h-48 object-cover block pointer-events-none"
+                                                                                muted
+                                                                            />
+                                                                        ) : (
+                                                                            <img
+                                                                                src={meta.media_url}
+                                                                                alt="post"
+                                                                                className="w-full max-h-48 object-cover block"
+                                                                            />
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Content snippet */}
+                                                                {meta.content && (
+                                                                    <p className={`px-3 py-2 text-xs leading-relaxed line-clamp-2 ${isMe ? 'text-white/90' : 'text-ocean-text'}`}>
+                                                                        {meta.content}
+                                                                    </p>
+                                                                )}
+                                                                {!meta.content && !meta.media_url && (
+                                                                    <p className={`px-3 py-2 text-xs italic ${isMe ? 'text-white/50' : 'text-ocean-text-dim'}`}>
+                                                                        Tap to view post
+                                                                    </p>
+                                                                )}
+
+                                                                {/* View Post button */}
+                                                                <div className={`flex items-center gap-1.5 px-3 py-2 border-t text-[11px] font-bold ${isMe ? 'border-white/15 text-white/70' : 'border-ocean-border text-biolum'}`}>
+                                                                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" /></svg>
+                                                                    View Post
+                                                                </div>
+                                                            </a>
                                                         )}
-                                                        {msg.media_url && (
-                                                            <div className={`w-full overflow-hidden bg-black/10 ${msg.content ? 'mb-2 rounded-xl' : 'rounded-[16px] ' + (isMe ? 'rounded-tr-sm' : 'rounded-tl-sm')}`}>
-                                                                {msg.media_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) || msg.media_url.startsWith('blob:') ? (
-                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'image' })} className="w-full h-full block cursor-zoom-in">
-                                                                        <img src={msg.media_url} className="w-full h-auto max-h-64 object-cover" alt="attachment" />
-                                                                    </button>
-                                                                ) : msg.media_url.match(/\.(mp4|webm|mov)$/i) ? (
-                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'video' })} className="w-full h-full block cursor-zoom-in">
-                                                                        <video src={msg.media_url} className="w-full max-h-64 object-contain bg-black pointer-events-none" />
+
+                                                        {msg.media_url && (() => {
+                                                            const isVideoUrl = /\.(mp4|webm|mov)$/i.test(msg.media_url);
+                                                            const isBlobVideo = msg.media_url.startsWith('blob:') && msg.media_type === 'video';
+                                                            
+                                                            return (
+                                                            <div className={msg.content ? 'w-full overflow-hidden rounded-xl bg-black/10 mb-2' : 'w-full'}>
+                                                                {(isVideoUrl || isBlobVideo) ? (
+                                                                    <video src={msg.media_url} className="w-full max-h-72 object-contain bg-black block" controls style={{ display: 'block' }} />
+                                                                ) : (/\.(jpeg|jpg|gif|png|webp)$/i.test(msg.media_url) || msg.media_url.startsWith('blob:')) ? (
+                                                                    <button type="button" onClick={() => setFullscreenMedia({ url: msg.media_url, type: 'image' })} className="w-full block cursor-zoom-in">
+                                                                        <img src={msg.media_url} className="w-full h-auto max-h-72 object-cover block" alt="attachment" style={{ display: 'block' }} />
                                                                     </button>
                                                                 ) : (
                                                                     <a href={msg.media_url} download target="_blank" rel="noreferrer" className={`flex items-center gap-3 p-3 hover:bg-black/5 transition-colors ${isMe ? 'text-white' : 'text-ocean-text'}`}>
@@ -650,7 +857,7 @@ export default function Conversations() {
                                                                     </a>
                                                                 )}
                                                             </div>
-                                                        )}
+                                                        )})()}
                                                         {msg.content && (
                                                             <div className="break-words whitespace-pre-wrap">
                                                                 {(() => {
@@ -679,6 +886,13 @@ export default function Conversations() {
                                                                 })()}
                                                             </div>
                                                         )}
+                                                        {/* Only show timestamp inside bubble when there's text (not media-only) */}
+                                                        {(msg.content || !msg.media_url) && !meta?.type && (
+                                                            <div className={`text-[10px] mt-1 flex items-center gap-2 ${isMe ? 'justify-end text-white/50' : 'text-ocean-text-dim'}`}>
+                                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                {msg.edited_at && <span className="opacity-70">(edited)</span>}
+                                                            </div>
+                                                        )}
                                                         <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
                                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             {isMe && msg.id && msg.id > 100000000000 && ( // Just an optimistic ID check
@@ -698,7 +912,43 @@ export default function Conversations() {
                                                             {isMe && !msg.read_at && msg.id && msg.id < 100000000000 && (
                                                                 <svg className="w-3.5 h-3.5 text-ocean-text-dim/60" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                                                             )}
+                                                            {msg.edited_at && <span className="opacity-70">(edited)</span>}
                                                         </div>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    )}
+
+                                                    {/* Dropdown — after bubble so it sits on the outer edge for both sides */}
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center mx-1.5 shrink-0">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <button className="p-1.5 rounded-full hover:bg-black/10 text-ocean-text-dim hover:text-white transition-colors">
+                                                                    <MoreHorizontal className="w-4 h-4" />
+                                                                </button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align={isMe ? "end" : "start"} className="w-44 border-ocean-border bg-ocean-card shadow-2xl">
+                                                                {isMe && !msg.deleted_for_everyone_at && msg.content && (
+                                                                    <DropdownMenuItem onClick={() => {
+                                                                        setEditingMessage(msg);
+                                                                        setEditContent(msg.content);
+                                                                    }} className="cursor-pointer text-sm font-semibold flex items-center gap-2 hover:bg-ocean-surface focus:bg-ocean-surface text-white">
+                                                                        <Edit3 className="w-4 h-4" />
+                                                                        Edit
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                                <DropdownMenuItem onClick={() => handleDeleteMessage(msg.id, 'me')} className="cursor-pointer text-sm font-semibold text-white hover:bg-ocean-surface focus:bg-ocean-surface flex items-center gap-2">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                    Delete for Me
+                                                                </DropdownMenuItem>
+                                                                {isMe && (
+                                                                    <DropdownMenuItem onClick={() => handleDeleteMessage(msg.id, 'everyone')} className="cursor-pointer text-sm font-semibold text-white hover:bg-ocean-surface focus:bg-ocean-surface flex items-center gap-2">
+                                                                        <AlertTriangle className="w-4 h-4" />
+                                                                        Delete for Everyone
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </div>
                                                 </div>
                                             );
@@ -725,8 +975,19 @@ export default function Conversations() {
                                             <span>You are unable to send a message to this person.</span>
                                         </div>
                                     ) : (
-                                        <form onSubmit={sendMessage} className="flex flex-col gap-2">
-                                            {attachment && (
+                                        <form onSubmit={editingMessage ? handleEditMessage : sendMessage} className="flex flex-col gap-2">
+                                            {editingMessage && (
+                                                <div className="mx-2 mb-1 p-2 bg-biolum/10 border border-biolum/30 rounded-xl flex items-center justify-between gap-3 animate-[slideUp_0.2s_ease-out]">
+                                                    <div className="flex items-center gap-2 text-biolum text-sm font-semibold">
+                                                        <Edit3 className="w-4 h-4" />
+                                                        Editing Message...
+                                                    </div>
+                                                    <button type="button" onClick={() => { setEditingMessage(null); setEditContent(''); }} className="p-1 rounded-full text-ocean-text-dim hover:bg-ocean-card hover:text-red-400 transition-colors shrink-0">
+                                                        <X size={16} />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {attachment && !editingMessage && (
                                                 <div className="mx-2 mb-1 p-2 bg-ocean-surface border border-ocean-border/50 rounded-xl flex items-center justify-between gap-3 animate-[slideUp_0.2s_ease-out]">
                                                     <div className="flex items-center gap-3 overflow-hidden">
                                                         {attachment.type.startsWith('image/') ? (
@@ -749,32 +1010,36 @@ export default function Conversations() {
                                                 </div>
                                             )}
                                             <div className="flex items-end gap-2 bg-ocean-surface border border-ocean-border rounded-[24px] px-2 py-1.5 focus-within:border-biolum/50 focus-within:ring-1 focus-within:ring-biolum/20 transition-all">
-                                                <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => { if (e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button type="button" variant="ghost" size="icon" className="text-ocean-text-dim hover:text-ocean-text hover:bg-black/10 self-center shrink-0">
-                                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="start" className="w-48 bg-ocean-card border border-ocean-border/80">
-                                                        <DropdownMenuLabel className="text-ocean-text text-[10px] uppercase font-bold tracking-widest opacity-50">Attach File</DropdownMenuLabel>
-                                                        <DropdownMenuSeparator className="bg-ocean-border/50" />
-                                                        <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = 'image/*'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
-                                                            Photo
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = 'video/*'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
-                                                            Video
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = '.pdf,.doc,.docx,.txt,.zip'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
-                                                            <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-                                                            Document
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                                <textarea value={newMessage} onChange={(e) => { setNewMessage(e.target.value); handleTyping(); }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(e); } }} placeholder="Message..." className="flex-1 min-w-0 bg-transparent border-none py-2 px-1 text-[15px] leading-relaxed text-ocean-text focus:outline-none focus:ring-0 placeholder-ocean-text-dim resize-none max-h-32 min-h-[44px] custom-scrollbar self-center" rows="1" />
-                                                <Button type="submit" size="icon" disabled={(!newMessage.trim() && !attachment) || sending} className="w-9 h-9 rounded-full bg-biolum text-white hover:bg-biolum-bright flex items-center justify-center shrink-0 self-center">
+                                                {!editingMessage && (
+                                                    <>
+                                                        <input type="file" ref={attachmentInputRef} className="hidden" onChange={(e) => { if (e.target.files[0]) setAttachment(e.target.files[0]); e.target.value = ''; }} />
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button type="button" variant="ghost" size="icon" className="text-ocean-text-dim hover:text-ocean-text hover:bg-black/10 self-center shrink-0">
+                                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="start" className="w-48 bg-ocean-card border border-ocean-border/80">
+                                                                <DropdownMenuLabel className="text-ocean-text text-[10px] uppercase font-bold tracking-widest opacity-50">Attach File</DropdownMenuLabel>
+                                                                <DropdownMenuSeparator className="bg-ocean-border/50" />
+                                                                <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = 'image/*'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
+                                                                    Photo
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = 'video/*'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+                                                                    Video
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => { attachmentInputRef.current.accept = '.pdf,.doc,.docx,.txt,.zip'; attachmentInputRef.current.click(); }} className="cursor-pointer text-sm font-semibold text-ocean-text hover:bg-ocean-surface focus:bg-ocean-surface focus:text-biolum flex items-center gap-3">
+                                                                    <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m6.75 12l-3-3m0 0l-3 3m3-3v6m-1.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                                                                    Document
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </>
+                                                )}
+                                                <textarea value={editingMessage ? editContent : newMessage} onChange={(e) => { if (editingMessage) { setEditContent(e.target.value); } else { setNewMessage(e.target.value); handleTyping(); } }} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); if (editingMessage) { handleEditMessage(e); } else { sendMessage(e); } } }} placeholder={editingMessage ? "Edit your message..." : "Message..."} className="flex-1 min-w-0 bg-transparent border-none py-2 px-1 text-[15px] leading-relaxed text-ocean-text focus:outline-none focus:ring-0 placeholder-ocean-text-dim resize-none max-h-32 min-h-[44px] custom-scrollbar self-center" rows="1" />
+                                                <Button type="submit" size="icon" disabled={(editingMessage ? !editContent.trim() : (!newMessage.trim() && !attachment)) || sending} className="w-9 h-9 rounded-full bg-biolum text-white hover:bg-biolum-bright flex items-center justify-center shrink-0 self-center">
                                                     <svg className="w-4 h-4 ml-0.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
                                                 </Button>
                                             </div>
@@ -993,6 +1258,52 @@ export default function Conversations() {
                     currentUserId={auth.user.id}
                 />
             </div>
+
+            {/* ── Delete Confirmation Floating Card ──────────────────── */}
+            {deleteConfirm && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" onClick={() => setDeleteConfirm(null)}>
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                    {/* Card */}
+                    <div
+                        className="relative z-10 w-full max-w-sm bg-[#1a1a1a] border border-white/10 rounded-2xl shadow-2xl p-6 animate-[fadeIn_0.15s_ease-out]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Icon */}
+                        <div className="flex items-center justify-center w-12 h-12 rounded-full bg-white/10 mb-4 mx-auto">
+                            <svg className="w-6 h-6 text-white/80" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </div>
+                        {/* Title */}
+                        <h3 className="text-white text-lg font-bold text-center mb-1">
+                            {deleteConfirm.scope === 'everyone' ? 'Unsend for Everyone?' : 'Delete Message?'}
+                        </h3>
+                        {/* Subtitle */}
+                        <p className="text-white/50 text-sm text-center mb-6">
+                            {deleteConfirm.scope === 'everyone'
+                                ? 'This message will be removed for everyone in this conversation.'
+                                : 'This message will be removed only for you.'
+                            }
+                        </p>
+                        {/* Actions */}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDeleteConfirm(null)}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-white/15 text-white/70 text-sm font-semibold hover:bg-white/5 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-white text-black text-sm font-bold hover:bg-white/90 transition-colors shadow-lg"
+                            >
+                                {deleteConfirm.scope === 'everyone' ? 'Unsend' : 'Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </MainLayout>
     );
 }
