@@ -198,8 +198,8 @@ export default function CreatePostModal({ isOpen, onClose }) {
                             {/* User info row */}
                             <div className="flex items-start gap-3 mb-4">
                                 <div className="w-11 h-11 rounded-full bg-ocean-surface overflow-hidden border border-ocean-border/50 shrink-0">
-                                    {user?.avatar ? (
-                                        <img src={user.avatar} className="w-full h-full object-cover" />
+                                    {user?.profile_picture ? (
+                                        <img src={user.profile_picture} className="w-full h-full object-cover" />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-ocean-text font-bold text-sm bg-ocean-deep">
                                             {user?.name?.charAt(0).toUpperCase()}
