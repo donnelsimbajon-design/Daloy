@@ -1,0 +1,2 @@
+[start]
+cmd = "php artisan config:clear && php artisan cache:clear && php artisan view:clear && php artisan storage:link --force 2>/dev/null || true && php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php -d post_max_size=200M -d upload_max_filesize=200M -d memory_limit=512M -d max_execution_time=300 artisan serve --host=0.0.0.0 --port=${PORT:-8080}"
