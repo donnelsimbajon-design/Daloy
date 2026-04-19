@@ -1,0 +1,2 @@
+[variables]
+PHP_INI_SCAN_DIR = ":/app/config/php"
