@@ -181,6 +181,15 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   expect(fetched.status(), 'Uploaded image returned 404: public storage symlink may be missing').toBe(200);
   expect(fetched.headers()['content-type'] || '').toMatch(/image\/png|image\//);
 
+  // Clicking a photo must open a true-black, keyboard-dismissible viewer.
+  await page.locator('.daloy-post-card[data-post-id="' + post.id + '"]')
+    .getByRole('button', { name: 'View photo 1' }).click();
+  const viewer = page.getByRole('dialog', { name: 'Post photo viewer' });
+  await expect(viewer).toBeVisible();
+  await expect(viewer).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await page.keyboard.press('Escape');
+  await expect(viewer).toHaveCount(0);
+
   // A missing or expired file should present a readable fallback rather than
   // a broken image icon. Intercept only this disposable test post's image.
   await page.route('**/storage/posts/' + post.id + '/**', route =>
@@ -222,7 +231,13 @@ test('two users: polls, saved permissions, school membership and direct messagin
     const pollText = unique('poll_post') + ' Which activity is your favorite?';
     await openComposer(page);
     await page.getByRole('button', { name: 'Add poll' }).click();
-    await page.getByPlaceholder('Ask a question...').fill('Pick one for the staging-only test');
+    const pollBuilder = page.getByTestId('poll-builder');
+    await expect(pollBuilder).toBeVisible();
+    await page.getByLabel('Poll question').fill('Pick one for the staging-only test');
+    await page.getByRole('textbox', { name: 'Option 1' }).fill('Yes');
+    await page.getByRole('textbox', { name: 'Option 2' }).fill('No');
+    await pollBuilder.getByLabel('Poll duration').selectOption('72');
+    await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeEnabled();
     const pollPost = await submitPost(page, pollText);
     expect(pollPost.poll?.options?.length, 'Poll options were not stored').toBe(2);
     const optionId = pollPost.poll.options[0].id;
@@ -236,6 +251,25 @@ test('two users: polls, saved permissions, school membership and direct messagin
     expect(forbiddenEdit.status, 'Other users should not edit a post').toBe(403);
     const forbiddenDelete = await axiosCall(bobPage, 'delete', '/posts/' + pollPost.id);
     expect(forbiddenDelete.status, 'Other users should not delete a post').toBe(403);
+
+    // Repost a public post and verify the new record appears on the other user's profile.
+    const reShared = await axiosCall(bobPage, 'post', '/posts/' + pollPost.id + '/repost');
+    expect(reShared.status, 'Repost endpoint should work').toBe(200);
+    expect(reShared.data?.reposted).toBe(true);
+    const repostId = reShared.data?.repost_id;
+    expect(repostId, 'Repost record missing').toBeTruthy();
+    const bobProfileProps = await readProps(bobPage, '/users/' + bob.id);
+    const bobPosts = bobProfileProps.posts?.data || bobProfileProps.posts || [];
+    expect(bobPosts.some(x => x.id === repostId && x.repost_of_id === pollPost.id),
+        'Repost must appear on the reposter profile').toBe(true);
+    await bobPage.getByRole('button', { name: 'Reposts' }).click();
+    const repostCard = bobPage.locator('.daloy-post-card[data-post-id="' + repostId + '"]');
+    await expect(repostCard).toBeVisible();
+    await expect(repostCard).toContainText(pollText);
+    await repostCard.getByRole('button', { name: 'Undo repost' }).click();
+    const withoutRepost = await readProps(bobPage, '/users/' + bob.id);
+    const remaining = withoutRepost.posts?.data || withoutRepost.posts || [];
+    expect(remaining.some(x => x.id === repostId), 'Undo Repost should remove it from the profile').toBe(false);
 
     // Private posts must not leak via direct URLs, comments, likes or profiles.
     const privateText = unique('private') + ' Visible only to the owner.';
