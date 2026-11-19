@@ -10,7 +10,16 @@ if [ -z "${DB_CONNECTION:-}" ]; then
   exit 1
 fi
 
-# Never run migrations automatically during cutover: first verify a full backup.
+# Staging-only isolated SQLite file. Never use this setting for production data.
+if [ "${PREVIEW_SQLITE_BOOTSTRAP:-false}" = "true" ]; then
+  if [ "${APP_ENV:-}" != "staging" ] || [ "$DB_CONNECTION" != "sqlite" ] || [ "${DB_DATABASE:-}" != "/tmp/daloy-preview.sqlite" ]; then
+    echo "ERROR: Preview database bootstrap requires APP_ENV=staging and the isolated /tmp/daloy-preview.sqlite path." >&2
+    exit 1
+  fi
+  touch /tmp/daloy-preview.sqlite
+fi
+
+# Never run migrations automatically during production cutover: first verify a full backup.
 mkdir -p storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/public
 php artisan config:cache
 php artisan view:cache
