@@ -26,6 +26,7 @@ RUN composer install --no-dev --no-interaction --no-progress --prefer-dist --opt
     && chmod +x /usr/local/bin/render-start \
     && mkdir -p storage/framework/cache/data storage/framework/views storage/framework/sessions storage/logs storage/app/public bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache \
+    && if [ ! -e public/storage ] && [ ! -L public/storage ]; then ln -s /var/www/html/storage/app/public public/storage; fi \
     && printf '%s\n' 'memory_limit=512M' 'upload_max_filesize=100M' 'post_max_size=100M' 'max_execution_time=120' 'opcache.enable=1' 'opcache.validate_timestamps=0' > /usr/local/etc/php/conf.d/daloy.ini
 
 ENV PORT=10000
