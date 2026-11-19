@@ -8,6 +8,11 @@ import SafeMediaImage from '@/Components/UI/SafeMediaImage';
 export default function StoryRail({ horizontal = false, hidden = false, forcedStoryUserId = null, onCloseForced = null }) {
     const { auth } = usePage().props;
     const user = auth.user;
+    // Both the mobile and desktop rails are mounted on the feed.
+    // Fetch only for the visible viewport to avoid duplicate API requests.
+    const [viewportActive, setViewportActive] = useState(() =>
+        typeof window === 'undefined' || (horizontal ? window.innerWidth < 768 : window.innerWidth >= 768)
+    );
     const [stories, setStories] = useState([]);
     const [groupedStories, setGroupedStories] = useState([]);
     const [selectedStory, setSelectedStory] = useState(null);
@@ -63,6 +68,15 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
     };
 
     useEffect(() => {
+        const query = window.matchMedia('(min-width: 768px)');
+        const update = () => setViewportActive(horizontal ? !query.matches : query.matches);
+        update();
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+    }, [horizontal]);
+
+    useEffect(() => {
+        if (!viewportActive && !forcedStoryUserId) return;
         fetchStories().then(() => {
             const urlParams = new URL(window.location.href).searchParams;
             const openStory = urlParams.get('open_story');
@@ -71,7 +85,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                 // It's handled in the next effect
             }
         });
-    }, []);
+    }, [viewportActive, forcedStoryUserId]);
 
     // Initialize local likes state from fetched stories and handle URL parameter
     useEffect(() => {
