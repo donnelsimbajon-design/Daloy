@@ -72,7 +72,8 @@ Route::middleware('auth')->group(function () {
     // Navigation Pages
     Route::get('/explore', [SearchController::class, 'explore'])->name('explore');
     Route::get('/events', [EventController::class, 'globalIndex'])->name('events.global');
-    Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
+    // Legacy entry point: never show sample notes instead of the user's real bookmarks.
+    Route::get('/river-flow', fn () => redirect('/saved'));
     Route::get('/ripples', [RippleController::class, 'index'])->name('ripples');
     Route::get('/conversations/{id?}', function () { return Inertia::render('Conversations'); });
 

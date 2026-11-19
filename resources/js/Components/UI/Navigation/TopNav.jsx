@@ -555,7 +555,7 @@ export default function TopNav() {
                                             </Link>
 
                                             <Link
-                                                href="/bookmarks"
+                                                href="/saved"
                                                 onClick={() => setIsProfileOpen(false)}
                                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-ocean-text hover:bg-ocean-surface/50 transition-colors"
                                             >

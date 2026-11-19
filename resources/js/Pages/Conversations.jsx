@@ -67,7 +67,7 @@ export default function Conversations() {
             const conv = conversations.find(c => c.id === parsedId);
             if (conv) {
                 setSelectedConversation(conv);
-                if (window.innerWidth < 768) setMobileView('chat');
+                // On mobile, selectedConversation already drives the chat view.
             }
         }
     }, [conversations, selectedConversation]);

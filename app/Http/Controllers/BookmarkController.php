@@ -71,6 +71,12 @@ class BookmarkController extends Controller
             }
             if ($bookmark->post) {
                 $post = $bookmark->post;
+                // Repost wrappers must not reveal originals that later became private.
+                if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                    || $post->repostOf->school_id
+                    || !$post->repostOf->isVisibleTo($user))) {
+                    $post->unsetRelation('repostOf');
+                }
                 $userReaction = $post->reactions->where('user_id', $user->id)->first();
                 $post->user_reaction = $userReaction ? $userReaction->type : null;
                 $post->liked_by_user = $userReaction !== null;

@@ -58,8 +58,11 @@ class MessagingController extends Controller
     public function start(Request $request)
     {
         $request->validate(['user_id' => 'required|exists:users,id']);
-        $targetUserId = $request->user_id;
+        $targetUserId = (int) $request->user_id;
         $currentUser  = Auth::user();
+        if ($targetUserId === $currentUser->id) {
+            return response()->json(['message' => 'You cannot start a conversation with yourself.'], 422);
+        }
         $targetUser   = User::find($targetUserId);
 
         // Block check
@@ -120,6 +123,12 @@ class MessagingController extends Controller
                     return response()->json(['message' => 'You cannot message this user due to their privacy settings.'], 403);
                 }
             }
+        }
+
+        if ($request->filled('reply_to_id') && !$conversation->messages()
+            ->whereKey($request->integer('reply_to_id'))
+            ->whereNull('deleted_for_everyone_at')->exists()) {
+            return response()->json(['message' => 'That message is not part of this conversation.'], 422);
         }
 
         $mediaUrl = null;
@@ -208,6 +217,9 @@ class MessagingController extends Controller
         $request->validate(['emoji' => 'required|string|max:10']);
 
         $user = Auth::user();
+        abort_unless($message->conversation->participants()
+            ->where('user_id', $user->id)->exists(), 403);
+        abort_if($message->deleted_for_everyone_at !== null, 422);
 
         $existing = MessageReaction::where('message_id', $message->id)
             ->where('user_id', $user->id)
@@ -292,6 +304,7 @@ class MessagingController extends Controller
     public function typing(Conversation $conversation): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($conversation->participants()->where('user_id', $user->id)->exists(), 403);
 
         TypingIndicator::updateOrCreate(
             ['conversation_id' => $conversation->id, 'user_id' => $user->id],
@@ -307,6 +320,7 @@ class MessagingController extends Controller
     public function getTyping(Conversation $conversation): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($conversation->participants()->where('user_id', $user->id)->exists(), 403);
 
         $typingUsers = TypingIndicator::where('conversation_id', $conversation->id)
             ->where('user_id', '!=', $user->id)
@@ -406,9 +420,17 @@ class MessagingController extends Controller
             return response()->json(['message' => 'Only admins can add members.'], 403);
         }
 
-        $conversation->participants()->syncWithoutDetaching([
-            $request->user_id => ['role' => 'member']
-        ]);
+        abort_unless($conversation->type === 'group', 422);
+        $candidate = User::findOrFail($request->integer('user_id'));
+        abort_if($candidate->id === $user->id || $candidate->isBlockedWith($user), 422);
+        if ($conversation->participants()->where('user_id', $candidate->id)->exists()) {
+            return response()->json(['message' => 'User is already in this group.'], 422);
+        }
+        if ($conversation->participants()->count() >= ($conversation->max_members ?? 11)) {
+            return response()->json(['message' => 'Group is full.'], 422);
+        }
+
+        $conversation->participants()->attach($candidate->id, ['role' => 'member']);
 
         return response()->json(['added' => true]);
     }
@@ -425,6 +447,8 @@ class MessagingController extends Controller
             return response()->json(['message' => 'Only admins can remove members.'], 403);
         }
 
+        abort_unless($conversation->type === 'group', 422);
+        abort_if($user->id === $authUser->id, 422, 'Use leave group instead.');
         $conversation->participants()->detach($user->id);
 
         return response()->json(['removed' => true]);
@@ -436,6 +460,11 @@ class MessagingController extends Controller
     public function updateGroupName(Request $request, Conversation $conversation): JsonResponse
     {
         $request->validate(['name' => 'required|string|max:100']);
+
+        abort_unless($conversation->type === 'group', 422);
+        $requester = $request->user();
+        $admin = $conversation->participants()->where('user_id', $requester->id)->first();
+        abort_unless($admin && $admin->pivot->role === 'admin', 403);
 
         $conversation->update(['name' => $request->name]);
 
@@ -548,7 +577,7 @@ class MessagingController extends Controller
 
         // Generate system message before leaving
         $conversation->messages()->create([
-            'user_id' => clone $user->id,
+            'user_id' => $user->id,
             'content' => 'SYSTEM_USER_LEFT',
         ]);
 

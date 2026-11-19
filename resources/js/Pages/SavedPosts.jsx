@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Head, Link, usePage, router } from '@inertiajs/react';
+import React, { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
-import PostCard from '@/Components/PostCard';
+import PostCard from '@/Components/UI/Cards/PostCard';
 import { Bookmark, FileText, BarChart2, Image as ImageIcon } from 'lucide-react';
 
 export default function SavedPosts({ bookmarks, collections = [] }) {
-    const { auth } = usePage().props;
     const [filter, setFilter] = useState('all');
-    const [bookmarkItems, setBookmarkItems] = useState(bookmarks?.data || []);
+    // Always use fresh Inertia pagination props instead of a stale initial copy.
+    const bookmarkItems = bookmarks?.data || [];
 
     const filters = [
         { key: 'all', label: 'All Saved', icon: <Bookmark size={14} /> },
@@ -17,7 +17,8 @@ export default function SavedPosts({ bookmarks, collections = [] }) {
     ];
 
     const filteredItems = bookmarkItems.filter(item => {
-        const post = item.post || item;
+        const post = item.post;
+        if (!post) return false;
         if (filter === 'polls') return post.poll;
         if (filter === 'media') return post.media?.length > 0 || post.media_urls?.length > 0;
         if (filter === 'posts') return !post.poll && (!post.media || post.media.length === 0);
@@ -64,7 +65,7 @@ export default function SavedPosts({ bookmarks, collections = [] }) {
                 {filteredItems.length > 0 ? (
                     <div className="space-y-4">
                         {filteredItems.map((item) => {
-                            const post = item.post || item;
+                            const post = item.post;
                             return (
                                 <div key={item.id || post.id} className="relative">
                                     <PostCard post={post} />
@@ -93,7 +94,7 @@ export default function SavedPosts({ bookmarks, collections = [] }) {
                             }
                         </p>
                         <Link
-                            href="/"
+                            href="/app"
                             className="inline-flex items-center gap-2 mt-4 px-5 py-2 bg-biolum/10 border border-biolum/20 text-biolum text-sm font-bold rounded-xl hover:bg-biolum/20 transition-all"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>

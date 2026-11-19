@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class CommentController extends Controller
 {
@@ -32,6 +33,8 @@ class CommentController extends Controller
             ->with([
                 'user:id,name,username,profile_picture',
                 'replies.user:id,name,username,profile_picture',
+                'replies.replies.user:id,name,username,profile_picture',
+                'replies.replies.replies.user:id,name,username,profile_picture',
             ])
             ->whereNull('parent_id')
             // Hide comments from users restricted by the post author
@@ -75,8 +78,22 @@ class CommentController extends Controller
 
         $validated = $request->validate([
             'content'   => 'required|string|max:1000',
-            'parent_id' => 'nullable|integer|exists:comments,id',
+            'parent_id' => ['nullable', 'integer', Rule::exists('comments', 'id')
+                ->where('post_id', $post->id)->whereNull('deleted_at')],
         ]);
+
+        // UI supports at most three visible reply levels. Do not store hidden deeper threads.
+        if (!empty($validated['parent_id'])) {
+            $parent = Comment::findOrFail($validated['parent_id']);
+            $depth = 0;
+            while ($parent && $depth <= 3) {
+                $depth++;
+                $parent = $parent->parent;
+            }
+            if ($depth > 3) {
+                return response()->json(['message' => 'Reply nesting limit reached.'], 422);
+            }
+        }
 
         $comment = $post->comments()->create([
             'user_id'   => $authUser->id,
@@ -133,7 +150,7 @@ class CommentController extends Controller
     }
 
     /**
-     * Delete a comment (owner or admin only).
+     * Delete a comment (commenter or author of the containing post).
      */
     public function destroy(Comment $comment): JsonResponse
     {
