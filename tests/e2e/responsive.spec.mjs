@@ -103,3 +103,23 @@ test('public auth pages have usable form fields on small phones', async ({ page 
     await expect(page.getByLabel(/confirm password/i)).toBeVisible();
     await auditLayout(page, 'register-fields', testInfo);
 });
+
+
+test('landing: original black-and-white theme and both background videos', async ({ page }, testInfo) => {
+    test.skip(
+        !['mobile-390', 'desktop-1440'].includes(testInfo.project.name),
+        'Check video on representative phone and desktop viewports'
+    );
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.daloy-landing')).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+    const video = page.locator('.daloy-landing-hero video').first();
+    await expect(video).toHaveAttribute('src', '/video/video1.mp4');
+    await expect(video).toHaveJSProperty('muted', true);
+    await expect(video).toHaveJSProperty('playsInline', true);
+
+    // Simulate the natural video end to verify the original two-video rotation
+    // without waiting through both large video files.
+    await video.dispatchEvent('ended');
+    await expect(page.locator('.daloy-landing-hero video')).toHaveAttribute('src', '/video/video2.mp4');
+});
+
