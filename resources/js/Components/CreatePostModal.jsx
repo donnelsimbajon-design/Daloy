@@ -8,6 +8,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
     const textareaRef = useRef(null);
     const [mediaPreviews, setMediaPreviews] = useState([]);
     const [showPollBuilder, setShowPollBuilder] = useState(false);
+    const [pollDuration, setPollDuration] = useState('24');
     const [showCwInput, setShowCwInput] = useState(false);
     const [showVisMenu, setShowVisMenu] = useState(false);
     const [showVelMenu, setShowVelMenu] = useState(false);
@@ -20,7 +21,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
         media: [],
         // New fields
         poll_question: '',
-        poll_options: ['Yes', 'No'],
+        poll_options: ['', ''],
         poll_expires_at: '',
         has_content_warning: false,
         content_warning_label: '',
@@ -37,6 +38,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
             reset();
             setMediaPreviews([]);
             setShowPollBuilder(false);
+            setPollDuration('24');
             setShowCwInput(false);
         }
     }, [isOpen]);
@@ -83,8 +85,19 @@ export default function CreatePostModal({ isOpen, onClose }) {
         setData('poll_options', updated);
     };
 
+    const pollOptions = data.poll_options.map(option => option.trim());
+    const isPollValid = !showPollBuilder || (
+        data.poll_question.trim().length >= 3 &&
+        pollOptions.length >= 2 &&
+        pollOptions.every(Boolean) &&
+        new Set(pollOptions.map(option => option.toLowerCase())).size === pollOptions.length
+    );
+    const canSubmit = Boolean(data.content.trim() || data.media.length || (showPollBuilder && isPollValid))
+        && isPollValid;
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (!canSubmit || processing) return;
 
         const formData = new FormData();
         formData.append('content', data.content || '');
@@ -102,13 +115,11 @@ export default function CreatePostModal({ isOpen, onClose }) {
             formData.append('content_warning_label', data.content_warning_label || '');
         }
 
-        if (showPollBuilder && (data.poll_question.trim() || data.poll_options.some(opt => opt.trim()))) {
-            formData.append('poll_question', data.poll_question.trim() || 'Poll');
-            data.poll_options.filter(o => o.trim()).forEach((opt, i) => {
-                formData.append(`poll_options[${i}]`, opt);
-            });
-            if (data.poll_expires_at) {
-                formData.append('poll_expires_at', data.poll_expires_at);
+        if (showPollBuilder) {
+            formData.append('poll_question', data.poll_question.trim());
+            pollOptions.forEach((option, index) => formData.append(`poll_options[${index}]`, option));
+            if (pollDuration !== '0') {
+                formData.append('poll_expires_at', new Date(Date.now() + Number(pollDuration) * 3600000).toISOString());
             }
         }
 
@@ -186,7 +197,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                         <button
                             type="button"
                             onClick={(e) => document.getElementById('actual-submit-btn').click()}
-                            disabled={processing || (!data.content.trim() && data.media.length === 0 && !showPollBuilder)}
+                            disabled={processing || !canSubmit}
                             className="px-5 py-1.5 rounded-full text-[13px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent sm:hidden block"
                         >
                             Post
@@ -214,7 +225,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                             <div className="flex items-center gap-1 bg-ocean-surface/50 hover:bg-ocean-surface/80 rounded-full px-2 py-1 cursor-pointer transition-colors relative z-10 w-auto">
                                                 {data.visibility === 'public' && <Globe2 className="w-3.5 h-3.5 text-biolum" />}
                                                 {data.visibility === 'followers' && <Users2 className="w-3.5 h-3.5 text-biolum" />}
-                                                {data.visibility === 'close_friends' && <Heart className="w-3.5 h-3.5 text-rose-400" />}
+                                                {data.visibility === 'close_friends' && <Heart className="w-3.5 h-3.5 text-ocean-text-muted" />}
                                                 {data.visibility === 'private' && <Lock className="w-3.5 h-3.5 text-ocean-text-dim" />}
                                                 <span className="text-biolum text-xs font-bold pl-0 pr-1 select-none">
                                                     {visibilityOptions.find(o => o.value === data.visibility)?.label}
@@ -318,53 +329,73 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                     </div>
                                 </div>
                             )}
-                            {/* Poll Builder */}
+                            {/* Poll Builder — validated, accessible and fully monochrome */}
                             {showPollBuilder && (
-                                <div className="mt-4 p-3 bg-ocean-surface/40 border border-ocean-divider rounded-xl space-y-2">
-                                    <input
-                                        type="text"
-                                        value={data.poll_question}
-                                        onChange={(e) => setData('poll_question', e.target.value)}
-                                        placeholder="Ask a question..."
-                                        maxLength={500}
-                                        className="w-full bg-transparent text-sm text-ocean-text placeholder-ocean-text-dim focus:outline-none border-none p-0 font-semibold"
-                                    />
-                                    {data.poll_options.map((opt, i) => (
-                                        <div key={i} className="flex items-center gap-2">
-                                            <input
-                                                type="text"
-                                                value={opt}
-                                                onChange={(e) => updatePollOption(i, e.target.value)}
-                                                placeholder={`Option ${i + 1}`}
-                                                maxLength={200}
-                                                className="flex-1 bg-ocean-surface/60 border border-ocean-border rounded-lg px-3 py-1.5 text-xs text-ocean-text placeholder-ocean-text-dim focus:outline-none focus:ring-1 focus:ring-biolum/40"
-                                            />
-                                            {data.poll_options.length > 2 && (
-                                                <button type="button" onClick={() => removePollOption(i)} className="text-ocean-text-dim hover:text-rose-400 transition-colors">
-                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                                                </button>
-                                            )}
+                                <div className="daloy-poll-builder mt-4 rounded-2xl border border-ocean-border bg-ocean-surface/70 p-4 sm:p-5 space-y-4" data-testid="poll-builder">
+                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs font-extrabold uppercase tracking-[.12em] text-ocean-text">Create a poll</p>
+                                            <p className="mt-1 text-xs leading-relaxed text-ocean-text-muted">Ask a question and let classmates choose one answer.</p>
                                         </div>
-                                    ))}
-                                    <div className="flex items-center gap-2">
-                                        {data.poll_options.length < 4 && (
-                                            <button type="button" onClick={addPollOption} className="text-xs text-biolum hover:text-biolum-bright font-medium">+ Add option</button>
-                                        )}
-                                        <input
-                                            type="datetime-local"
-                                            value={data.poll_expires_at}
-                                            onChange={(e) => setData('poll_expires_at', e.target.value)}
-                                            className="ml-auto bg-ocean-surface/60 border border-ocean-border rounded-lg px-2 py-1 text-[10px] text-ocean-text-dim focus:outline-none"
-                                            placeholder="Expires"
-                                        />
+                                        <button type="button" onClick={() => setShowPollBuilder(false)}
+                                            className="min-h-[44px] rounded-xl border border-ocean-border px-3 text-xs font-semibold text-ocean-text-muted hover:bg-ocean-hover">Remove poll</button>
                                     </div>
+                                    <div className="space-y-2">
+                                        <label htmlFor="daloy-poll-question" className="block text-xs font-semibold text-ocean-text">Poll question</label>
+                                        <input id="daloy-poll-question" aria-label="Poll question" type="text"
+                                            value={data.poll_question} onChange={(e) => setData('poll_question', e.target.value)}
+                                            placeholder="What would you like to ask?" maxLength={160}
+                                            className="w-full min-h-[46px] rounded-xl border border-ocean-border bg-ocean-card px-3 py-2.5 text-sm font-semibold text-ocean-text placeholder-ocean-text-dim" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <p className="text-xs font-semibold text-ocean-text">Answer options (2–4)</p>
+                                        {data.poll_options.map((option, index) => (
+                                            <div key={index} className="flex items-center gap-2">
+                                                <span aria-hidden="true" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-ocean-border text-xs font-bold text-ocean-text-muted">{index + 1}</span>
+                                                <input type="text" aria-label={`Option ${index + 1}`} placeholder={`Add option ${index + 1}`}
+                                                    value={option} onChange={(e) => updatePollOption(index, e.target.value)} maxLength={100}
+                                                    className="min-w-0 min-h-[44px] flex-1 rounded-xl border border-ocean-border bg-ocean-card px-3 py-2 text-sm text-ocean-text placeholder-ocean-text-dim" />
+                                                {data.poll_options.length > 2 && (
+                                                    <button type="button" onClick={() => removePollOption(index)} aria-label={`Remove option ${index + 1}`}
+                                                        className="grid h-11 w-11 place-items-center rounded-xl text-ocean-text-dim hover:bg-ocean-hover hover:text-ocean-text">
+                                                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {data.poll_options.length < 4 && (
+                                            <button type="button" onClick={addPollOption}
+                                                className="min-h-[44px] w-full rounded-xl border border-dashed border-ocean-border px-4 text-left text-xs font-bold text-ocean-text hover:bg-ocean-hover">
+                                                + Add another option
+                                            </button>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ocean-divider pt-4">
+                                        <label htmlFor="daloy-poll-duration" className="text-xs font-semibold text-ocean-text">Poll duration</label>
+                                        <select id="daloy-poll-duration" aria-label="Poll duration" value={pollDuration}
+                                            onChange={(e) => setPollDuration(e.target.value)}
+                                            className="min-h-[44px] rounded-xl border border-ocean-border bg-ocean-card px-3 text-sm text-ocean-text">
+                                            <option value="24">24 hours</option>
+                                            <option value="72">3 days</option>
+                                            <option value="168">7 days</option>
+                                            <option value="0">No end date</option>
+                                        </select>
+                                    </div>
+                                    {!isPollValid && (
+                                        <p role="status" className="rounded-xl border border-ocean-border bg-ocean-card px-3 py-2 text-xs leading-relaxed text-ocean-text-muted">
+                                            Enter a question (at least 3 characters) and 2–4 different answers to enable Post.
+                                        </p>
+                                    )}
+                                    {(errors.poll_question || errors.poll_options) && (
+                                        <p role="alert" className="text-xs text-ocean-text">{errors.poll_question || errors.poll_options}</p>
+                                    )}
                                 </div>
                             )}
 
                             {/* Content Warning Input */}
                             {showCwInput && (
                                 <div className="mt-3 flex items-center gap-2">
-                                    <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+                                    <svg className="w-4 h-4 text-ocean-text-muted shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
                                     <input
                                         type="text"
                                         value={data.content_warning_label}
@@ -431,7 +462,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 {/* Flow Velocity Tool */}
                                 <div className="ml-2 relative" onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}>
                                     <div className="flex items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-2.5 pr-2 py-1 transition-colors cursor-pointer relative z-10">
-                                        {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-orange-400" />}
+                                        {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-ocean-text-muted" />}
                                         {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-biolum" />}
                                         {data.flow_velocity === 'low' && <Snail className="w-3.5 h-3.5 text-ocean-text-dim" />}
                                         <span className="text-ocean-text-dim text-[11px] font-bold pr-1 select-none">
@@ -451,7 +482,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                                     className={`w-full text-left px-3 py-2 hover:bg-ocean-surface transition-colors flex items-center gap-2 ${data.flow_velocity === opt.value ? 'bg-ocean-surface/50 font-bold text-ocean-text' : 'text-ocean-text-dim font-medium'}`}
                                                     onClick={(e) => { e.stopPropagation(); setData('flow_velocity', opt.value); setShowVelMenu(false); }}
                                                 >
-                                                    {opt.value === 'high' && <Flame className="w-3 h-3 text-orange-400" />}
+                                                    {opt.value === 'high' && <Flame className="w-3 h-3 text-ocean-text-muted" />}
                                                     {opt.value === 'steady' && <Waves className="w-3 h-3 text-biolum" />}
                                                     {opt.value === 'low' && <Snail className="w-3 h-3 text-ocean-text-dim" />}
                                                     <span className="text-[12px]">{opt.label}</span>
@@ -472,7 +503,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 <button
                                     id="actual-submit-btn"
                                     type="submit"
-                                    disabled={processing || (!data.content.trim() && data.media.length === 0 && !showPollBuilder)}
+                                    disabled={processing || !canSubmit}
                                     className="px-4 sm:px-6 py-2 rounded-full text-[14px] font-bold text-white bg-biolum hover:bg-biolum-bright transition-all duration-200 disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent shadow-md hidden sm:flex items-center gap-1.5"
                                 >
                                     {processing ? '...' : (
