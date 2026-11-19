@@ -115,6 +115,7 @@ class UserProfileController extends Controller
             $posts = $postsQuery
                 ->with(['user', 'media', 'reactions', 'poll.options', 'repostOf.user:id,name,username,profile_picture', 'repostOf.media'])
                 ->withCount('reactions', 'comments')
+                ->withExists(['reposts as is_reposted' => fn ($query) => $query->where('user_id', $authUser->id)])
                 ->orderByDesc('is_pinned')
                 ->latest()
                 ->take(50)
@@ -123,6 +124,10 @@ class UserProfileController extends Controller
                 ->take(20)
                 ->values()
                 ->map(function ($post) use ($authUser) {
+                    if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                        || $post->repostOf->school_id || !$post->repostOf->isVisibleTo($authUser))) {
+                        $post->unsetRelation('repostOf');
+                    }
                     $userReaction = $post->reactions->where('user_id', $authUser->id)->first();
                     $post->user_reaction = $userReaction ? $userReaction->type : null;
                     $post->liked_by_user = $userReaction !== null;

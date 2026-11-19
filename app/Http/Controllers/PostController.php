@@ -100,6 +100,7 @@ class PostController extends Controller
                 }
             })
             ->withCount(['comments', 'reactions', 'bookmarks'])
+            ->withExists(['reposts as is_reposted' => fn ($q) => $q->where('user_id', $user->id)])
             ->withExists(['bookmarks as is_bookmarked' => function ($q) {
                 $q->where('user_id', Auth::id());
             }])
@@ -112,6 +113,12 @@ class PostController extends Controller
             $userReaction = $post->reactions()->where('user_id', $userId)->first();
             $post->user_reaction = $userReaction ? $userReaction->type : null;
             $post->liked_by_user = $userReaction !== null;
+            // A repost wrapper must not expose an original that has become private.
+            if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                || $post->repostOf->school_id
+                || !$post->repostOf->isVisibleTo(Auth::user()))) {
+                $post->unsetRelation('repostOf');
+            }
 
             // Reaction counts grouped by type
             $post->reaction_counts = $this->getReactionCounts($post);
@@ -173,6 +180,11 @@ class PostController extends Controller
 
         // Check if bookmarked
         $post->is_bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+        $post->is_reposted = Post::where('user_id', $userId)->where('repost_of_id', $post->id)->exists();
+        if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+            || $post->repostOf->school_id || !$post->repostOf->isVisibleTo(Auth::user()))) {
+            $post->unsetRelation('repostOf');
+        }
 
         if ($post->poll) {
             $vote = $post->poll->votes()->where('user_id', $userId)->first();
