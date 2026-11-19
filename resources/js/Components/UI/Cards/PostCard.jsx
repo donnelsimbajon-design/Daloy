@@ -439,7 +439,7 @@ export default function PostCard({ post }) {
             {/* Media Gallery */}
             {mediaItems.length > 0 && (
                 <div className="px-4 pb-3">
-                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1' :
+                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1 aspect-[4/3] sm:aspect-[16/9] max-h-[600px]' :
                             mediaItems.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[4/3] sm:aspect-[16/9]' :
                                 mediaItems.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3] sm:aspect-[16/9]' :
                                     'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 items
@@ -447,8 +447,7 @@ export default function PostCard({ post }) {
                         {mediaItems.slice(0, 4).map((media, index) => (
                             <div
                                 key={media.id || index}
-                                className={`relative w-full h-full bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''
-                                    } ${mediaItems.length === 1 ? 'max-h-[600px]' : 'min-h-[120px]'}`}
+                                className={`relative w-full h-full min-h-0 overflow-hidden bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''}`}
                             >
                                 {media.type === 'video' ? (
                                     <video
@@ -461,7 +460,7 @@ export default function PostCard({ post }) {
                                 ) : (
                                     <button type="button" aria-label={`View photo ${index + 1}`}
                                         onClick={() => setLightboxIndex(index)}
-                                        className="absolute inset-0 h-full w-full cursor-zoom-in overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px]">
+                                        className="absolute inset-0 z-[1] block h-full w-full cursor-zoom-in overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px]">
                                         <SafeMediaImage src={media.url} alt="Post photo"
                                             className="h-full w-full object-contain bg-ocean-deep" />
                                     </button>

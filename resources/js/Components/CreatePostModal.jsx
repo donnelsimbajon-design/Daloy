@@ -31,7 +31,9 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
     // Focus textarea when modal opens, and reset state when modal closes
     useEffect(() => {
-        if (isOpen && textareaRef.current) {
+        if (isOpen) {
+            // Modal mounts lazily: never require a textarea ref before selecting
+            // the initial tool, otherwise the Profile → Poll shortcut can fail.
             setShowPollBuilder(initialMode === 'poll');
             setShowVelMenu(initialMode === 'flow');
             setTimeout(() => {
@@ -151,7 +153,10 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
         reset();
         setMediaPreviews([]);
         setShowPollBuilder(false);
+        setPollDuration('24');
         setShowCwInput(false);
+        setShowVelMenu(false);
+        setShowVisMenu(false);
         onClose();
     };
 
@@ -409,7 +414,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                         onChange={(e) => { setData('content_warning_label', e.target.value); setData('has_content_warning', true); }}
                                         placeholder="Describe the content warning..."
                                         maxLength={100}
-                                        className="flex-1 bg-ocean-surface/60 border border-amber-500/20 rounded-lg px-3 py-1.5 text-xs text-ocean-text placeholder-ocean-text-dim focus:outline-none focus:ring-1 focus:ring-amber-400/40"
+                                        className="min-w-0 flex-1 min-h-[44px] rounded-xl border border-ocean-border bg-ocean-surface px-3 py-2 text-sm text-ocean-text placeholder-ocean-text-dim focus:outline-2"
                                     />
                                 </div>
                             )}
@@ -418,14 +423,14 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                         {/* Footer / Toolbar (Fixed) */}
                         <div className="px-5 py-4 border-t border-ocean-border shrink-0 flex items-center justify-between">
                             {/* Left: Minimalist action icons */}
-                            <div className="flex items-center gap-0 sm:gap-1 text-biolum">
+                            <div className="flex min-w-0 items-center gap-0 sm:gap-1 text-ocean-text-muted">
                                 {/* Media Tool */}
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     aria-label="Add photo or video"
                                     disabled={data.media.length >= 4}
-                                    className="p-2.5 rounded-full hover:bg-biolum/10 transition-colors disabled:opacity-30 tooltip-trigger relative group"
+                                    className="grid min-h-[44px] min-w-[44px] place-items-center rounded-xl text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text transition-colors disabled:opacity-30"
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -445,7 +450,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                 <button
                                     type="button"
                                     onClick={() => setData('location_tag', data.location_tag === null ? '' : data.location_tag)}
-                                    className="p-2.5 rounded-full hover:bg-biolum/10 transition-colors"
+                                    aria-label="Add location"
+                                    className="grid min-h-[44px] min-w-[44px] place-items-center rounded-xl text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text transition-colors"
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
@@ -459,7 +465,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                     onClick={() => setShowPollBuilder(!showPollBuilder)}
                                     aria-label="Add poll"
                                     aria-expanded={showPollBuilder}
-                                    className={`p-2.5 rounded-full transition-colors ${showPollBuilder ? 'bg-biolum/10' : 'hover:bg-biolum/10'}`}
+                                    className={`grid min-h-[44px] min-w-[44px] place-items-center rounded-xl text-ocean-text-muted transition-colors ${showPollBuilder ? 'bg-ocean-surface text-ocean-text' : 'hover:bg-ocean-surface hover:text-ocean-text'}`}
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
@@ -473,7 +479,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                         onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}
                                         className="flex min-h-[44px] items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-3 pr-3 py-2 transition-colors cursor-pointer relative z-10">
                                         {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-ocean-text-muted" />}
-                                        {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-biolum" />}
+                                        {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-ocean-text-muted" />}
                                         {data.flow_velocity === 'low' && <Snail className="w-3.5 h-3.5 text-ocean-text-dim" />}
                                         <span className="text-ocean-text-dim text-[11px] font-bold pr-1 select-none">
                                             {velocityOptions.find(o => o.value === data.flow_velocity)?.label}
@@ -493,7 +499,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                                     onClick={(e) => { e.stopPropagation(); setData('flow_velocity', opt.value); setShowVelMenu(false); }}
                                                 >
                                                     {opt.value === 'high' && <Flame className="w-3 h-3 text-ocean-text-muted" />}
-                                                    {opt.value === 'steady' && <Waves className="w-3 h-3 text-biolum" />}
+                                                    {opt.value === 'steady' && <Waves className="w-3 h-3 text-ocean-text-muted" />}
                                                     {opt.value === 'low' && <Snail className="w-3 h-3 text-ocean-text-dim" />}
                                                     <span className="text-[12px]">{opt.label}</span>
                                                 </button>
