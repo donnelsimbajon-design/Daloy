@@ -180,6 +180,13 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   const fetched = await page.request.get(mediaURL);
   expect(fetched.status(), 'Uploaded image returned 404: public storage symlink may be missing').toBe(200);
   expect(fetched.headers()['content-type'] || '').toMatch(/image\/png|image\//);
+
+  // Removing a post must also remove its actual file, not just its DB record.
+  const deleted = await axiosCall(page, 'delete', '/posts/' + post.id);
+  expect(deleted.status, 'Deleting the image post failed').toBe(200);
+  const afterDelete = await page.request.get(mediaURL);
+  expect(afterDelete.status(), 'Deleted post image should not remain publicly available').toBe(404);
+
   expect(failures, 'Unexpected Laravel HTTP 5xx requests').toEqual([]);
 });
 
