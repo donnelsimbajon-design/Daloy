@@ -114,6 +114,8 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
 
             if (selectedStory.is_owner) {
                 const poll = async () => {
+                    // Skip unnecessary requests when the browser tab is hidden.
+                    if (document.visibilityState === 'hidden') return;
                     try {
                         const res = await axios.get(`/stories/${selectedStory.id}/live-state`);
                         setLiveViewCount(res.data.view_count);
@@ -612,7 +614,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                         {selectedStory.content}
                                     </p>
                                 </div>
-                            ) : selectedStory.type === 'video' ? (
+                            ) : selectedStory.type === 'video' && selectedStory.image ? (
                                 <video 
                                     src={selectedStory.image} 
                                     className="w-full h-full object-contain bg-black/50" 
@@ -628,8 +630,24 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                     loading="eager"
                                     className="w-full h-full object-contain md:object-cover"
                                 />
+                            ) : selectedStory.media_unavailable ? (
+                                <div role="status" className="flex h-full w-full flex-col items-center justify-center gap-3 bg-ocean-surface px-7 text-center text-ocean-text">
+                                    <span className="text-xl font-bold">Photo unavailable</span>
+                                    <p className="max-w-xs text-sm leading-relaxed text-ocean-text-muted">
+                                        {selectedStory.is_owner
+                                            ? 'This photo is no longer saved. Please upload it again.'
+                                            : 'This photo is no longer available. Please ask its owner to upload it again.'}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className="mt-2 rounded-full border border-ocean-border bg-ocean-card px-5 py-2.5 text-sm font-semibold hover:bg-ocean-hover"
+                                        onClick={handleNextStory}
+                                    >
+                                        Next story
+                                    </button>
+                                </div>
                             ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e]" />
+                                <div className="w-full h-full bg-ocean-deep" />
                             )}
                             
                             {/* Mobile/Tap Navigation Areas */}
