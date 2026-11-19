@@ -253,6 +253,16 @@ class PostController extends Controller
             }
         }
 
+        // The Render/PHP transport accepts up to 100 MB per request. Keep media
+        // below that limit so a 10-file post cannot be silently truncated.
+        $mediaFiles = $request->file('media', []);
+        $totalBytes = array_sum(array_map(fn ($file) => $file->getSize(), $mediaFiles));
+        if ($totalBytes > 90 * 1024 * 1024) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'media' => 'Photos and videos must total 90 MB or less.',
+            ]);
+        }
+
         // Do not let a repost expose protected posts or private School content.
         if (!empty($validated['repost_of_id'])) {
             $source = Post::findOrFail($validated['repost_of_id']);

@@ -62,9 +62,9 @@ export default function PostCard({ post }) {
     const handleLightboxKey = useCallback((e) => {
         if (lightboxIndex === null) return;
         if (e.key === 'Escape') setLightboxIndex(null);
-        if (e.key === 'ArrowRight') setLightboxIndex(prev => Math.min(prev + 1, (post.media || []).length - 1));
+        if (e.key === 'ArrowRight') setLightboxIndex(prev => Math.min(prev + 1, mediaItems.length - 1));
         if (e.key === 'ArrowLeft') setLightboxIndex(prev => Math.max(prev - 1, 0));
-    }, [lightboxIndex, post.media]);
+    }, [lightboxIndex, mediaItems.length]);
 
     useEffect(() => {
         if (lightboxIndex !== null) {
@@ -218,6 +218,7 @@ export default function PostCard({ post }) {
     const timeAgo = getTimeAgo(post.created_at);
     const originalPost = post.repost_of || post.repostOf || null;
     const flowVelocity = post.flow_velocity || 'steady';
+    const flowLabel = { low: 'Low-key', steady: 'Steady', high: 'High energy' }[flowVelocity] || 'Steady';
     const pollClosed = Boolean(pollData?.expires_at && new Date(pollData.expires_at).getTime() <= Date.now());
 
     const visibilityIcon = {
@@ -263,7 +264,7 @@ export default function PostCard({ post }) {
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
                             {' · '}{visibilityIcon[post.visibility] || <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />}
-                            <span className="ml-2 rounded-md border border-ocean-border px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-ocean-text-dim" aria-label={`Flow state: ${flowVelocity}`}>{flowVelocity} flow</span>
+                            <span className="ml-2 text-[11px] text-ocean-text-dim" title="Post mood only; it does not affect reach" aria-label={`Post mood: ${flowLabel}`}>{flowLabel}</span>
                         </p>
                     </div>
                 </div>

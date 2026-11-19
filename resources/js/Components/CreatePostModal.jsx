@@ -7,6 +7,16 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
     const fileInputRef = useRef(null);
     const textareaRef = useRef(null);
     const [mediaPreviews, setMediaPreviews] = useState([]);
+    const previewsRef = useRef([]);
+    const clearMediaPreviews = () => {
+        previewsRef.current.forEach(preview => URL.revokeObjectURL(preview.url));
+        previewsRef.current = [];
+        setMediaPreviews([]);
+    };
+    useEffect(() => () => {
+        previewsRef.current.forEach(preview => URL.revokeObjectURL(preview.url));
+        previewsRef.current = [];
+    }, []);
     const [showPollBuilder, setShowPollBuilder] = useState(false);
     const [pollDuration, setPollDuration] = useState('24');
     const [showLocationInput, setShowLocationInput] = useState(false);
@@ -38,14 +48,15 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             // the initial tool, otherwise the Profile → Poll shortcut can fail.
             setShowPollBuilder(initialMode === 'poll');
             setShowVelMenu(initialMode === 'flow');
-            setTimeout(() => {
+            const focusTimeout = setTimeout(() => {
                 if (initialMode === 'poll') document.getElementById('daloy-poll-question')?.focus();
                 else textareaRef.current?.focus();
             }, 200);
+            return () => clearTimeout(focusTimeout);
         }
         if (!isOpen) {
             reset();
-            setMediaPreviews([]);
+            clearMediaPreviews();
             setShowPollBuilder(false);
             setPollDuration('24');
             setShowLocationInput(false);
@@ -57,8 +68,18 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        if (!files.length) return;
         if (data.media.length + files.length > 10) {
-            alert('You can upload up to 10 photos or videos per post.');
+            window.alert('You can upload up to 10 photos or videos per post.');
+            return;
+        }
+        if (files.some(file => file.size > 50 * 1024 * 1024)) {
+            window.alert('Each photo or video must be 50 MB or less.');
+            return;
+        }
+        if ([...data.media, ...files].reduce((total, file) => total + file.size, 0) > 90 * 1024 * 1024) {
+            window.alert('Photos and videos must total 90 MB or less.');
             return;
         }
 
@@ -69,16 +90,16 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             type: file.type.startsWith('video/') ? 'video' : 'image',
             name: file.name || 'Attached image'
         }));
-        setMediaPreviews(prev => [...prev, ...newPreviews]);
-
-        // Reset file input
-        if (fileInputRef.current) fileInputRef.current.value = '';
+        previewsRef.current = [...previewsRef.current, ...newPreviews];
+        setMediaPreviews([...previewsRef.current]);
     };
 
     const removeMedia = (index) => {
-        if (mediaPreviews[index]?.url) URL.revokeObjectURL(mediaPreviews[index].url);
+        const removed = previewsRef.current[index];
+        if (removed) URL.revokeObjectURL(removed.url);
+        previewsRef.current = previewsRef.current.filter((_, i) => i !== index);
         setData('media', data.media.filter((_, i) => i !== index));
-        setMediaPreviews((prev) => prev.filter((_, i) => i !== index));
+        setMediaPreviews([...previewsRef.current]);
     };
 
     const addPollOption = () => {
@@ -148,7 +169,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             preserveScroll: true,
             onSuccess: () => {
                 reset();
-                setMediaPreviews([]);
+                clearMediaPreviews();
                 setShowPollBuilder(false);
                 setPollDuration('24');
                 setShowLocationInput(false);
@@ -162,7 +183,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
     const handleClose = () => {
         reset();
-        setMediaPreviews([]);
+        clearMediaPreviews();
         setShowPollBuilder(false);
         setPollDuration('24');
         setShowLocationInput(false);
@@ -181,10 +202,11 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
         { value: 'private', label: 'Private' },
     ];
 
+    // Flow describes the feeling of this post, not its distribution or ranking.
     const velocityOptions = [
-        { value: 'high', label: 'High' },
-        { value: 'steady', label: 'Steady' },
-        { value: 'low', label: 'Low' },
+        { value: 'low', label: 'Low-key', description: 'Quiet, calm or reflective' },
+        { value: 'steady', label: 'Steady', description: 'Regular everyday update' },
+        { value: 'high', label: 'High energy', description: 'Excited, lively or urgent mood' },
     ];
 
     return (
@@ -477,7 +499,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                 {/* Flow Velocity Tool */}
                                 <div className="ml-2 relative">
                                     <button type="button" aria-label="Flow state" aria-expanded={showVelMenu}
-                                        title="Flow state: High, Steady or Low"
+                                        title="Post mood only. Flow does not boost reach or change privacy."
                                         onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}
                                         className="flex min-h-[44px] items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-3 pr-3 py-2 transition-colors cursor-pointer relative z-10">
                                         {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-ocean-text-muted" />}
@@ -492,7 +514,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                     </button>
 
                                     {showVelMenu && (
-                                        <div className="absolute bottom-full left-0 mb-1 w-32 bg-ocean-deep border border-ocean-border rounded-xl shadow-xl overflow-hidden z-[100] py-1">
+                                        <div className="absolute bottom-full left-0 mb-1 w-60 bg-ocean-deep border border-ocean-border rounded-xl shadow-xl overflow-hidden z-[100] py-1" role="group" aria-label="Choose post mood">
                                             {velocityOptions.map(opt => (
                                                 <button
                                                     type="button"
@@ -503,9 +525,15 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                                     {opt.value === 'high' && <Flame className="w-3 h-3 text-ocean-text-muted" />}
                                                     {opt.value === 'steady' && <Waves className="w-3 h-3 text-ocean-text-muted" />}
                                                     {opt.value === 'low' && <Snail className="w-3 h-3 text-ocean-text-dim" />}
-                                                    <span className="text-[12px]">{opt.label}</span>
+                                                    <span className="flex flex-col items-start gap-0.5">
+                                                        <span className="text-xs">{opt.label}</span>
+                                                        <span className="text-[11px] font-normal text-ocean-text-dim">{opt.description}</span>
+                                                    </span>
                                                 </button>
                                             ))}
+                                            <p className="border-t border-ocean-border px-3 pt-2 pb-1 text-[11px] text-ocean-text-muted">
+                                                A mood tag only — not a boost or reach setting.
+                                            </p>
                                         </div>
                                     )}
                                 </div>

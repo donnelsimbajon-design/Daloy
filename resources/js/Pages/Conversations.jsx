@@ -213,9 +213,19 @@ export default function Conversations() {
             const res = await axios.post('/api/messages/send', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
+            setMessages(prev => {
+                const withoutPending = prev.filter(m => m.id !== tempId);
+                // Polling may have delivered this message before POST /send resolved.
+                return withoutPending.some(m => m.id === res.data.id)
+                    ? withoutPending : [...withoutPending, res.data];
+            });
+            if (optimisticMessage.media_url?.startsWith('blob:')) URL.revokeObjectURL(optimisticMessage.media_url);
         } catch (error) {
             setMessages(prev => prev.filter(m => m.id !== tempId));
+            // Failed messages must be recoverable; never silently discard a draft.
+            setNewMessage(current => current || optimisticMessage.content || '');
+            setAttachment(current => current || currentAttachment);
+            if (optimisticMessage.media_url?.startsWith('blob:')) URL.revokeObjectURL(optimisticMessage.media_url);
             if (error.response?.status === 403) {
                 // Block detected — silently mark as blocked
                 setIsBlocked(true);
