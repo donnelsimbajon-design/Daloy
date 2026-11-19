@@ -141,7 +141,7 @@ export default function PostCard({ post }) {
     };
 
     return (
-        <div className="daloy-post-card bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
+        <div data-post-id={post.id} className="daloy-post-card bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-4 pb-0">
                 <div className="flex items-center gap-3">
@@ -185,6 +185,9 @@ export default function PostCard({ post }) {
                 <div className="relative" ref={menuRef}>
                     <button
                         onClick={() => setShowMenu(!showMenu)}
+                        type="button"
+                        aria-label="Post options"
+                        aria-expanded={showMenu}
                         className="p-1.5 rounded-lg text-ocean-text-dim hover:text-ocean-text-muted hover:bg-ocean-surface transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
