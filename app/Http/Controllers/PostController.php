@@ -409,8 +409,14 @@ class PostController extends Controller
         }
 
         foreach ($post->media as $media) {
-            $storagePath = $media->url;
-            Storage::disk('public')->delete($storagePath);
+            // Media URLs are served as /storage/posts/<post-id>/<file>.
+            // The "public" disk expects posts/<post-id>/<file>, not the URL.
+            // Only delete files belonging to this post within the managed disk.
+            $urlPath = parse_url((string) $media->url, PHP_URL_PATH) ?: '';
+            $expectedPrefix = '/storage/posts/'.$post->id.'/';
+            if (str_starts_with($urlPath, $expectedPrefix)) {
+                Storage::disk('public')->delete(substr($urlPath, strlen('/storage/')));
+            }
         }
 
         $post->delete();
