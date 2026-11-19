@@ -25,7 +25,7 @@ export default function Dashboard({ posts }) {
 
     return (
         <MainLayout>
-            <Head title="Deep Flow" />
+            <Head title="Your Feed" />
 
             {/* ── Fixed Left Rail: Stories (Desktop only) ── */}
             <aside className="hidden md:block fixed left-0 top-16 bottom-0 w-20 xl:w-24 border-r border-ocean-border z-20 bg-ocean-card/40" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
@@ -43,13 +43,23 @@ export default function Dashboard({ posts }) {
                     {/* Main Area: Feed & Mobile Stories — fixed width, shifts to center when panel closes */}
                     <div className="flex-1 w-full max-w-[850px] mx-auto pt-4 md:pt-6 px-2 sm:px-4 transition-all duration-400">
                         <section className="daloy-feed-header">
-                            <p className="daloy-eyebrow mb-2">Your space in the current</p>
+                            <p className="daloy-eyebrow mb-2">Your Daloy feed</p>
                             <h1 className="mb-2">Good to see you, {firstName}.</h1>
-                            <p className="text-sm leading-relaxed mb-4">See what's new, share a moment, or find a community that feels like yours.</p>
+                            <p className="text-sm leading-relaxed mb-4">See updates from friends, share a post, and join your school communities.</p>
                             <div className="flex flex-wrap gap-2">
-                                <Link href="/explore" className="inline-flex items-center rounded-full bg-biolum px-4 py-2 text-xs font-bold text-biolum-foreground hover:brightness-110 transition-all">Discover what's new</Link>
-                                <Link href="/schools" className="inline-flex items-center rounded-full border border-ocean-border px-4 py-2 text-xs font-bold text-ocean-text hover:bg-ocean-hover transition-all">Explore communities</Link>
+                                <Link href="/explore" className="inline-flex items-center rounded-full bg-biolum px-4 py-2 text-xs font-bold text-biolum-foreground hover:brightness-110 transition-all">Explore posts</Link>
+                                <Link href="/schools" className="inline-flex items-center rounded-full border border-ocean-border px-4 py-2 text-xs font-bold text-ocean-text hover:bg-ocean-hover transition-all">Find communities</Link>
                             </div>
+                            <details className="mt-4 border-t border-ocean-divider pt-4 text-sm">
+                                <summary className="cursor-pointer font-semibold text-ocean-text-muted hover:text-ocean-text">
+                                    New to Daloy? See how it works
+                                </summary>
+                                <ol className="mt-3 grid gap-2 text-ocean-text-muted sm:grid-cols-3" aria-label="Getting started">
+                                    <li className="rounded-xl bg-ocean-surface px-3 py-3"><strong className="block text-ocean-text">1. Share</strong>Use the post box below to share an update.</li>
+                                    <li className="rounded-xl bg-ocean-surface px-3 py-3"><strong className="block text-ocean-text">2. Connect</strong>Like, comment, or message your classmates.</li>
+                                    <li className="rounded-xl bg-ocean-surface px-3 py-3"><strong className="block text-ocean-text">3. Join</strong>Find your school or another community.</li>
+                                </ol>
+                            </details>
                         </section>
 
                         {/* Mobile/Tablet Stories - shown only on small screens */}
