@@ -183,7 +183,7 @@ export default function NavDrawer({ isOpen, onClose }) {
             {/* Drawer */}
             <div
                 ref={drawerRef}
-                className={`fixed top-0 left-0 z-50 h-full w-80 bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`fixed top-0 left-0 z-50 h-[100dvh] w-[min(20rem,calc(100vw-1rem))] max-w-full bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
                 {/* Header - fixed at top */}
                 <div className="flex items-center justify-between p-5 border-b border-ocean-border shrink-0">
@@ -195,6 +195,7 @@ export default function NavDrawer({ isOpen, onClose }) {
                     </div>
                     <button
                         onClick={onClose}
+                        aria-label="Close menu"
                         className="p-2 rounded-xl text-ocean-text-dim hover:text-biolum hover:bg-ocean-card transition-all"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
