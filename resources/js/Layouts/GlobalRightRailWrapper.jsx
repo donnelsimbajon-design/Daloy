@@ -88,7 +88,7 @@ const DraggableMobileActionMenu = ({
 
     return (
         <div
-            className="lg:hidden fixed z-[100] flex flex-col items-center"
+            className="daloy-floating-menu lg:hidden fixed z-[100] flex flex-col items-center"
             style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
         >
             {mobileMenuExpanded && (
@@ -207,7 +207,7 @@ export default function GlobalRightRailWrapper({ children }) {
             {/* Fixed Desktop Right Rail */}
             <div className="hidden lg:flex fixed right-0 top-16 bottom-0 z-20 pointer-events-none">
                 {/* Panel Container */}
-                <div className={`pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[320px] xl:w-[400px]' : 'w-0'}`}>
+                <div className={`daloy-quick-panel pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[320px] xl:w-[400px]' : 'w-0'}`}>
                     <div className="w-full min-w-0 h-full overflow-y-auto">
                         <div className="p-3">
                             <ReefPanel activePanel={activePanel} />
@@ -216,7 +216,7 @@ export default function GlobalRightRailWrapper({ children }) {
                 </div>
 
                 {/* Always-visible Icon Rail */}
-                <div className="pointer-events-auto flex flex-col items-center py-4 bg-ocean-deep/90 backdrop-blur-md border-l border-ocean-border h-full shadow-[-2px_0_10px_rgba(0,0,0,0.1)] w-[80px]">
+                <div className="daloy-quick-rail pointer-events-auto flex flex-col items-center py-4 bg-ocean-deep/90 backdrop-blur-md border-l border-ocean-border h-full shadow-[-2px_0_10px_rgba(0,0,0,0.1)] w-[80px]">
                     <div className="flex flex-col items-center gap-4 w-full">
                         <RailButton panel="trending" title="Trending Currents" icon={{ strokeWidth: 2, path: "M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" }} />
                         <RailButton panel="groups" title="Suggested Groups" icon={{ strokeWidth: 2, path: "M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" }} />

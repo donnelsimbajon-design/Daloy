@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import '../css/daloy-tideglass.css';
 
 import React from 'react';
 import { createInertiaApp } from '@inertiajs/react';

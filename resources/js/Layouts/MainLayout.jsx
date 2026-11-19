@@ -59,9 +59,9 @@ export default function MainLayout({ children }) {
     }, []);
 
     return (
-        <div className="min-h-[100dvh] bg-ocean-deep text-ocean-text relative overflow-x-clip">
+        <div className="daloy-app-shell min-h-[100dvh] bg-ocean-deep text-ocean-text relative overflow-x-clip">
             {/* Minimal glass backdrop — barely-visible color washes */}
-            <div className="fixed inset-0 pointer-events-none z-0">
+            <div className="daloy-ambient fixed inset-0 pointer-events-none z-0">
                 <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[160px] opacity-[0.07]" style={{ background: '#A78BFA' }} />
                 <div className="absolute -top-[5%] -right-[15%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.05]" style={{ background: '#60A5FA' }} />
                 <div className="absolute -bottom-[15%] left-[20%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.04]" style={{ background: '#F9A8D4' }} />
@@ -70,9 +70,9 @@ export default function MainLayout({ children }) {
             <TopNav />
 
             {/* Main Content Area */}
-            <main className="pt-0 mx-auto w-full min-w-0 max-w-[1920px] overflow-x-clip relative z-10">
+            <main className="daloy-app-main pt-0 mx-auto w-full min-w-0 max-w-[1920px] overflow-x-clip relative z-10">
                 <GlobalRightRailWrapper>
-                    <div className="pt-20 pb-20 w-full min-w-0 px-0 sm:px-4 lg:px-6 max-w-[1536px] mx-auto transition-all duration-300 main-content-mobile">
+                    <div className="daloy-app-content pt-20 pb-20 w-full min-w-0 px-0 sm:px-4 lg:px-6 max-w-[1536px] mx-auto transition-all duration-300 main-content-mobile">
 
                         {children}
                     </div>

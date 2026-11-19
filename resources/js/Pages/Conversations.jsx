@@ -436,7 +436,7 @@ export default function Conversations() {
         <MainLayout>
             <Head title="Conversations" />
 
-            <div className="fixed top-16 bottom-0 left-0 right-0 z-30 flex bg-ocean-card overflow-hidden h-[calc(100dvh-4rem)]">
+            <div className="daloy-conversations fixed top-16 bottom-0 left-0 right-0 z-30 flex bg-ocean-card overflow-hidden h-[calc(100dvh-4rem)]">
                 {/* 1. List */}
                 <div className={`w-full md:w-[320px] lg:w-[340px] flex flex-col shrink-0 border-r border-ocean-divider/50 bg-ocean-card ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
                     <div className="h-[72px] px-5 flex items-center justify-between border-b border-ocean-border bg-ocean-card shrink-0">

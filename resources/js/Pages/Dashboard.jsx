@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, Link } from '@inertiajs/react';
 
 import MainLayout from '@/Layouts/MainLayout';
 import Feed from '@/Components/UI/Misc/Feed';
@@ -10,7 +10,8 @@ import FeedAnnouncementCard from '@/Components/Features/Announcements/FeedAnnoun
 
 export default function Dashboard({ posts }) {
     const postItems = posts?.data || [];
-    const { social, announcements } = usePage().props;
+    const { social, announcements, auth } = usePage().props;
+    const firstName = auth?.user?.name?.trim()?.split(/\s+/)?.[0] || 'Voyager';
 
     // Filter feed-type announcements that haven't been dismissed
     const feedAnnouncements = useMemo(() => {
@@ -36,14 +37,23 @@ export default function Dashboard({ posts }) {
             </aside>
 
             {/* Dashboard Content — Main Area ───────────────────── */}
-            <div className={`transition-all duration-500 ease-in-out md:ml-20 xl:ml-24 w-full md:w-auto overflow-x-hidden`}>
+            <div className={`daloy-page daloy-feed transition-all duration-500 ease-in-out md:ml-20 xl:ml-24 w-full md:w-auto overflow-x-hidden`}>
                 <div className="flex flex-col items-start w-full min-h-screen">
 
                     {/* Main Area: Feed & Mobile Stories — fixed width, shifts to center when panel closes */}
                     <div className="flex-1 w-full max-w-[850px] mx-auto pt-4 md:pt-6 px-2 sm:px-4 transition-all duration-400">
+                        <section className="daloy-feed-header">
+                            <p className="daloy-eyebrow mb-2">Your space in the current</p>
+                            <h1 className="mb-2">Good to see you, {firstName}.</h1>
+                            <p className="text-sm leading-relaxed mb-4">See what's new, share a moment, or find a community that feels like yours.</p>
+                            <div className="flex flex-wrap gap-2">
+                                <Link href="/explore" className="inline-flex items-center rounded-full bg-biolum px-4 py-2 text-xs font-bold text-biolum-foreground hover:brightness-110 transition-all">Discover what's new</Link>
+                                <Link href="/schools" className="inline-flex items-center rounded-full border border-ocean-border px-4 py-2 text-xs font-bold text-ocean-text hover:bg-ocean-hover transition-all">Explore communities</Link>
+                            </div>
+                        </section>
 
                         {/* Mobile/Tablet Stories - shown only on small screens */}
-                        <div className="md:hidden mb-6 bg-ocean-card border border-ocean-border rounded-2xl py-4 overflow-hidden">
+                        <div className="daloy-story-rail md:hidden mb-6 bg-ocean-card border border-ocean-border rounded-2xl py-4 overflow-hidden">
                             <StoryRail horizontal={true} />
                         </div>
 

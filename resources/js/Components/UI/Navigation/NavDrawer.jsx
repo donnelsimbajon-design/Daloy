@@ -183,7 +183,7 @@ export default function NavDrawer({ isOpen, onClose }) {
             {/* Drawer */}
             <div
                 ref={drawerRef}
-                className={`fixed top-0 left-0 z-50 h-[100dvh] w-[min(20rem,calc(100vw-1rem))] max-w-full bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`daloy-drawer fixed top-0 left-0 z-50 h-[100dvh] w-[min(20rem,calc(100vw-1rem))] max-w-full bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
                 {/* Header - fixed at top */}
                 <div className="flex items-center justify-between p-5 border-b border-ocean-border shrink-0">

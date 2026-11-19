@@ -9,7 +9,7 @@ export default function QuickPostCard() {
 
     return (
         <>
-            <div className="bg-ocean-card border border-ocean-border rounded-2xl p-4 mb-6 relative transition-all duration-200">
+            <div className="daloy-composer bg-ocean-card border border-ocean-border rounded-2xl p-4 mb-6 relative transition-all duration-200">
                 <div className="flex gap-3">
                     {/* Avatar */}
                     <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-ocean-border/50 bg-ocean-deep">

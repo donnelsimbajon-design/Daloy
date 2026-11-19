@@ -315,7 +315,7 @@ export default function UserProfile() {
                 <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-ocean-deep via-ocean-deep/60 to-transparent" />
             </div>
 
-            <div className="max-w-6xl mx-auto pt-[80px] sm:pt-[160px] md:pt-[200px] text-ocean-text px-3 sm:px-4 relative z-10">
+            <div className="daloy-page daloy-profile max-w-6xl mx-auto pt-[80px] sm:pt-[160px] md:pt-[200px] text-ocean-text px-3 sm:px-4 relative z-10">
                 
                 {/* ── ═══════ CENTERED PROFILE INFO ═══════ ── */}
                 <div className="flex flex-col items-center text-center -mt-12 sm:-mt-16 md:-mt-20">
