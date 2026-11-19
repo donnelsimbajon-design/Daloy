@@ -137,9 +137,9 @@ export default function Landing() {
                     </div>
 
                     <div ref={heroRef} style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity 0.9s ease, transform 0.9s ease' }}
-                        className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[minmax(0,1fr)_minmax(0,.92fr)] items-center gap-12 lg:gap-16 text-left">
+                        className="relative z-10 max-w-6xl mx-auto w-full text-left">
 
-                        <div className="min-w-0">
+                        <div className="min-w-0 max-w-3xl">
                         <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 mb-6 text-white text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-xl bg-white/5 shadow-xl transition-transform hover:scale-105 cursor-default">
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/50 opacity-75"></span>
@@ -171,11 +171,22 @@ export default function Landing() {
                             </button>
                         </div>
                         </div>
-                        <LandingPreview />
                     </div>
 
                     <div className="absolute bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2 opacity-20">
                         <div className="w-px h-12 sm:h-16 bg-gradient-to-b from-white to-transparent mx-auto" />
+                    </div>
+                </section>
+
+                {/* The product preview sits below the video hero, not over the headline. */}
+                <section className="daloy-preview-section border-y border-white/10 bg-black px-4 py-12 sm:px-8 sm:py-16" aria-label="Daloy product preview">
+                    <div className="mx-auto w-full max-w-5xl">
+                        <div className="mx-auto mb-8 max-w-2xl text-center">
+                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-white/45">A closer look</p>
+                            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">See what flows inside Daloy.</h2>
+                            <p className="mx-auto mt-3 max-w-lg text-sm sm:text-base leading-relaxed text-white/55">Explore conversations, communities, music and the moments you share.</p>
+                        </div>
+                        <LandingPreview />
                     </div>
                 </section>
 
