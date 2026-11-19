@@ -10,17 +10,17 @@ export default function AuthShowcase({ variant = 'login' }) {
             </div>
             <div className="relative">
                 <div className="mb-7 flex -space-x-2" aria-hidden="true">
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-[#0d5962] bg-[#82efd8] text-[#06313b]"><Users size={21} /></span>
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-[#0d5962] bg-[#79aef2] text-[#062b45]"><MessageSquare size={21} /></span>
-                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-[#0d5962] bg-[#f7cb93] text-[#55321d]"><Sparkles size={21} /></span>
+                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-ocean-border bg-ocean-text text-ocean-deep"><Users size={21} /></span>
+                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-ocean-border bg-ocean-surface text-ocean-text"><MessageSquare size={21} /></span>
+                    <span className="grid h-12 w-12 place-items-center rounded-2xl border-2 border-ocean-border bg-ocean-surface text-ocean-text"><Sparkles size={21} /></span>
                 </div>
                 <h2>{variant === 'register' ? 'Your next chapter starts here.' : 'A place to feel connected.'}</h2>
                 <p className="mt-6">{variant === 'register'
                     ? 'Meet your people, join communities and bring the moments that matter into the flow.'
                     : 'Catch up with your people, discover new communities, and share your story — all in one current.'}</p>
             </div>
-            <div className="flex items-center gap-3 border-t border-white/15 pt-6 text-sm font-medium text-[#afe9e4]">
-                <span className="h-2 w-2 rounded-full bg-[#8cffe2]" />
+            <div className="flex items-center gap-3 border-t border-white/15 pt-6 text-sm font-medium text-ocean-text-muted">
+                <span className="h-2 w-2 rounded-full bg-ocean-text" />
                 Stories · Communities · Conversations
             </div>
         </aside>

@@ -53,6 +53,7 @@ export default function Landing() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [heroRef, heroVisible] = useReveal(0.01);
+    const [currentVideo, setCurrentVideo] = useState(1);
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 40);
@@ -121,7 +122,19 @@ export default function Landing() {
 
                 {/* ── Hero ────────────────────────────────────────────── */}
                 <section className="daloy-landing-hero relative min-h-[100svh] flex flex-col justify-center px-5 py-28 sm:px-12 md:px-20 overflow-hidden">
-                    <div className="daloy-landing-aurora" aria-hidden="true" />
+                    {/* Keep the original Daloy rotating background videos. */}
+                    <div className="absolute inset-0 z-0 pointer-events-none bg-black" aria-hidden="true">
+                        <video
+                            key={currentVideo}
+                            src={`/video/video${currentVideo}.mp4`}
+                            className="daloy-landing-video absolute inset-0"
+                            autoPlay muted playsInline
+                            preload="metadata"
+                            onEnded={() => setCurrentVideo(video => video === 1 ? 2 : 1)}
+                            tabIndex={-1}
+                        />
+                        <div className="daloy-landing-video-scrim absolute inset-0" />
+                    </div>
 
                     <div ref={heroRef} style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity 0.9s ease, transform 0.9s ease' }}
                         className="relative z-10 max-w-7xl mx-auto w-full grid lg:grid-cols-[minmax(0,1fr)_minmax(0,.92fr)] items-center gap-12 lg:gap-16 text-left">
@@ -246,33 +259,33 @@ function LandingPreview() {
                     <div className="daloy-preview-avatar"><Waves size={21} /></div>
                     <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold text-white">Your current</p>
-                        <p className="text-xs text-[#9ec6c9] mt-1">A place to share your story.</p>
+                        <p className="text-xs text-[#a1a1aa] mt-1">A place to share your story.</p>
                     </div>
                     <span className="daloy-preview-status">Explore</span>
                 </div>
                 <div className="daloy-preview-row">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="h-10 w-10 rounded-full border border-[#65d7c2]/30 bg-[#123b49] grid place-items-center text-[#87eadb]"><Users size={19} /></div>
+                        <div className="h-10 w-10 rounded-full border border-[#71717a]/30 bg-[#27272a] grid place-items-center text-[#e4e4e7]"><Users size={19} /></div>
                         <div>
                             <p className="text-sm font-semibold text-white">Find your people</p>
-                            <p className="text-xs text-[#94b3bd]">Community starts with a hello.</p>
+                            <p className="text-xs text-[#a1a1aa]">Community starts with a hello.</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#166a7b] to-[#0a3448] border border-[#70dfd0]/20">
-                            <MessageSquare size={19} className="text-[#87eadb] mb-3" />
+                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#27272a] to-[#09090b] border border-[#71717a]/20">
+                            <MessageSquare size={19} className="text-[#e4e4e7] mb-3" />
                             <p className="text-sm font-semibold text-white">Conversations</p>
-                            <p className="text-xs text-[#aed7d5] mt-1">Stay connected</p>
+                            <p className="text-xs text-[#a1a1aa] mt-1">Stay connected</p>
                         </div>
-                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#205861] to-[#12413e] border border-[#70dfd0]/20">
-                            <Music size={19} className="text-[#a0e9dc] mb-3" />
+                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#27272a] to-[#09090b] border border-[#71717a]/20">
+                            <Music size={19} className="text-[#e4e4e7] mb-3" />
                             <p className="text-sm font-semibold text-white">Currents</p>
-                            <p className="text-xs text-[#aed7d5] mt-1">Share the rhythm</p>
+                            <p className="text-xs text-[#a1a1aa] mt-1">Share the rhythm</p>
                         </div>
                     </div>
                 </div>
                 <div className="daloy-preview-row flex items-center justify-between gap-2">
-                    <span className="text-xs text-[#b6d1d4]">Stories, communities, and more.</span>
+                    <span className="text-xs text-[#a1a1aa]">Stories, communities, and more.</span>
                     <span className="daloy-preview-pill flex gap-1.5 items-center">Find your flow <ArrowRight size={12} /></span>
                 </div>
             </div>
