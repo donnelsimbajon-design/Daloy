@@ -11,6 +11,10 @@ on:
       - 'playwright.config.mjs'
       - '.github/workflows/playwright-ui.yml'
 
+concurrency:
+  group: daloy-ui-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
