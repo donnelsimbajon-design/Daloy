@@ -33,6 +33,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
     useEffect(() => {
         if (isOpen && textareaRef.current) {
             setShowPollBuilder(initialMode === 'poll');
+            setShowVelMenu(initialMode === 'flow');
             setTimeout(() => {
                 if (initialMode === 'poll') document.getElementById('daloy-poll-question')?.focus();
                 else textareaRef.current?.focus();
@@ -44,6 +45,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             setShowPollBuilder(false);
             setPollDuration('24');
             setShowCwInput(false);
+            setShowVelMenu(false);
+            setShowVisMenu(false);
         }
     }, [isOpen, initialMode]);
 
