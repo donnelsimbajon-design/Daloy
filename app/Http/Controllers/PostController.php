@@ -9,6 +9,7 @@ use App\Models\PollOption;
 use App\Models\Mention;
 use App\Models\Hashtag;
 use App\Models\Ripple;
+use App\Models\Report;
 use App\Models\User;
 use App\Traits\LogsUserActivity;
 use Illuminate\Http\RedirectResponse;
@@ -414,6 +415,46 @@ class PostController extends Controller
 
         return back()->with('status', 'post-deleted');
     }
+    /**
+     * Let users report a post to the existing moderation queue.
+     * Self-reports and repeated pending reports are not accepted.
+     */
+    public function report(Request $request, Post $post): JsonResponse
+    {
+        $validated = $request->validate([
+            'reason' => 'required|string|in:spam,harassment,inappropriate,hate_speech,threats,other',
+            'details' => 'nullable|string|max:1000',
+        ]);
+
+        if ($post->user_id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot report your own post.'], 422);
+        }
+
+        $alreadyReported = Report::where('reporter_id', $request->user()->id)
+            ->where('reportable_type', Post::class)
+            ->where('reportable_id', $post->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($alreadyReported) {
+            return response()->json(['message' => 'You have already reported this post.'], 422);
+        }
+
+        Report::create([
+            'reporter_id' => $request->user()->id,
+            'reportable_type' => Post::class,
+            'reportable_id' => $post->id,
+            'reason' => $validated['reason'].(
+                !empty($validated['details']) ? ': '.$validated['details'] : ''
+            ),
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Post reported successfully. A moderator will review it.',
+        ], 201);
+    }
+
     private function getReactionCounts(Post $post): array
     {
         $counts = $post->reactions()
