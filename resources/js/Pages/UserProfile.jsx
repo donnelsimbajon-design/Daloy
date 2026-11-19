@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/UI/Cards/PostCard';
-import CreatePostModal from '@/Components/Features/Posts/CreatePostModal';
+import CreatePostModal from '@/Components/CreatePostModal';
 import StoryRail from '@/Components/Features/Stories/StoryRail';
 import axios from 'axios';
 
