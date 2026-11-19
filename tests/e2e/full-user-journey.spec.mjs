@@ -193,9 +193,32 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   const content = unique('media_text') + ' Image upload validation.';
   await openComposer(page);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Gh8AAAAASUVORK5CYII=', 'base64');
-  await page.getByTestId('post-media-input').setInputFiles({ name: 'staging-only.png', mimeType: 'image/png', buffer: png });
+  // Six attachments, then remove one before posting. Five must persist.
+  await page.getByTestId('post-media-input').setInputFiles(
+    Array.from({ length: 6 }, (_, i) => ({ name: `staging-only-${i + 1}.png`, mimeType: 'image/png', buffer: png }))
+  );
+  await expect(page.getByText('6 / 10 photos or videos')).toBeVisible();
+  await page.getByRole('button', { name: 'Remove attached file 6' }).click();
+  await expect(page.getByText('5 / 10 photos or videos')).toBeVisible();
   const post = await submitPost(page, content);
-  expect(post.media?.length, 'Stored media record missing').toBeGreaterThan(0);
+  expect(post.media?.length, 'Five selected photos should be saved').toBe(5);
+  const mediaCard = page.locator('.daloy-post-card[data-post-id="' + post.id + '"]');
+  await expect(mediaCard.getByRole('button', { name: 'View 1 more photos or videos' })).toBeVisible();
+  await mediaCard.getByRole('button', { name: 'View 1 more photos or videos' }).click();
+  const galleryViewer = page.getByRole('dialog', { name: 'Post photo viewer' });
+  await expect(galleryViewer).toContainText('4 / 5');
+  await galleryViewer.getByRole('button', { name: 'Next photo' }).click();
+  await expect(galleryViewer).toContainText('5 / 5');
+  page.once('dialog', dialog => dialog.accept());
+  const [photoRemoval] = await Promise.all([
+    page.waitForResponse(r => r.url().endsWith('/posts/' + post.id + '/media/' + post.media[4].id) && r.request().method() === 'DELETE'),
+    galleryViewer.getByRole('button', { name: 'Delete current photo or video from post' }).click(),
+  ]);
+  expect(photoRemoval.status(), 'Owner should be able to delete one photo').toBe(200);
+  await expect(galleryViewer).toHaveCount(0);
+  await expect(mediaCard.getByRole('button', { name: 'View 1 more photos or videos' })).toHaveCount(0);
+  const removedFile = await page.request.get(post.media[4].url);
+  expect([403, 404], 'Removed photo must no longer be accessible').toContain(removedFile.status());
   const mediaURL = post.media[0].url;
   expect(mediaURL, 'Stored media file URL missing').toMatch(/^\/storage\//);
   const fetched = await page.request.get(mediaURL);
@@ -284,6 +307,19 @@ test('two users: polls, saved permissions, school membership and direct messagin
     // The other account must see a public post, but must not edit/delete it.
     const visibleToBob = await readProps(bobPage, '/app');
     expect(findPost(visibleToBob, pollText), 'Public post was missing from a different user feed').toBeTruthy();
+
+    // Only the commenter or the owner of the post may delete a comment.
+    const aliceComment = await axiosCall(page, 'post', '/posts/' + pollPost.id + '/comments', { content: unique('owner_comment') });
+    expect(aliceComment.status).toBe(201);
+    const bobForbiddenCommentDelete = await axiosCall(bobPage, 'delete', '/comments/' + aliceComment.data.id);
+    expect(bobForbiddenCommentDelete.status, 'Another member cannot delete the author\'s comment').toBe(403);
+
+    const bobComment = await axiosCall(bobPage, 'post', '/posts/' + pollPost.id + '/comments', { content: unique('moderate_me') });
+    expect(bobComment.status).toBe(201);
+    const ownerModeration = await axiosCall(page, 'delete', '/comments/' + bobComment.data.id);
+    expect(ownerModeration.status, 'Post author may moderate comments under their own post').toBe(200);
+    const moderatedList = await axiosCall(bobPage, 'get', '/posts/' + pollPost.id + '/comments');
+    expect(moderatedList.data?.data?.some(c => c.id === bobComment.data.id)).toBe(false);
     const forbiddenEdit = await axiosCall(bobPage, 'put', '/posts/' + pollPost.id, { content: 'FORBIDDEN E2E', visibility: 'public' });
     expect(forbiddenEdit.status, 'Other users should not edit a post').toBe(403);
     const forbiddenDelete = await axiosCall(bobPage, 'delete', '/posts/' + pollPost.id);
