@@ -3,6 +3,7 @@ import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import AuthShowcase from '@/Components/AuthShowcase';
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -22,7 +23,7 @@ export default function Login({ status, canResetPassword }) {
         <>
             <Head title="Login" />
 
-            <div className="min-h-[100dvh] bg-ocean-deep flex flex-col items-center justify-center px-3 py-8 sm:p-6 relative overflow-x-clip">
+            <div className="daloy-auth-shell min-h-[100dvh] bg-ocean-deep flex flex-col items-center justify-center px-3 py-8 sm:p-6 relative overflow-x-clip">
                 {/* Animated background */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute -top-1/4 -left-1/4 w-[800px] h-[800px] rounded-full bg-biolum/[0.03] blur-[120px] animate-pulse" style={{ animationDuration: '8s' }}></div>
@@ -30,6 +31,8 @@ export default function Login({ status, canResetPassword }) {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full bg-biolum/[0.02] blur-[80px] animate-pulse" style={{ animationDuration: '6s' }}></div>
                 </div>
 
+                <AuthShowcase variant="login" />
+                <div className="daloy-auth-form-column">
                 {/* Logo */}
                 <div className="relative z-10 mb-8 text-center flex flex-col items-center">
                     <div className="flex items-center justify-center gap-0 mb-1">
@@ -40,7 +43,7 @@ export default function Login({ status, canResetPassword }) {
 
                 {/* Login Card */}
                 <div className="relative z-10 w-full max-w-md">
-                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8">
+                    <div className="daloy-auth-card bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8">
                         <h2 className="text-xl font-bold text-ocean-text mb-1">Welcome back</h2>
                         <p className="text-sm text-ocean-text-dim mb-6">Sign in to continue your voyage</p>
 
@@ -147,6 +150,7 @@ export default function Login({ status, canResetPassword }) {
                         © 2026 Daloy. All rights reserved.
                     </p>
                 </div>
+            </div>
             </div>
         </>
     );
