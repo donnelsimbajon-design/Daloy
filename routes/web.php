@@ -35,6 +35,15 @@ Route::get('/', function () {
     return Inertia::render('Landing');
 })->name('landing');
 
+// Expose only the deployment revision, so E2E cannot accidentally test old code.
+Route::get('/api/build-revision', function () {
+    return response()->json(
+        ['sha' => getenv('RENDER_GIT_COMMIT') ?: null],
+        200,
+        ['Cache-Control' => 'no-store, max-age=0']
+    );
+})->name('build.revision');
+
 /*
 |--------------------------------------------------------------------------
 | Guest Routes (unauthenticated)

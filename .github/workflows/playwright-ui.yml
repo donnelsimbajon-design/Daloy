@@ -45,10 +45,47 @@ jobs:
         run: npm ci
       - name: Build frontend (catch Vite and JSX regressions)
         run: npm run build
+      - name: Set up PHP for backend permission tests
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, pdo_sqlite, sqlite3, gd, zip
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Initialize disposable local test configuration
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+      - name: Lint changed PHP controllers and routes
+        run: |
+          php -l app/Http/Controllers/MessagingController.php
+          php -l app/Http/Controllers/CommentController.php
+          php -l app/Http/Controllers/PostController.php
+          php -l routes/web.php
+          php -l tests/Feature/SocialFlowIntegrityTest.php
+      - name: Test social flow permissions using in-memory SQLite
+        run: php artisan test --filter=SocialFlowIntegrityTest
+
       - name: Install Playwright test runner (no lockfile mutation)
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
+      - name: Confirm staging runs the exact commit under test
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 24); do
+            deployed_sha="$(curl -fsS --max-time 30 https://daloy-render-preview.onrender.com/api/build-revision | jq -r '.sha // empty' || true)"
+            if [ "$deployed_sha" = "$EXPECTED_SHA" ]; then
+              echo "Staging revision matched: $deployed_sha"
+              exit 0
+            fi
+            echo "Attempt $attempt/24: staging has ${deployed_sha:-unknown}; expected $EXPECTED_SHA"
+            sleep 15
+          done
+          echo "::error::Render staging did not deploy this commit. Refusing to run E2E against stale code."
+          exit 1
       - name: Audit public and authenticated staging pages
         run: npx playwright test
       - name: Upload screenshots, report and traces
