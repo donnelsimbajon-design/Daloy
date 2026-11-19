@@ -29,7 +29,7 @@ async function signInAsDisposableStagingUser(page, projectName) {
         expect(registrationResponse.status(), 'Registration must not return a 500 error')
             .toBeLessThan(400);
         await expect(page).toHaveURL(/\/(app|home)(\?|$)/, { timeout: 30_000 });
-        return;
+        return { email: `${username}@example.test`, password };
     }
 
     const email = process.env.E2E_USER_EMAIL;
@@ -42,14 +42,35 @@ async function signInAsDisposableStagingUser(page, projectName) {
     await expect(page).toHaveURL(/\/(app|home)(\?|$)/, { timeout: 30_000 });
 }
 
-test('staging: logged-in journeys remain responsive across core pages', async ({ page }, testInfo) => {
+test('staging: logged-in journeys remain responsive across core pages', async ({ page, browser }, testInfo) => {
     test.skip(!accountViewports.has(testInfo.project.name), 'Run core app UI on phone, tablet and desktop');
     test.skip(
         !stagingSignupAllowed && (!process.env.E2E_USER_EMAIL || !process.env.E2E_USER_PASSWORD),
         'Requires disposable staging signup or explicit staging-only credentials'
     );
 
-    await signInAsDisposableStagingUser(page, testInfo.project.name);
+    const disposableCredentials = await signInAsDisposableStagingUser(page, testInfo.project.name);
+
+    // Verify email/password login from a new, cookie-free browser session.
+    if (disposableCredentials) {
+        const freshContext = await browser.newContext({ baseURL: previewURL });
+        try {
+            const loginPage = await freshContext.newPage();
+            await loginPage.goto('/login', { waitUntil: 'domcontentloaded' });
+            await loginPage.locator('input[name="email"]').fill(disposableCredentials.email);
+            await loginPage.locator('input[name="password"]').fill(disposableCredentials.password);
+            const [loginResponse] = await Promise.all([
+                loginPage.waitForResponse(response =>
+                    new URL(response.url()).pathname === '/login' &&
+                    response.request().method() === 'POST', { timeout: 30_000 }),
+                loginPage.getByRole('button', { name: /sign in/i }).click(),
+            ]);
+            expect(loginResponse.status(), 'Login must not return a server error').toBeLessThan(400);
+            await expect(loginPage).toHaveURL(/\/(app|home)(\?|$)/, { timeout: 30_000 });
+        } finally {
+            await freshContext.close();
+        }
+    }
 
     // The logged-in shell polls this API. A MySQL-only DATE_SUB statement
     // previously returned HTTP 500 when running on the SQLite staging DB.
@@ -70,6 +91,10 @@ test('staging: logged-in journeys remain responsive across core pages', async ({
         const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
         expect(response?.status(), `HTTP failure for ${path}`).toBeLessThan(400);
         await expect(page.locator('body')).toBeVisible();
+        if (name === 'conversations') {
+            // Wait for the conversation list to replace its initial spinner.
+            await expect(page.getByText('No conversations yet.')).toBeVisible({ timeout: 20000 });
+        }
 
         const horizontalOverflow = await page.evaluate(() => ({
             width: document.documentElement.clientWidth,
