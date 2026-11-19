@@ -213,6 +213,29 @@ test('two users: polls, saved permissions, school membership and direct messagin
     const forbiddenDelete = await axiosCall(bobPage, 'delete', '/posts/' + pollPost.id);
     expect(forbiddenDelete.status, 'Other users should not delete a post').toBe(403);
 
+    // Private posts must not leak via direct URLs, comments, likes or profiles.
+    const privateText = unique('private') + ' Visible only to the owner.';
+    const privateCreate = await axiosCall(page, 'post', '/posts', {
+      content: privateText, visibility: 'private', flow_velocity: 'steady',
+    });
+    expect(privateCreate.status).toBe(200);
+    const ownerPosts = await readProps(page, '/app');
+    const privatePost = findPost(ownerPosts, privateText);
+    expect(privatePost, 'Owner should still see own private post').toBeTruthy();
+    const ownerView = await page.request.get('/posts/' + privatePost.id);
+    expect(ownerView.status()).toBe(200);
+
+    const publicUrlGuess = await bobPage.request.get('/posts/' + privatePost.id, { maxRedirects: 0 });
+    expect(publicUrlGuess.status(), 'Other user must not read a private post').toBe(404);
+    const privateReaction = await axiosCall(bobPage, 'post', '/posts/' + privatePost.id + '/like');
+    expect(privateReaction.status, 'Other user must not react to private post').toBe(404);
+    const privateComment = await axiosCall(bobPage, 'post', '/posts/' + privatePost.id + '/comments', { content: 'Unauthorised comment' });
+    expect(privateComment.status, 'Other user must not comment on private post').toBe(404);
+    const privateBookmark = await axiosCall(bobPage, 'post', '/posts/' + privatePost.id + '/bookmark');
+    expect(privateBookmark.status, 'Other user must not bookmark private post').toBe(404);
+    const privateProfileProps = await readProps(bobPage, '/users/' + alice.id);
+    expect(JSON.stringify(privateProfileProps.posts), 'Private post leaked via profile props').not.toContain(privateText);
+
     // The visible Report Post menu must open a real moderation dialog and save a report.
     await bobPage.goto('/app', { waitUntil: 'domcontentloaded' });
     const reportedPost = bobPage.locator('.daloy-post-card[data-post-id="' + pollPost.id + '"]');

@@ -19,6 +19,7 @@ class CommentController extends Controller
     public function index(Post $post): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($post->isVisibleTo($user), 404);
 
         // Get IDs of users restricted by the post author
         $restrictedByAuthor = [];
@@ -51,6 +52,7 @@ class CommentController extends Controller
     public function store(Request $request, Post $post): JsonResponse
     {
         $authUser = Auth::user();
+        abort_unless($post->isVisibleTo($authUser), 404);
         $postOwner = $post->user;
 
         // Block check

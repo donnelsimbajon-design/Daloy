@@ -90,16 +90,38 @@ class UserProfileController extends Controller
         $followingCount = $user->following()->count();
         $postCount      = $user->posts()->count();
 
-        // Posts visible only if profile is viewable
+        // A public profile is not permission to view every post on it.
+        // Filter the SQL query before serializing post contents to Inertia.
         $posts = [];
         if ($canViewProfile) {
-            $posts = $user->posts()
+            $postsQuery = $user->posts();
+            if (!$isSelf) {
+                $allowedVisibilities = ['public'];
+                if ($isFollowing || $isFriend) {
+                    $allowedVisibilities[] = 'followers';
+                    $allowedVisibilities[] = 'friends';
+                }
+                if ($isCloseFriend) {
+                    $allowedVisibilities[] = 'close_friends';
+                }
+                $joinedSchoolIds = $authUser->schools()->pluck('schools.id')->toArray();
+                $postsQuery->where(function ($query) use ($allowedVisibilities, $joinedSchoolIds) {
+                    $query->whereIn('visibility', $allowedVisibilities);
+                    if (!empty($joinedSchoolIds)) {
+                        $query->orWhereIn('school_id', $joinedSchoolIds);
+                    }
+                });
+            }
+            $posts = $postsQuery
                 ->with(['user', 'media', 'reactions', 'poll.options', 'repostOf.user:id,name,username,profile_picture', 'repostOf.media'])
                 ->withCount('reactions', 'comments')
                 ->orderByDesc('is_pinned')
                 ->latest()
-                ->take(20)
+                ->take(50)
                 ->get()
+                ->filter(fn($post) => $post->isVisibleTo($authUser))
+                ->take(20)
+                ->values()
                 ->map(function ($post) use ($authUser) {
                     $userReaction = $post->reactions->where('user_id', $authUser->id)->first();
                     $post->user_reaction = $userReaction ? $userReaction->type : null;

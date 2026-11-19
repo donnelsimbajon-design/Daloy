@@ -153,6 +153,8 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
+        abort_unless($post->isVisibleTo(Auth::user()), 404);
+
         $post->load([
             'user:id,name,username,profile_picture',
             'media',
@@ -421,6 +423,8 @@ class PostController extends Controller
      */
     public function report(Request $request, Post $post): JsonResponse
     {
+        abort_unless($post->isVisibleTo($request->user()), 404);
+
         $validated = $request->validate([
             'reason' => 'required|string|in:spam,harassment,inappropriate,hate_speech,threats,other',
             'details' => 'nullable|string|max:1000',

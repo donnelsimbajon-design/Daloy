@@ -106,6 +106,45 @@ class Post extends Model
         return $this->hasMany(Post::class, 'repost_of_id');
     }
 
+    /**
+     * Visibility check for direct post URLs and interactive endpoints.
+     * Feed/profile queries still filter at the database layer to avoid leaks.
+     */
+    public function isVisibleTo(User $viewer): bool
+    {
+        if ($this->user_id === $viewer->id) {
+            return true;
+        }
+
+        $owner = $this->user;
+        if (!$owner || $owner->isBlockedWith($viewer)) {
+            return false;
+        }
+
+        // Members can access posts shared inside their Schools. Private
+        // Schools do not expose their posts to nonmembers.
+        if ($this->school_id) {
+            $school = $this->school;
+            if (!$school) {
+                return false;
+            }
+            if ($school->members()->where('users.id', $viewer->id)->exists()) {
+                return true;
+            }
+            if ($school->privacy === 'private') {
+                return false;
+            }
+        }
+
+        return match ($this->visibility) {
+            'public' => true,
+            'followers' => $viewer->isFollowing($owner) || $viewer->isFriend($owner),
+            'friends' => $viewer->isFriend($owner), // legacy posts
+            'close_friends' => $owner->isCloseFriend($viewer),
+            default => false,
+        };
+    }
+
     // --- Scopes ---
 
     public function scopePublic($query)
