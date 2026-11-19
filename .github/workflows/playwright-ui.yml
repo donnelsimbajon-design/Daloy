@@ -7,6 +7,13 @@ on:
       - chore/render-migration-20261119
     paths:
       - 'resources/**'
+      - 'app/**'
+      - 'routes/**'
+      - 'database/**'
+      - 'docker/**'
+      - 'Dockerfile'
+      - 'composer.json'
+      - 'composer.lock'
       - 'tests/e2e/**'
       - 'playwright.config.mjs'
       - '.github/workflows/playwright-ui.yml'
