@@ -28,6 +28,19 @@ if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
   php artisan migrate --force
 fi
 
+# The preview database is created and migrated by root during startup, but
+# Apache/PHP handles web requests as www-data. Without this, POST /register
+# fails with SQLite "attempt to write a readonly database" (HTTP 500).
+# This changes ownership only for the known disposable staging database.
+if [ "${PREVIEW_SQLITE_BOOTSTRAP:-false}" = "true" ]; then
+  chown www-data:www-data /tmp/daloy-preview.sqlite
+  chmod 0660 /tmp/daloy-preview.sqlite
+  if ! su -s /bin/sh www-data -c 'test -w /tmp/daloy-preview.sqlite && test -w /tmp'; then
+    echo "ERROR: Staging SQLite database is not writable by the web server." >&2
+    exit 1
+  fi
+fi
+
 port="${PORT:-10000}"
 case "$port" in
   ''|*[!0-9]*) echo "ERROR: Invalid PORT" >&2; exit 1 ;;
