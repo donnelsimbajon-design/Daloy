@@ -123,3 +123,31 @@ test('landing: original black-and-white theme and both background videos', async
     await expect(page.locator('.daloy-landing-hero video')).toHaveAttribute('src', '/video/video2.mp4');
 });
 
+
+test('landing preview follows video hero without crowding content', async ({ page }, testInfo) => {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const preview = page.locator('.daloy-preview-section .daloy-landing-preview');
+    await expect(preview).toBeVisible();
+
+    const geometry = await page.evaluate(() => {
+        const hero = document.querySelector('.daloy-landing-hero').getBoundingClientRect();
+        const previewSection = document.querySelector('.daloy-preview-section').getBoundingClientRect();
+        const card = document.querySelector('.daloy-landing-preview').getBoundingClientRect();
+        return {
+            heroBottom: hero.bottom,
+            sectionTop: previewSection.top,
+            cardLeft: card.left,
+            cardRight: card.right,
+            viewportWidth: document.documentElement.clientWidth,
+        };
+    });
+    expect(geometry.sectionTop, 'The browser mockup must sit below the video hero')
+        .toBeGreaterThanOrEqual(geometry.heroBottom - 3);
+    expect(geometry.cardLeft).toBeGreaterThanOrEqual(0);
+    expect(geometry.cardRight).toBeLessThanOrEqual(geometry.viewportWidth + 1);
+
+    await testInfo.attach(`below-hero-preview-${testInfo.project.name}`, {
+        body: await preview.screenshot({ animations: 'disabled' }),
+        contentType: 'image/png',
+    });
+});
