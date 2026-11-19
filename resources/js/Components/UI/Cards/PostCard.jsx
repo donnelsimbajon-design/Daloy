@@ -36,6 +36,9 @@ export default function PostCard({ post }) {
     const [reportSubmitted, setReportSubmitted] = useState(false);
     const [reportError, setReportError] = useState('');
     const [lightboxIndex, setLightboxIndex] = useState(null);
+    const [mediaItems, setMediaItems] = useState(post.media || []);
+    const [removingMediaId, setRemovingMediaId] = useState(null);
+    useEffect(() => { setMediaItems(post.media || []); }, [post.media]);
 
     // Poll state
     const [pollData, setPollData] = useState(post.poll || null);
@@ -164,6 +167,21 @@ export default function PostCard({ post }) {
         }
     };
 
+    const removePostedMedia = async (media) => {
+        if (!isOwner || removingMediaId || !media?.id) return;
+        if (!window.confirm('Permanently remove this photo or video from your post?')) return;
+        setRemovingMediaId(media.id);
+        try {
+            await axios.delete(`/posts/${post.id}/media/${media.id}`);
+            setMediaItems(items => items.filter(item => item.id !== media.id));
+            setLightboxIndex(null);
+        } catch (error) {
+            window.alert(error.response?.data?.message || 'Could not remove this photo. Please try again.');
+        } finally {
+            setRemovingMediaId(null);
+        }
+    };
+
     const toggleBookmark = async () => {
         setShowMenu(false);
         try {
@@ -198,7 +216,6 @@ export default function PostCard({ post }) {
         ? author.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
         : '?';
     const timeAgo = getTimeAgo(post.created_at);
-    const mediaItems = post.media || [];
     const originalPost = post.repost_of || post.repostOf || null;
     const flowVelocity = post.flow_velocity || 'steady';
     const pollClosed = Boolean(pollData?.expires_at && new Date(pollData.expires_at).getTime() <= Date.now());
@@ -442,7 +459,7 @@ export default function PostCard({ post }) {
                     <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1 aspect-[4/3] sm:aspect-[16/9] max-h-[600px]' :
                             mediaItems.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[4/3] sm:aspect-[16/9]' :
                                 mediaItems.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3] sm:aspect-[16/9]' :
-                                    'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 items
+                                    'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 shown, with a +N indicator
                         }`}>
                         {mediaItems.slice(0, 4).map((media, index) => (
                             <div
@@ -462,7 +479,20 @@ export default function PostCard({ post }) {
                                         onClick={() => setLightboxIndex(index)}
                                         className="absolute inset-0 z-[1] block h-full w-full cursor-zoom-in overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px]">
                                         <SafeMediaImage src={media.url} alt="Post photo"
-                                            className="h-full w-full object-contain bg-ocean-deep" />
+                                            className={`h-full w-full bg-ocean-deep ${mediaItems.length === 1 ? 'object-contain' : 'object-cover'}`} />
+                                    </button>
+                                )}
+                                {mediaItems.length > 4 && index === 3 && (
+                                    <button type="button" onClick={() => setLightboxIndex(3)} aria-label={`View ${mediaItems.length - 4} more photos or videos`}
+                                        className="absolute inset-0 z-[2] grid place-items-center bg-black/55 text-3xl font-bold text-white hover:bg-black/65 focus-visible:outline-2 focus-visible:outline-offset-[-4px]">
+                                        +{mediaItems.length - 4}
+                                    </button>
+                                )}
+                                {isOwner && (
+                                    <button type="button" onClick={() => removePostedMedia(media)} disabled={removingMediaId !== null}
+                                        aria-label={`Delete photo or video ${index + 1} from post`}
+                                        className="absolute right-2 top-2 z-10 grid h-11 w-11 place-items-center rounded-full bg-black/75 text-white shadow-sm hover:bg-black disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-white">
+                                        <X size={19} aria-hidden="true" />
                                     </button>
                                 )}
                                 {/* Gradient overlay for depth */}
@@ -698,7 +728,7 @@ export default function PostCard({ post }) {
                 {repostNotice && <p role="status" className="mt-2 px-2 text-xs text-ocean-text-muted">{repostNotice}</p>}
                 {/* Comments Section */}
                 {showComments && (
-                    <CommentsSection postId={post.id} />
+                    <CommentsSection postId={post.id} postOwnerId={post.user_id || post.user?.id} />
                 )}
             </div>
 

@@ -176,6 +176,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/posts', [PostController::class, 'store'])->middleware('throttle:20,1')->name('posts.store');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    Route::delete('/posts/{post}/media/{media}', [PostController::class, 'destroyMedia'])->name('posts.media.destroy');
     Route::post('/posts/{post}/pin', [PostController::class, 'pin'])->name('posts.pin');
     Route::post('/posts/{post}/report', [PostController::class, 'report'])->name('posts.report');
     Route::post('/posts/{post}/repost', [PostController::class, 'repost'])->middleware('throttle:30,1')->name('posts.repost');

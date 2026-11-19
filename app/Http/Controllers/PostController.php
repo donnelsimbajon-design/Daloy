@@ -223,7 +223,7 @@ class PostController extends Controller
             'visibility' => 'required|in:public,followers,private,close_friends',
             'location_tag' => 'nullable|string|max:100',
             'flow_velocity' => 'nullable|in:high,steady,low',
-            'media' => 'nullable|array|max:4',
+            'media' => 'nullable|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
             // Repost
             'repost_of_id' => 'nullable|integer|exists:posts,id',
@@ -455,6 +455,25 @@ class PostController extends Controller
 
         return back()->with('status', 'post-deleted');
     }
+    /**
+     * Permanently remove one file from a post owned by the authenticated user.
+     */
+    public function destroyMedia(Post $post, Media $media): JsonResponse
+    {
+        abort_unless($post->user_id === Auth::id(), 403);
+        abort_unless($media->post_id === $post->id, 404);
+
+        $urlPath = parse_url((string) $media->url, PHP_URL_PATH) ?: '';
+        $expectedPrefix = '/storage/posts/'.$post->id.'/';
+        if (str_starts_with($urlPath, $expectedPrefix)) {
+            Storage::disk('public')->delete(substr($urlPath, strlen('/storage/')));
+        }
+        $media->delete();
+        $post->update(['media_urls' => $post->media()->pluck('url')->values()->all()]);
+
+        return response()->json(['message' => 'Attachment removed.', 'media_count' => $post->media()->count()]);
+    }
+
     /**
      * Let users report a post to the existing moderation queue.
      * Self-reports and repeated pending reports are not accepted.

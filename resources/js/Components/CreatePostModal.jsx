@@ -57,8 +57,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
-        if (data.media.length + files.length > 4) {
-            alert('You can only upload up to 4 media files');
+        if (data.media.length + files.length > 10) {
+            alert('You can upload up to 10 photos or videos per post.');
             return;
         }
 
@@ -296,43 +296,25 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                 </div>
                             </div>
 
-                            {/* Media Previews - Bounded Height */}
+                            {/* Each of the 10 attachments can be removed before publishing. */}
                             {mediaPreviews.length > 0 && (
-                                <div className={`ml-14 grid gap-1 mt-2 rounded-[20px] overflow-hidden border border-ocean-border bg-ocean-border/30 w-[calc(100%-3.5rem)] ${
-                                    mediaPreviews.length === 1 ? 'grid-cols-1 grid-rows-1' :
-                                    mediaPreviews.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[16/9]' :
-                                    mediaPreviews.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[16/9]' :
-                                    'grid-cols-2 grid-rows-2 aspect-[4/3]'
-                                }`}>
-                                    {mediaPreviews.slice(0, 4).map((preview, index) => (
-                                        <div key={index} className={`relative w-full h-full bg-ocean-deep/50 group/media ${
-                                            mediaPreviews.length === 3 && index === 0 ? 'row-span-2' : ''
-                                        } ${mediaPreviews.length === 1 ? 'max-h-[350px]' : 'min-h-[100px]'}`}>
-                                            {preview.type === 'video' ? (
-                                                <video
-                                                    src={preview.url}
-                                                    className={`w-full h-full object-cover bg-black/95 ${mediaPreviews.length === 1 ? 'max-h-[350px] block' : 'absolute inset-0'}`}
-                                                    muted
-                                                />
-                                            ) : (
-                                                <img
-                                                    src={preview.url}
-                                                    alt={preview.name}
-                                                    className={`w-full h-full object-cover ${mediaPreviews.length === 1 ? 'max-h-[350px] block' : 'absolute inset-0'}`}
-                                                />
-                                            )}
-                                            <button
-                                                type="button"
-                                                onClick={() => removeMedia(index)}
-                                                aria-label={`Remove attached file ${index + 1}`}
-                                                className="absolute top-2 right-2 grid h-11 w-11 place-items-center rounded-xl bg-black/70 text-white hover:bg-zinc-800 transition-colors"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    ))}
+                                <div className="ml-0 sm:ml-14 mt-3 max-h-[340px] overflow-y-auto rounded-2xl border border-ocean-border bg-ocean-surface/25 p-2">
+                                    <p className="px-1 pb-2 text-xs font-medium text-ocean-text-muted">{mediaPreviews.length} / 10 photos or videos · Tap × to remove one</p>
+                                    <div className={`grid gap-2 ${mediaPreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
+                                        {mediaPreviews.map((preview, index) => (
+                                            <div key={preview.url} className={`relative aspect-square min-w-0 overflow-hidden rounded-xl bg-ocean-deep ${mediaPreviews.length === 1 ? 'max-h-[280px] aspect-[4/3]' : ''}`}>
+                                                {preview.type === 'video' ? (
+                                                    <video src={preview.url} className="h-full w-full object-cover" muted />
+                                                ) : (
+                                                    <img src={preview.url} alt={preview.name} className="h-full w-full object-cover" />
+                                                )}
+                                                <button type="button" onClick={() => removeMedia(index)} aria-label={`Remove attached file ${index + 1}`}
+                                                    className="absolute right-2 top-2 z-10 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/75 text-white hover:bg-black focus-visible:outline-2 focus-visible:outline-white">
+                                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
@@ -445,7 +427,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
                                     aria-label="Add photo or video"
-                                    disabled={data.media.length >= 4}
+                                    disabled={data.media.length >= 10}
                                     className="grid min-h-[44px] min-w-[44px] place-items-center rounded-xl text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text transition-colors disabled:opacity-30"
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">

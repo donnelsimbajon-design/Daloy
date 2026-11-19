@@ -139,8 +139,10 @@ class CommentController extends Controller
     {
         $user = Auth::user();
 
-        if ($comment->user_id !== $user->id) {
-            abort(403, 'Unauthorized');
+        // The commenter and the author of the containing post may delete comments.
+        $comment->loadMissing('post');
+        if ($comment->user_id !== $user->id && $comment->post?->user_id !== $user->id) {
+            abort(403, 'You cannot remove this comment.');
         }
 
         $comment->delete();
