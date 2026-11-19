@@ -51,6 +51,12 @@ test('staging: logged-in journeys remain responsive across core pages', async ({
 
     await signInAsDisposableStagingUser(page, testInfo.project.name);
 
+    // The logged-in shell polls this API. A MySQL-only DATE_SUB statement
+    // previously returned HTTP 500 when running on the SQLite staging DB.
+    const liveAnnouncementResponse = await page.request.get('/api/announcements/live');
+    expect(liveAnnouncementResponse.status(), 'Announcements API must not error')
+        .toBe(200);
+
     for (const [name, path] of [
         ['feed', '/app'],
         ['explore', '/explore'],
