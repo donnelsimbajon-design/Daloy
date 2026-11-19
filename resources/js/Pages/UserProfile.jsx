@@ -49,6 +49,7 @@ export default function UserProfile() {
     const [loading, setLoading] = useState(null);
     const [activeTab, setActiveTab] = useState('posts');
     const [showCreatePost, setShowCreatePost] = useState(false);
+    const [createPostMode, setCreatePostMode] = useState(null);
     const [uploadingCover, setUploadingCover] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [blocked, setBlocked] = useState(initIsBlocked || false);
@@ -604,7 +605,7 @@ export default function UserProfile() {
                                                         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-ocean-border bg-ocean-surface px-3 text-xs font-semibold text-ocean-text hover:bg-ocean-hover">
                                                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="9" r="1.5"/><path d="m3 18 5-5 4 4 3-3 6 6"/></svg> Photo
                                                     </button>
-                                                    <button type="button" onClick={() => setShowCreatePost(true)} aria-label="Create poll"
+                                                    <button type="button" onClick={() => { setCreatePostMode('poll'); setShowCreatePost(true); }} aria-label="Create poll"
                                                         className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-ocean-border bg-ocean-surface px-3 text-xs font-semibold text-ocean-text hover:bg-ocean-hover">
                                                         <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" strokeLinecap="round"/></svg> Poll
                                                     </button>
@@ -951,7 +952,8 @@ export default function UserProfile() {
                 </div>
             )}
 
-            <CreatePostModal isOpen={showCreatePost} onClose={() => setShowCreatePost(false)} />
+            <CreatePostModal isOpen={showCreatePost} initialMode={createPostMode}
+                onClose={() => { setShowCreatePost(false); setCreatePostMode(null); }} />
 
             {/* ── ═══════ HIDDEN STORY RAIL LOCALLY ═══════ ── */}
             {forceStoryOpen && (

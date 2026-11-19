@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useForm, usePage, router } from '@inertiajs/react';
 import { Globe2, Users2, Heart, Lock, Flame, Waves, Snail, Sparkles } from 'lucide-react';
 
-export default function CreatePostModal({ isOpen, onClose }) {
+export default function CreatePostModal({ isOpen, onClose, initialMode = null }) {
     const user = usePage().props?.auth?.user;
     const fileInputRef = useRef(null);
     const textareaRef = useRef(null);
@@ -32,7 +32,11 @@ export default function CreatePostModal({ isOpen, onClose }) {
     // Focus textarea when modal opens, and reset state when modal closes
     useEffect(() => {
         if (isOpen && textareaRef.current) {
-            setTimeout(() => textareaRef.current?.focus(), 200);
+            setShowPollBuilder(initialMode === 'poll');
+            setTimeout(() => {
+                if (initialMode === 'poll') document.getElementById('daloy-poll-question')?.focus();
+                else textareaRef.current?.focus();
+            }, 200);
         }
         if (!isOpen) {
             reset();
@@ -41,7 +45,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
             setPollDuration('24');
             setShowCwInput(false);
         }
-    }, [isOpen]);
+    }, [isOpen, initialMode]);
 
     const handleFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
@@ -460,8 +464,11 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 </button>
                                 
                                 {/* Flow Velocity Tool */}
-                                <div className="ml-2 relative" onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}>
-                                    <div className="flex items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-2.5 pr-2 py-1 transition-colors cursor-pointer relative z-10">
+                                <div className="ml-2 relative">
+                                    <button type="button" aria-label="Flow state" aria-expanded={showVelMenu}
+                                        title="Flow state: High, Steady or Low"
+                                        onClick={(e) => { e.stopPropagation(); setShowVelMenu(!showVelMenu); setShowVisMenu(false); }}
+                                        className="flex min-h-[44px] items-center gap-1.5 bg-transparent hover:bg-ocean-surface border border-ocean-border rounded-full pl-3 pr-3 py-2 transition-colors cursor-pointer relative z-10">
                                         {data.flow_velocity === 'high' && <Flame className="w-3.5 h-3.5 text-ocean-text-muted" />}
                                         {data.flow_velocity === 'steady' && <Waves className="w-3.5 h-3.5 text-biolum" />}
                                         {data.flow_velocity === 'low' && <Snail className="w-3.5 h-3.5 text-ocean-text-dim" />}
@@ -471,7 +478,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                         <svg className={`w-2.5 h-2.5 text-ocean-text-dim transition-transform ${showVelMenu ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                                         </svg>
-                                    </div>
+                                    </button>
 
                                     {showVelMenu && (
                                         <div className="absolute bottom-full left-0 mb-1 w-32 bg-ocean-deep border border-ocean-border rounded-xl shadow-xl overflow-hidden z-[100] py-1">
