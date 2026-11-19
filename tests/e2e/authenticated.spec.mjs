@@ -20,7 +20,14 @@ async function signInAsDisposableStagingUser(page, projectName) {
         await page.locator('#email').fill(`${username}@example.test`);
         await page.locator('#password').fill(password);
         await page.locator('#password_confirmation').fill(password);
-        await page.getByRole('button', { name: /create account/i }).click();
+        const [registrationResponse] = await Promise.all([
+            page.waitForResponse(response =>
+                new URL(response.url()).pathname === '/register' &&
+                response.request().method() === 'POST', { timeout: 30_000 }),
+            page.getByRole('button', { name: /create account/i }).click(),
+        ]);
+        expect(registrationResponse.status(), 'Registration must not return a 500 error')
+            .toBeLessThan(400);
         await expect(page).toHaveURL(/\/(app|home)(\?|$)/, { timeout: 30_000 });
         return;
     }
