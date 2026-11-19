@@ -24,6 +24,11 @@ export default function PostCard({ post }) {
     const [showComments, setShowComments] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
     const [isBookmarked, setIsBookmarked] = useState(Boolean(post.is_bookmarked));
+    const [isReposted, setIsReposted] = useState(Boolean(post.is_reposted || (post.repost_of_id && post.user_id === currentUser?.id)));
+    const [repostsCount, setRepostsCount] = useState(post.reposts_count || 0);
+    const [repostBusy, setRepostBusy] = useState(false);
+    const [repostNotice, setRepostNotice] = useState('');
+    const [pollError, setPollError] = useState('');
     const [showReportModal, setShowReportModal] = useState(false);
     const [reportReason, setReportReason] = useState('spam');
     const [reportDetails, setReportDetails] = useState('');
@@ -133,6 +138,26 @@ export default function PostCard({ post }) {
         });
     };
 
+    const toggleRepost = async () => {
+        if (repostBusy) return;
+        setRepostBusy(true);
+        setRepostNotice('');
+        try {
+            const originalId = post.repost_of_id || post.id;
+            const { data } = await axios.post(`/posts/${originalId}/repost`);
+            setIsReposted(Boolean(data.reposted));
+            setRepostsCount(data.reposts_count || 0);
+            setRepostNotice(data.reposted ? 'Reposted to your profile.' : 'Repost removed.');
+            router.reload({ only: ['posts'], preserveState: true, preserveScroll: true });
+        } catch (error) {
+            setRepostNotice(error.response?.status === 403
+                ? 'Only public posts can be reposted.'
+                : 'Unable to repost. Please try again.');
+        } finally {
+            setRepostBusy(false);
+        }
+    };
+
     const toggleBookmark = async () => {
         setShowMenu(false);
         try {
@@ -168,6 +193,7 @@ export default function PostCard({ post }) {
         : '?';
     const timeAgo = getTimeAgo(post.created_at);
     const mediaItems = post.media || [];
+    const originalPost = post.repost_of || post.repostOf || null;
     const flowVelocity = post.flow_velocity || 'steady';
 
     const visibilityIcon = {
@@ -179,8 +205,8 @@ export default function PostCard({ post }) {
     return (
         <div data-post-id={post.id} className="daloy-post-card bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-0">
-                <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-start justify-between gap-3 px-4 pt-4 pb-0">
+                <div className="flex min-w-0 items-center gap-3">
                     <Link href={`/users/${author.id}`} className="shrink-0">
                         <div className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim/50 ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                             {author.profile_picture ? (
@@ -192,11 +218,11 @@ export default function PostCard({ post }) {
                             )}
                         </div>
                     </Link>
-                    <div>
-                        <Link href={`/users/${author.id}`} className="flex items-center gap-2 group">
+                    <div className="min-w-0">
+                        <Link href={`/users/${author.id}`} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 group">
                             <h3 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors tracking-[-0.01em]">{author.name || 'Unknown'}</h3>
                             {author.username && (
-                                <span className="text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
+                                <span className="max-w-[180px] truncate text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
                             )}
                         </Link>
                         {post.school && (
@@ -213,6 +239,7 @@ export default function PostCard({ post }) {
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
                             {' · '}{visibilityIcon[post.visibility] || <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />}
+                            <span className="ml-2 rounded-md border border-ocean-border px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-ocean-text-dim" aria-label={`Flow state: ${flowVelocity}`}>{flowVelocity} flow</span>
                         </p>
                     </div>
                 </div>
@@ -224,7 +251,7 @@ export default function PostCard({ post }) {
                         type="button"
                         aria-label="Post options"
                         aria-expanded={showMenu}
-                        className="p-1.5 rounded-lg text-ocean-text-dim hover:text-ocean-text-muted hover:bg-ocean-surface transition-colors"
+                        className="flex h-11 w-11 items-center justify-center rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
@@ -384,6 +411,23 @@ export default function PostCard({ post }) {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {post.repost_of_id && (
+                <section className="mx-4 mb-4 rounded-2xl border border-ocean-border bg-ocean-surface/50 p-4" aria-label="Original reposted post">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[.13em] text-ocean-text-dim">{author.name} reposted</p>
+                    {originalPost ? (
+                        <Link href={`/posts/${originalPost.id}`} className="block rounded-xl p-2 hover:bg-ocean-hover focus-visible:outline-2">
+                            <p className="text-xs font-semibold text-ocean-text mb-2">{originalPost.user?.name || 'Original author'}</p>
+                            {originalPost.content && <p className="whitespace-pre-wrap break-words text-sm text-ocean-text leading-relaxed line-clamp-5">{originalPost.content}</p>}
+                            {originalPost.media?.[0]?.type !== 'video' && originalPost.media?.[0]?.url && (
+                                <SafeMediaImage src={originalPost.media[0].url} alt="Reposted photo" className="mt-3 max-h-64 w-full rounded-xl object-contain bg-ocean-deep" />
+                            )}
+                            {originalPost.media?.[0]?.type === 'video' && <p className="mt-2 text-xs text-ocean-text-muted">View the original video post</p>}
+                            <p className="mt-3 text-[11px] text-ocean-text-muted">View original post</p>
+                        </Link>
+                    ) : <p className="text-sm text-ocean-text-muted">The original post is no longer available.</p>}
+                </section>
             )}
 
             {/* Media Gallery */}
@@ -622,25 +666,22 @@ export default function PostCard({ post }) {
 
             {/* Footer */}
             <div className="px-3 sm:px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="w-full">
                     <PostActions
                         reactionsCount={reactionsCount}
                         commentsCount={commentsCount}
                         isLiked={isLiked}
                         onLike={handleLike}
+                        isReposted={isReposted}
+                        onRepost={toggleRepost}
+                        repostsCount={repostsCount}
                         onCommentClick={() => setShowComments(!showComments)}
                         onShareClick={() => setShowShareModal(true)}
                     />
 
-                    {/* Flow Velocity Badge */}
-                    <div className={`px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
-                        ? 'text-biolum bg-biolum/10 border border-biolum/20'
-                        : 'text-ocean-text-dim/70 bg-ocean-surface/60 border border-ocean-divider-subtle'
-                        }`}>
-                        {flowVelocity}
-                    </div>
                 </div>
 
+                {repostNotice && <p role="status" className="mt-2 px-2 text-xs text-ocean-text-muted">{repostNotice}</p>}
                 {/* Comments Section */}
                 {showComments && (
                     <CommentsSection postId={post.id} />
