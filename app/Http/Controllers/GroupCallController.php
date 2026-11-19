@@ -45,8 +45,11 @@ class GroupCallController extends Controller
         $appId = config('services.agora.app_id');
         $appCertificate = config('services.agora.app_certificate');
 
-        // Generate Agora token
-        $token = "DEVELOPMENT_TOKEN";
+        if (!$appId || !$appCertificate) {
+            return response()->json(['error' => 'Group calls are not available right now. Please try again later.'], 503);
+        }
+
+        // Generate a real token BEFORE creating call records and notifications.
         try {
             config([
                 'services.agora.app_id' => $appId,
@@ -58,6 +61,7 @@ class GroupCallController extends Controller
                 ->token();
         } catch (\Exception $e) {
             Log::error("Failed to generate Agora group call token: " . $e->getMessage());
+            return response()->json(['error' => 'Cannot start this call right now. Please try again later.'], 503);
         }
 
         // Create the group call record
@@ -138,6 +142,10 @@ class GroupCallController extends Controller
             return response()->json(['error' => 'No active call in this group.'], 404);
         }
 
+        if (!config('services.agora.app_id') || !config('services.agora.app_certificate')) {
+            return response()->json(['error' => 'Group calls are not available right now. Please try again later.'], 503);
+        }
+
         // Check if already in the call
         $existing = GroupCallParticipant::where('group_call_id', $groupCall->id)
             ->where('user_id', $user->id)
@@ -147,7 +155,6 @@ class GroupCallController extends Controller
         if ($existing) {
             // Already in call, just return token
             $appId = config('services.agora.app_id');
-            $token = "DEVELOPMENT_TOKEN";
             try {
                 config([
                     'services.agora.app_id' => $appId,
@@ -159,6 +166,7 @@ class GroupCallController extends Controller
                     ->token();
             } catch (\Exception $e) {
                 Log::error("Failed to generate Agora token: " . $e->getMessage());
+                return response()->json(['error' => 'Cannot join this call right now. Please try again later.'], 503);
             }
 
             return response()->json([
@@ -184,7 +192,6 @@ class GroupCallController extends Controller
 
         // Generate token
         $appId = config('services.agora.app_id');
-        $token = "DEVELOPMENT_TOKEN";
         try {
             config([
                 'services.agora.app_id' => $appId,
@@ -199,6 +206,7 @@ class GroupCallController extends Controller
             $token = $agoraQuery->token();
         } catch (\Exception $e) {
             Log::error("Failed to generate Agora token: " . $e->getMessage());
+            return response()->json(['error' => 'Cannot join this call right now. Please try again later.'], 503);
         }
 
         // Add participant
