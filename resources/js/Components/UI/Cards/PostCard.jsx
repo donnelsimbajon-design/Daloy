@@ -521,6 +521,15 @@ export default function PostCard({ post }) {
                         touchStartX.current = null;
                     }}
                 >
+                    {/* Owners can remove files beyond the four visible collage tiles. */}
+                    {isOwner && (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); removePostedMedia(mediaItems[lightboxIndex]); }}
+                            disabled={removingMediaId !== null}
+                            aria-label="Delete current photo or video from post"
+                            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 min-h-11 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50">
+                            Remove photo
+                        </button>
+                    )}
                     {/* Close */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}

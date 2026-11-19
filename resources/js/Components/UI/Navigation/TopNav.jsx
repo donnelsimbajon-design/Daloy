@@ -29,6 +29,32 @@ export default function TopNav() {
     const notifications = social?.recent_notifications || [];
     const unreadNotifCount = (social?.unread_notifications || 0) + (social?.pending_friend_requests || 0) + (social?.pending_follow_requests || 0);
 
+    // Update notification and message badges in visible tabs.
+    // Polling is a fallback until a push/WebSocket transport is configured.
+    useEffect(() => {
+        if (!user?.id) return;
+        let pending = false;
+        const refreshSocial = () => {
+            if (document.visibilityState !== 'visible' || pending) return;
+            pending = true;
+            router.reload({
+                only: ['social'],
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => { pending = false; },
+            });
+        };
+        const interval = window.setInterval(refreshSocial, 8000);
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') refreshSocial();
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [user?.id]);
+
     // Dark mode state
     const [isDark, setIsDark] = useState(() => {
         if (typeof document !== 'undefined') {
