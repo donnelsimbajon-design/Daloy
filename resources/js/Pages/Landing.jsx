@@ -117,9 +117,9 @@ export default function Landing() {
                         </div>
 
                         {/* Mobile */}
-                        <div className="flex md:hidden items-center gap-2">
+                        <div className="flex md:hidden items-center gap-1 sm:gap-2">
                             <Link href="/login" className="text-white/70 text-sm font-medium px-3 py-1.5 rounded-full border border-white/15 hover:border-white/30 transition-colors">Sign in</Link>
-                            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white/60 hover:text-white transition-colors" aria-label="Menu">
+                            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white/60 hover:text-white transition-colors" aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-menu">
                                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                             </button>
                         </div>
@@ -127,7 +127,7 @@ export default function Landing() {
 
                     {/* Mobile dropdown */}
                     {mobileMenuOpen && (
-                        <div className="md:hidden bg-black/95 backdrop-blur-xl border-b border-white/10 px-4 pb-4 space-y-1">
+                        <div id="landing-mobile-menu" className="md:hidden bg-black/95 backdrop-blur-xl border-b border-white/10 px-4 pb-4 space-y-1">
                             <button onClick={() => scrollTo('about')} className="block w-full text-left text-white/60 hover:text-white py-3 text-sm font-medium border-b border-white/5 transition-colors">About</button>
                             <button onClick={() => scrollTo('features')} className="block w-full text-left text-white/60 hover:text-white py-3 text-sm font-medium border-b border-white/5 transition-colors">Features</button>
                             <Link href="/register" className="block mt-3 text-center bg-white text-black text-sm font-semibold px-4 py-3 rounded-full hover:bg-white/90 transition-all">Get started free</Link>
@@ -136,7 +136,7 @@ export default function Landing() {
                 </nav>
 
                 {/* ── Hero ────────────────────────────────────────────── */}
-                <section className="relative min-h-screen flex flex-col justify-center px-6 sm:px-12 md:px-20 overflow-hidden">
+                <section className="relative min-h-[100svh] flex flex-col justify-center px-5 py-24 sm:px-12 md:px-20 overflow-hidden">
                     {/* Background Video Layer */}
                     <div className="absolute inset-0 pointer-events-none z-0 bg-black">
                         <video
@@ -163,7 +163,7 @@ export default function Landing() {
                             Social Media, Redefined
                         </div>
 
-                        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.05] tracking-tight text-white mb-6 drop-shadow-2xl max-w-3xl">
+                        <h1 className="text-[clamp(2.75rem,10vw,5.5rem)] sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.05] tracking-tight text-white mb-6 drop-shadow-2xl max-w-3xl">
                             Dive into
                             <br />
                             <span className="italic font-normal text-white/80 pb-1 inline-block">the current.</span>
