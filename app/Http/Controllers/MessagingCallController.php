@@ -24,6 +24,10 @@ class MessagingCallController extends Controller
             return response()->json(['error' => 'Not authorized to start a call in this conversation.'], 403);
         }
 
+        if (!config('services.agora.message_app_id') || !config('services.agora.message_app_certificate')) {
+            return response()->json(['error' => 'Voice and video calls are not available right now. Please try again later.'], 503);
+        }
+
         $type = $request->input('type', 'video'); // audio or video
         $channelName = "dm_call_{$conversation->id}";
 
@@ -34,7 +38,6 @@ class MessagingCallController extends Controller
         ]);
 
         // 3. Generate token
-        $token = "DEVELOPMENT_TOKEN";
         try {
             $agoraQuery = Agora::make((string) $user->id)->channel($channelName)->join(false);
             if ($type === 'audio') {
@@ -43,6 +46,7 @@ class MessagingCallController extends Controller
             $token = $agoraQuery->token();
         } catch (\Exception $e) {
             Log::error("Failed to generate Agora DM token: " . $e->getMessage());
+            return response()->json(['error' => 'Cannot connect the call right now. Please try again later.'], 503);
         }
 
         // Cache the incoming call for the OTHER participant to poll
@@ -114,19 +118,28 @@ class MessagingCallController extends Controller
         $channel = $request->input('channel_name');
 
         if ($action === 'accept') {
-            Cache::forget("incoming_call_{$request->user()->id}");
-            Cache::put("call_status_{$callerId}_{$channel}", 'accepted', now()->addSeconds(30));
-            
-            // Now generate a token for the receiver
+            if (!config('services.agora.message_app_id') || !config('services.agora.message_app_certificate')) {
+                return response()->json(['error' => 'Voice and video calls are not available right now.'], 503);
+            }
+
             config([
                 'services.agora.app_id' => config('services.agora.message_app_id'),
                 'services.agora.app_certificate' => config('services.agora.message_app_certificate'),
             ]);
-            $token = "DEVELOPMENT_TOKEN";
+
             try {
-                $agoraQuery = Agora::make((string) $request->user()->id)->channel($channel)->join(false);
-                $token = $agoraQuery->token();
-            } catch (\Exception $e) {}
+                $token = Agora::make((string) $request->user()->id)
+                    ->channel($channel)
+                    ->join(false)
+                    ->token();
+            } catch (\Exception $e) {
+                Log::error('Could not generate Agora receiver token: '.$e->getMessage());
+                return response()->json(['error' => 'Cannot connect the call right now. Please try again later.'], 503);
+            }
+
+            // Never mark a call accepted before a valid token is available.
+            Cache::forget("incoming_call_{$request->user()->id}");
+            Cache::put("call_status_{$callerId}_{$channel}", 'accepted', now()->addSeconds(30));
 
             return response()->json([
                 'token' => $token,
