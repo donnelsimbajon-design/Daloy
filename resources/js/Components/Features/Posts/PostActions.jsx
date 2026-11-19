@@ -1,7 +1,7 @@
 import React from 'react';
 
 /**
- * Three equal-weight, minimum 44px actions. Use only the existing Daloy
+ * Four equal-weight, minimum 44px actions. Use only the existing Daloy
  * black/white/gray design tokens; photos themselves remain in full color.
  */
 export default function PostActions({
@@ -10,14 +10,17 @@ export default function PostActions({
     isLiked,
     onLike,
     onCommentClick,
+    isReposted = false,
+    onRepost,
+    repostsCount = 0,
     onShareClick,
 }) {
-    const common = 'daloy-post-action flex min-w-0 min-h-[44px] items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-xs sm:text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2';
+    const common = 'daloy-post-action flex min-w-0 min-h-[46px] items-center justify-center gap-1 sm:gap-2 rounded-xl px-1 sm:px-2 py-2.5 text-[11px] sm:text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2';
     const active = 'daloy-post-action-active bg-ocean-surface text-ocean-text';
     const inactive = 'text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text';
 
     return (
-        <div className="daloy-post-actions grid w-full grid-cols-3 gap-1.5 sm:gap-2" aria-label="Post actions">
+        <div className="daloy-post-actions grid w-full grid-cols-4 gap-1 sm:gap-2" aria-label="Post actions">
             <button
                 type="button"
                 onClick={onLike}
@@ -42,6 +45,19 @@ export default function PostActions({
                 </svg>
                 <span>Comment</span>
                 {commentsCount > 0 && <span className="text-[11px] font-medium tabular-nums text-ocean-text-dim">{commentsCount}</span>}
+            </button>
+            <button
+                type="button"
+                onClick={onRepost}
+                aria-pressed={Boolean(isReposted)}
+                aria-label={isReposted ? 'Undo repost' : 'Repost'}
+                className={`${common} ${isReposted ? active : inactive}`}
+            >
+                <svg aria-hidden="true" className="h-[19px] w-[19px] shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="1.6" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 8V6a2 2 0 0 1 2-2h12l3 3m0 0-3 3m3-3H9M20 16v2a2 2 0 0 1-2 2H6l-3-3m0 0 3-3m-3 3h12" />
+                </svg>
+                <span>Repost</span>
+                {repostsCount > 0 && <span className="hidden sm:inline text-[11px] font-medium tabular-nums text-ocean-text-dim">{repostsCount}</span>}
             </button>
             <button
                 type="button"
