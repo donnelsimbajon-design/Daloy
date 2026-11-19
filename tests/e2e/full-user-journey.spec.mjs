@@ -137,9 +137,13 @@ test('user journey: register → create post → like → comment → edit → s
   expect([302, 303], 'Inertia redirect after PUT').toContain(editResponse.status());
   await expect(card).toContainText(edited);
 
-  const bookmark = await axiosCall(page, 'post', '/posts/' + post.id + '/bookmark');
-  expect(bookmark.status).toBe(200);
-  expect(bookmark.data?.bookmarked).toBe(true);
+  await card.getByRole('button', { name: 'Post options' }).click();
+  const [bookmarkResponse] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('/posts/' + post.id + '/bookmark') && r.request().method() === 'POST'),
+    card.getByRole('button', { name: 'Save post' }).click(),
+  ]);
+  expect(bookmarkResponse.status(), 'Save post menu action failed').toBe(200);
+  expect((await bookmarkResponse.json()).bookmarked).toBe(true);
   const saved = await readProps(page, '/saved');
   expect(saved, 'Saved posts screen should load').toBeTruthy();
   await expect(page.getByText(edited)).toBeVisible();
@@ -208,6 +212,27 @@ test('two users: polls, saved permissions, school membership and direct messagin
     expect(forbiddenEdit.status, 'Other users should not edit a post').toBe(403);
     const forbiddenDelete = await axiosCall(bobPage, 'delete', '/posts/' + pollPost.id);
     expect(forbiddenDelete.status, 'Other users should not delete a post').toBe(403);
+
+    // The visible Report Post menu must open a real moderation dialog and save a report.
+    await bobPage.goto('/app', { waitUntil: 'domcontentloaded' });
+    const reportedPost = bobPage.locator('.daloy-post-card[data-post-id="' + pollPost.id + '"]');
+    await expect(reportedPost).toBeVisible();
+    await reportedPost.getByRole('button', { name: 'Post options' }).click();
+    await reportedPost.getByRole('button', { name: 'Report Post' }).click();
+    const reportDialog = bobPage.getByRole('dialog', { name: 'Report post' });
+    await expect(reportDialog).toBeVisible();
+    await reportDialog.getByLabel('Reason').selectOption('spam');
+    await reportDialog.getByPlaceholder('Describe the problem...').fill('Automated staging-only report, no real users affected.');
+    const [reportResponse] = await Promise.all([
+      bobPage.waitForResponse(r => r.url().includes('/posts/' + pollPost.id + '/report') && r.request().method() === 'POST'),
+      reportDialog.getByRole('button', { name: 'Submit report' }).click(),
+    ]);
+    expect(reportResponse.status(), 'Report post endpoint must create a moderation item').toBe(201);
+    await expect(reportDialog.getByRole('status')).toContainText('Report submitted');
+    await reportDialog.getByRole('button', { name: 'Done' }).click();
+
+    const duplicate = await axiosCall(bobPage, 'post', '/posts/' + pollPost.id + '/report', { reason: 'spam' });
+    expect(duplicate.status, 'Duplicate pending report must be blocked').toBe(422);
 
     // Direct messages must persist and be retrievable by the recipient.
     const direct = await axiosCall(page, 'post', '/api/conversations/start', { user_id: bob.id });
