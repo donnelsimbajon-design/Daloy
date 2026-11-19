@@ -31,27 +31,29 @@ class AnnouncementInteractionController extends Controller
                       ->where('announcement_interactions.user_id', $user->id)
                       ->where('announcement_interactions.dismissed', true);
             })
-            // Target Audience matching
+            // Compare the authenticated user's timestamps in PHP instead of
+            // MySQL-only DATE_SUB/NOW expressions. Works with SQLite, MySQL
+            // and PostgreSQL and leaves the audience rules unchanged.
             ->where(function ($q) use ($user) {
-                $q->where('target_audience', 'all')
-                  ->orWhere(function ($q2) use ($user) {
-                      $q2->where('target_audience', 'new_users')
-                         ->whereRaw('? >= DATE_SUB(NOW(), INTERVAL 30 DAY)', [$user->created_at]);
-                  })
-                  ->orWhere(function ($q3) use ($user) {
-                      $q3->where('target_audience', 'active_users')
-                         ->whereRaw('? >= DATE_SUB(NOW(), INTERVAL 7 DAY)', [$user->updated_at]);
-                  })
-                  ->orWhere(function ($q4) use ($user) {
-                      // Specific school
-                      $q4->where('target_audience', 'specific_school')
-                         ->whereExists(function ($sq) use ($user) {
-                             $sq->select(DB::raw(1))
+                $q->where('target_audience', 'all');
+
+                if ($user->created_at && $user->created_at->greaterThanOrEqualTo(now()->subDays(30))) {
+                    $q->orWhere('target_audience', 'new_users');
+                }
+
+                if ($user->updated_at && $user->updated_at->greaterThanOrEqualTo(now()->subDays(7))) {
+                    $q->orWhere('target_audience', 'active_users');
+                }
+
+                $q->orWhere(function ($schoolQuery) use ($user) {
+                    $schoolQuery->where('target_audience', 'specific_school')
+                        ->whereExists(function ($memberQuery) use ($user) {
+                            $memberQuery->select(DB::raw(1))
                                 ->from('school_members')
                                 ->whereColumn('school_members.school_id', 'announcements.school_id')
                                 ->where('school_members.user_id', $user->id);
-                         });
-                  });
+                        });
+                });
             })
             ->latest()
             ->first();
