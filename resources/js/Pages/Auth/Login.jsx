@@ -22,7 +22,7 @@ export default function Login({ status, canResetPassword }) {
         <>
             <Head title="Login" />
 
-            <div className="min-h-screen bg-ocean-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            <div className="min-h-[100dvh] bg-ocean-deep flex flex-col items-center justify-center px-3 py-8 sm:p-6 relative overflow-x-clip">
                 {/* Animated background */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute -top-1/4 -left-1/4 w-[800px] h-[800px] rounded-full bg-biolum/[0.03] blur-[120px] animate-pulse" style={{ animationDuration: '8s' }}></div>
@@ -33,14 +33,14 @@ export default function Login({ status, canResetPassword }) {
                 {/* Logo */}
                 <div className="relative z-10 mb-8 text-center flex flex-col items-center">
                     <div className="flex items-center justify-center gap-0 mb-1">
-                        <h1 className="text-[5rem] leading-none mb-4 font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</h1>
+                        <h1 className="text-6xl sm:text-[5rem] leading-none mb-4 font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</h1>
                     </div>
                     <p className="text-sm text-ocean-text-muted mt-1">Dive into the current</p>
                 </div>
 
                 {/* Login Card */}
                 <div className="relative z-10 w-full max-w-md">
-                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-8">
+                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8>
                         <h2 className="text-xl font-bold text-ocean-text mb-1">Welcome back</h2>
                         <p className="text-sm text-ocean-text-dim mb-6">Sign in to continue your voyage</p>
 
@@ -50,7 +50,7 @@ export default function Login({ status, canResetPassword }) {
                             </div>
                         )}
 
-                        <form onSubmit={submit} className="space-y-5">
+                        <form onSubmit={submit} className="space-y-4 sm:space-y-5">
                             {/* Email */}
                             <div>
                                 <InputLabel htmlFor="email" value="Email Address" />
