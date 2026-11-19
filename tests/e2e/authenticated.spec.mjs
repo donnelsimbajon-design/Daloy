@@ -109,7 +109,7 @@ test('staging: logged-in journeys remain responsive across core pages', async ({
             expect(metrics.rightGap).toBeLessThan(48);
             await launcher.click();
             await expect(page.getByRole('button', { name: 'Close quick actions' })).toHaveAttribute('aria-expanded', 'true');
-            await expect(page.locator('button[title="Messages"]').first()).toBeVisible();
+            await expect(page.locator('.daloy-floating-menu button[title="Messages"]')).toBeVisible();
             await page.getByRole('button', { name: 'Close quick actions' }).click();
         }
         if (name === 'conversations') {
