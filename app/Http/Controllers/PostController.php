@@ -96,7 +96,11 @@ class PostController extends Controller
             // Filter muted keywords
             ->when(!empty($mutedKeywords), function ($q) use ($mutedKeywords) {
                 foreach ($mutedKeywords as $keyword) {
-                    $q->where('content', 'NOT LIKE', "%{$keyword}%");
+                    $q->where(function ($visible) use ($keyword) {
+                        // NULL content means photo/video-only, not a muted match.
+                        $visible->whereNull('content')
+                            ->orWhere('content', 'NOT LIKE', "%{$keyword}%");
+                    });
                 }
             })
             ->withCount(['comments', 'reactions', 'bookmarks', 'reposts'])

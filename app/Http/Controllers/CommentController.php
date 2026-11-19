@@ -29,11 +29,24 @@ class CommentController extends Controller
                 ->pluck('users.id')->toArray();
         }
 
+        // Apply the same visibility rule to every reply depth. Filtering only
+        // root comments leaked restricted commenters through nested replies.
+        $visibleReplies = function ($query) use ($post, $restrictedByAuthor, $user) {
+            $query->where('post_id', $post->id)
+                ->where(function ($q) use ($restrictedByAuthor, $user) {
+                    $q->whereNotIn('user_id', $restrictedByAuthor)
+                      ->orWhere('user_id', $user->id);
+                });
+        };
+
         $comments = $post->comments()
             ->with([
                 'user:id,name,username,profile_picture',
+                'replies' => $visibleReplies,
                 'replies.user:id,name,username,profile_picture',
+                'replies.replies' => $visibleReplies,
                 'replies.replies.user:id,name,username,profile_picture',
+                'replies.replies.replies' => $visibleReplies,
                 'replies.replies.replies.user:id,name,username,profile_picture',
             ])
             ->whereNull('parent_id')

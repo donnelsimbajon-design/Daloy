@@ -208,4 +208,27 @@ class SocialFlowIntegrityTest extends TestCase
         ]);
     }
 
+    public function test_restricted_commenter_replies_are_not_leaked_to_other_users(): void
+    {
+        $owner = User::factory()->create();
+        $restricted = User::factory()->create();
+        $viewer = User::factory()->create();
+        $owner->restrictedUsers()->attach($restricted->id);
+
+        $post = Post::create(['user_id' => $owner->id, 'content' => 'Public post', 'visibility' => 'public']);
+        $parent = Comment::create([
+            'post_id' => $post->id, 'user_id' => $owner->id, 'content' => 'Visible parent',
+        ]);
+        Comment::create([
+            'post_id' => $post->id, 'user_id' => $restricted->id,
+            'parent_id' => $parent->id, 'content' => 'Hidden nested reply',
+        ]);
+
+        $response = $this->actingAs($viewer)->getJson("/posts/{$post->id}/comments");
+        $response->assertOk();
+        $visibleParent = collect($response->json('data'))->firstWhere('id', $parent->id);
+        $this->assertNotNull($visibleParent);
+        $this->assertEmpty($visibleParent['replies']);
+    }
+
 }
