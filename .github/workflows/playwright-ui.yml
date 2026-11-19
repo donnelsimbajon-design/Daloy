@@ -31,6 +31,8 @@ jobs:
           cache: npm
       - name: Install app dependencies
         run: npm ci
+      - name: Build frontend (catch Vite and JSX regressions)
+        run: npm run build
       - name: Install Playwright test runner (no lockfile mutation)
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1
       - name: Install Chromium
