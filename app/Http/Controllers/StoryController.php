@@ -47,6 +47,7 @@ class StoryController extends Controller
                       });
             })
             ->latest()
+            ->limit(200) // Keep story payloads bounded as student usage grows.
             ->get();
 
         $formatted = $stories->map(function ($story) use ($user) {

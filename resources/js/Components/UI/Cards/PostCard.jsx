@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
+import SafeMediaImage from '@/Components/UI/SafeMediaImage';
 import PostActions from '@/Components/Features/Posts/PostActions';
 import CommentsSection from '@/Components/Features/Comments/CommentsSection';
 import ShareModal from '@/Components/Features/Messaging/ShareModal';
@@ -408,9 +409,9 @@ export default function PostCard({ post }) {
                                         muted
                                     />
                                 ) : (
-                                    <img
+                                    <SafeMediaImage
                                         src={media.url}
-                                        alt="Post media"
+                                        alt="Post photo"
                                         className={`w-full h-full object-cover cursor-pointer ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
                                         onClick={() => setLightboxIndex(index)}
                                     />
@@ -476,7 +477,8 @@ export default function PostCard({ post }) {
                     )}
 
                     {/* Image */}
-                    <img
+                    <SafeMediaImage
+                        key={mediaItems[lightboxIndex].url}
                         src={mediaItems[lightboxIndex].url}
                         alt={`Image ${lightboxIndex + 1}`}
                         className="max-w-[95vw] max-h-[90vh] sm:max-w-[85vw] sm:max-h-[85vh] object-contain rounded-xl select-none"
@@ -495,7 +497,7 @@ export default function PostCard({ post }) {
             {mediaItems.length === 0 && post.media_urls && post.media_urls.length > 0 && (
                 <div className="px-4 pb-3">
                     <div className="rounded-[16px] overflow-hidden border border-ocean-divider relative shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <img
+                        <SafeMediaImage
                             src={post.media_urls[0]}
                             alt="Post media"
                             className="w-full h-40 sm:h-56 object-cover group-hover:scale-[1.02] transition-transform duration-500"

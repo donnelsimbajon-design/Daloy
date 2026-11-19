@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePage } from '@inertiajs/react';
 import axios from 'axios';
+import SafeMediaImage from '@/Components/UI/SafeMediaImage';
 
 
 export default function StoryRail({ horizontal = false, hidden = false, forcedStoryUserId = null, onCloseForced = null }) {
@@ -379,7 +380,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
 
                     {/* Header - only for vertical */}
                     {!horizontal && (
-                        <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Story</h3>
+                        <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Stories</h3>
                     )}
 
                     {/* Scroll Up Button - Vertical only */}
@@ -448,7 +449,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                                 firstStory.type === 'video' ? (
                                                     <video src={firstStory.image} className="w-full h-full object-cover bg-black" muted playsInline />
                                                 ) : (
-                                                    <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                                    <SafeMediaImage src={firstStory.image} alt="Story thumbnail" className="w-full h-full object-cover" fallbackText="No photo" fallbackHelp="" />
                                                 )
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
@@ -620,9 +621,11 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                     onEnded={handleNextStory}
                                 />
                             ) : selectedStory.image ? (
-                                <img
+                                <SafeMediaImage
+                                    key={selectedStory.id}
                                     src={selectedStory.image}
-                                    alt="Story content"
+                                    alt="Story photo"
+                                    loading="eager"
                                     className="w-full h-full object-contain md:object-cover"
                                 />
                             ) : (
