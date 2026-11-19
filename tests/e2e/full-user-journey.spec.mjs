@@ -181,6 +181,16 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   expect(fetched.status(), 'Uploaded image returned 404: public storage symlink may be missing').toBe(200);
   expect(fetched.headers()['content-type'] || '').toMatch(/image\/png|image\//);
 
+  // A missing or expired file should present a readable fallback rather than
+  // a broken image icon. Intercept only this disposable test post's image.
+  await page.route('**/storage/posts/' + post.id + '/**', route =>
+    route.fulfill({ status: 403, contentType: 'text/plain', body: 'Unavailable' })
+  );
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  const unavailableCard = page.locator('.daloy-post-card[data-post-id="' + post.id + '"]');
+  await expect(unavailableCard.getByTestId('media-unavailable')).toContainText('Photo unavailable');
+  await page.unroute('**/storage/posts/' + post.id + '/**');
+
   // Drive the same Inertia delete flow the user sees instead of Axios
   // (a raw Axios DELETE follows Laravel's redirect differently).
   const card = page.locator('.daloy-post-card[data-post-id="' + post.id + '"]');
