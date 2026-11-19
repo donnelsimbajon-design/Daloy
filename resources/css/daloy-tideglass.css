@@ -256,3 +256,13 @@
 @media (prefers-reduced-motion: reduce) {
   .daloy-post-card .daloy-post-action:active { transform: none; }
 }
+
+/* Portals render under body, outside the member-app shell. Keep their icons
+   monochrome without filtering images/video uploaded by students. */
+body button svg, body nav svg, body [role="dialog"] svg {
+  filter: grayscale(1);
+}
+.daloy-app-shell :is(button, a)[class*="bg-biolum"],
+.daloy-profile :is(button, a)[class*="bg-biolum"] {
+  color: var(--color-biolum-foreground);
+}

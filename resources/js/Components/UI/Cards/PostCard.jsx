@@ -342,7 +342,7 @@ export default function PostCard({ post }) {
                             </button>
                             <button
                                 onClick={handleUpdate}
-                                className="px-4 py-1.5 text-xs font-bold text-ocean-text bg-biolum rounded-lg transition-all"
+                                className="px-4 py-1.5 text-xs font-bold text-biolum-foreground bg-biolum rounded-lg transition-all"
                             >
                                 Save
                             </button>

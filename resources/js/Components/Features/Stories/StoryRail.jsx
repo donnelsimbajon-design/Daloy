@@ -780,7 +780,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                         {replyText.trim() && (
                                             <button
                                                 type="submit"
-                                                className="w-10 h-10 rounded-full bg-biolum text-white flex items-center justify-center shrink-0 hover:bg-biolum-bright transition-colors shadow-lg"
+                                                className="w-10 h-10 rounded-full bg-biolum text-biolum-foreground flex items-center justify-center shrink-0 hover:bg-biolum-bright transition-colors shadow-lg"
                                                 onClick={e => e.stopPropagation()}
                                             >
                                                 <svg className="w-[18px] h-[18px] ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -948,7 +948,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                             <button onClick={cancelUpload} className="px-6 py-2.5 rounded-full border border-ocean-divider-subtle bg-ocean-card text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text focus:outline-none font-semibold text-sm transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                                 Discard
                             </button>
-                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-full bg-biolum text-white hover:bg-biolum-bright focus:outline-none font-bold text-sm transition-all shadow-[0_1px_4px_rgba(25,25,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed text-center tracking-wide">
+                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-full bg-biolum text-biolum-foreground hover:bg-biolum-bright focus:outline-none font-bold text-sm transition-all shadow-[0_1px_4px_rgba(25,25,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed text-center tracking-wide">
                                 {uploading ? 'Sharing...' : 'Share to story'}
                             </button>
                         </div>
