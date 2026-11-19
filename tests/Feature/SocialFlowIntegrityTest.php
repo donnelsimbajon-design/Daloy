@@ -134,4 +134,78 @@ class SocialFlowIntegrityTest extends TestCase
             'user_id' => $user->id,
         ])->assertUnprocessable();
     }
+    public function test_delete_for_me_only_hides_message_for_that_participant(): void
+    {
+        $admin = User::factory()->create();
+        $member = User::factory()->create();
+        $outsider = User::factory()->create();
+        $conversation = $this->conversation($admin, $member);
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'user_id' => $admin->id,
+            'content' => 'Shared with both users',
+        ]);
+
+        $this->actingAs($outsider)->deleteJson("/api/messages/{$message->id}", [
+            'scope' => 'me',
+        ])->assertForbidden();
+
+        $this->actingAs($member)->deleteJson("/api/messages/{$message->id}", [
+            'scope' => 'me',
+        ])->assertOk()->assertJsonPath('scope', 'me');
+
+        $this->assertDatabaseHas('message_hides', [
+            'user_id' => $member->id, 'message_id' => $message->id,
+        ]);
+        $this->assertDatabaseHas('messages', ['id' => $message->id, 'content' => 'Shared with both users']);
+
+        $hidden = $this->actingAs($member)->getJson("/api/messages/{$conversation->id}");
+        $hidden->assertOk();
+        $this->assertNotContains($message->id, array_column($hidden->json('data'), 'id'));
+
+        $visible = $this->actingAs($admin)->getJson("/api/messages/{$conversation->id}");
+        $visible->assertOk();
+        $this->assertContains($message->id, array_column($visible->json('data'), 'id'));
+    }
+
+    public function test_only_sender_can_remove_a_message_for_everyone(): void
+    {
+        $admin = User::factory()->create();
+        $member = User::factory()->create();
+        $conversation = $this->conversation($admin, $member);
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'user_id' => $admin->id,
+            'content' => 'Original private message',
+        ]);
+
+        $this->actingAs($member)->deleteJson("/api/messages/{$message->id}", [
+            'scope' => 'everyone',
+        ])->assertForbidden();
+
+        $this->actingAs($admin)->deleteJson("/api/messages/{$message->id}", [
+            'scope' => 'everyone',
+        ])->assertOk();
+        $view = $this->actingAs($member)->getJson("/api/messages/{$conversation->id}");
+        $view->assertOk();
+        $deleted = collect($view->json('data'))->firstWhere('id', $message->id);
+        $this->assertNotNull($deleted);
+        $this->assertNull($deleted['content']);
+        $this->assertTrue($deleted['is_deleted']);
+    }
+
+    public function test_regular_user_cannot_publish_an_announcement(): void
+    {
+        $student = User::factory()->create();
+        $this->actingAs($student)->postJson('/posts', [
+            'content' => 'Pretend official update',
+            'visibility' => 'public',
+            'is_announcement' => true,
+        ])->assertForbidden();
+        $this->assertDatabaseMissing('posts', [
+            'user_id' => $student->id,
+            'content' => 'Pretend official update',
+        ]);
+    }
+
 }

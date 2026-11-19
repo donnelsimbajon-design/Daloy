@@ -18,6 +18,16 @@ use Illuminate\Support\Facades\DB;
 
 class MessagingController extends Controller
 {
+    // Message hides are per-viewer: deleting for yourself must never remove
+    // the message for the sender or other conversation participants.
+    private function visibleMessages(Conversation $conversation, User $viewer)
+    {
+        return $conversation->messages()
+            ->whereNotIn('messages.id', function ($query) use ($viewer) {
+                $query->select('message_id')->from('message_hides')->where('user_id', $viewer->id);
+            });
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -30,7 +40,12 @@ class MessagingController extends Controller
         $restrictedMeIds = $user->restrictedBy()->pluck('users.id')->toArray();
 
         $conversations = $user->conversations()
-            ->with(['participants:id,name,username,profile_picture', 'latestMessage'])
+            ->with([
+                'participants:id,name,username,profile_picture',
+                'latestMessage' => fn ($q) => $q->whereNotIn('messages.id', function ($hidden) use ($user) {
+                    $hidden->select('message_id')->from('message_hides')->where('user_id', $user->id);
+                }),
+            ])
             ->whereDoesntHave('participants', function ($q) use ($user, $allBlockedIds) {
                 $q->where('user_id', '!=', $user->id)
                   ->whereIn('user_id', $allBlockedIds);
@@ -45,7 +60,11 @@ class MessagingController extends Controller
 
         // Add unread count per conversation
         $conversations->transform(function ($convo) use ($user) {
-            $convo->unread_count = $convo->messages()
+            if ($convo->latestMessage?->deleted_for_everyone_at) {
+                $convo->latestMessage->content = 'Message deleted';
+                $convo->latestMessage->media_url = null;
+            }
+            $convo->unread_count = $this->visibleMessages($convo, $user)
                 ->where('user_id', '!=', $user->id)
                 ->whereNull('read_at')
                 ->count();
@@ -125,7 +144,7 @@ class MessagingController extends Controller
             }
         }
 
-        if ($request->filled('reply_to_id') && !$conversation->messages()
+        if ($request->filled('reply_to_id') && !$this->visibleMessages($conversation, $user)
             ->whereKey($request->integer('reply_to_id'))
             ->whereNull('deleted_for_everyone_at')->exists()) {
             return response()->json(['message' => 'That message is not part of this conversation.'], 422);
@@ -167,7 +186,7 @@ class MessagingController extends Controller
         }
 
         // Mark messages as read
-        $conversation->messages()
+        $this->visibleMessages($conversation, $user)
             ->where('user_id', '!=', $user->id)
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
@@ -175,7 +194,7 @@ class MessagingController extends Controller
         // Update last_read_at on pivot
         $conversation->participants()->updateExistingPivot($user->id, ['last_read_at' => now()]);
 
-        $messages = $conversation->messages()
+        $messages = $this->visibleMessages($conversation, $user)
             ->with([
                 'user:id,name,username,profile_picture',
                 'replyTo:id,content,user_id',
@@ -255,20 +274,27 @@ class MessagingController extends Controller
     public function deleteMessage(Request $request, Message $message): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($message->conversation->participants()->where('user_id', $user->id)->exists(), 403);
 
-        if ($message->user_id !== $user->id) {
-            return response()->json(['message' => 'Unauthorized.'], 403);
-        }
-
-        $scope = $request->input('scope', 'me');
+        $validated = $request->validate(['scope' => 'nullable|in:me,everyone']);
+        $scope = $validated['scope'] ?? 'me';
 
         if ($scope === 'everyone') {
-            $message->update(['deleted_for_everyone_at' => now()]);
+            // Only the sender can remove a message for all recipients.
+            abort_unless($message->user_id === $user->id, 403);
+            if (!$message->deleted_for_everyone_at) {
+                $message->update(['deleted_for_everyone_at' => now()]);
+            }
         } else {
-            $message->delete(); // soft delete for me
+            DB::table('message_hides')->insertOrIgnore([
+                'message_id' => $message->id,
+                'user_id' => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
-        return response()->json(['deleted' => true]);
+        return response()->json(['deleted' => true, 'scope' => $scope]);
     }
 
     /**
@@ -353,6 +379,7 @@ class MessagingController extends Controller
 
         $validMemberIds = collect($request->member_ids)
             ->filter(fn($id) => $id != $user->id && !in_array($id, $allBlockedIds))
+            ->unique()
             ->values()
             ->toArray();
 
@@ -484,7 +511,7 @@ class MessagingController extends Controller
 
         $q = $request->input('q', '');
 
-        $messages = $conversation->messages()
+        $messages = $this->visibleMessages($conversation, $user)
             ->with('user:id,name,username,profile_picture')
             ->where('content', 'LIKE', "%{$q}%")
             ->whereNull('deleted_for_everyone_at')
@@ -506,7 +533,7 @@ class MessagingController extends Controller
             return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $media = $conversation->messages()
+        $media = $this->visibleMessages($conversation, $user)
             ->whereNotNull('media_url')
             ->whereNull('deleted_for_everyone_at')
             ->latest()
@@ -573,6 +600,12 @@ class MessagingController extends Controller
         $participant = $conversation->participants()->where('user_id', $user->id)->first();
         if (!$participant) {
             return response()->json(['message' => 'You are not in this group.'], 403);
+        }
+
+        // Do not strand a group without an administrator.
+        if ($participant->pivot->role === 'admin' &&
+            !$conversation->admins()->where('users.id', '!=', $user->id)->exists()) {
+            return response()->json(['message' => 'Transfer admin status or disband the group before leaving.'], 422);
         }
 
         // Generate system message before leaving
@@ -642,6 +675,12 @@ class MessagingController extends Controller
         $targetUser = User::find($targetId);
 
         if (!$targetUser) return response()->json(['error' => 'User not found'], 404);
+        if ($targetUser->id === $user->id || $targetUser->isBlockedWith($user)) {
+            return response()->json(['error' => 'This user cannot be invited.'], 422);
+        }
+        if ($conversation->participants()->count() >= ($conversation->max_members ?? 11)) {
+            return response()->json(['error' => 'Group is full.'], 422);
+        }
 
         if ($conversation->participants()->where('user_id', $targetId)->exists()) {
             return response()->json(['error' => 'User is already in group'], 400);

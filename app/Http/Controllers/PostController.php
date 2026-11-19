@@ -272,6 +272,18 @@ class PostController extends Controller
             $validated['repost_of_id'] = $source->id;
         }
 
+        // Group posts must belong to a School the author has actually joined.
+        // Otherwise any user could inject a post into someone else's community.
+        if (!empty($validated['school_id'])) {
+            abort_unless($request->user()->schools()
+                ->where('schools.id', $validated['school_id'])->exists(), 403);
+        }
+
+        // Ordinary members must not impersonate an official announcement.
+        if (($validated['is_announcement'] ?? false) && !$request->user()->isAdmin()) {
+            abort(403, 'Only administrators may publish announcements.');
+        }
+
         // Require at least content, media, poll, or repost
         if (empty($validated['content']) && empty($request->file('media'))
             && empty($validated['poll_question']) && empty($validated['repost_of_id'])) {
