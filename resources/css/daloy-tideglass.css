@@ -132,7 +132,24 @@
 .daloy-landing #features .group:hover { background:rgba(255,255,255,.055); }
 .daloy-capabilities { background:#09090b; border-block:1px solid rgba(255,255,255,.11); }
 .daloy-capabilities strong { color:#fff; }
-@media (max-width:1023px) { .daloy-landing-preview { display:none; } }
+/* Below-hero editorial preview: centered, readable, and shown on every device. */
+.daloy-preview-section { background: #000; }
+.daloy-preview-section .daloy-landing-preview {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  transform: none;
+  box-sizing: border-box;
+}
+.daloy-preview-section .daloy-preview-window { width: 100%; }
+@media (max-width: 640px) {
+  .daloy-preview-section .daloy-landing-preview { padding: 8px; border-radius: 22px; }
+  .daloy-preview-section .daloy-preview-window { border-radius: 15px; }
+  .daloy-preview-section .daloy-preview-row { padding: 13px 14px; }
+  .daloy-preview-section .daloy-preview-window-header { padding: 11px 14px; }
+}
+@media (max-width: 370px) {
+  .daloy-preview-section .daloy-preview-row .grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width:640px) {
   .daloy-feed-header { padding:20px; border-radius:20px; }
   .daloy-composer > div:last-child > button { font-size:11px; gap:4px; padding-inline:4px; }
