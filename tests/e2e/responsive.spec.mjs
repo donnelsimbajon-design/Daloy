@@ -39,6 +39,21 @@ async function auditLayout(page, label, testInfo) {
     expect(overflow.documentWidth, JSON.stringify(overflow))
         .toBeLessThanOrEqual(overflow.viewport + 4);
 
+    // Full-page screenshots don't scroll the browser, so IntersectionObserver
+    // reveal sections must be visited first or the screenshots appear blank.
+    if (label === 'landing') {
+        await page.evaluate(async () => {
+            const height = document.documentElement.scrollHeight;
+            const step = Math.max(360, Math.floor(window.innerHeight * 0.75));
+            for (let y = 0; y < height; y += step) {
+                window.scrollTo(0, y);
+                await new Promise(resolve => setTimeout(resolve, 55));
+            }
+            window.scrollTo(0, 0);
+        });
+        await page.waitForTimeout(250);
+    }
+
     await testInfo.attach(`${label}-${testInfo.project.name}`, {
         body: await page.screenshot({ fullPage: true, animations: 'disabled' }),
         contentType: 'image/png',
@@ -64,6 +79,20 @@ test('mobile landing navigation opens and closes', async ({ page }, testInfo) =>
     await expect(page.locator('#landing-mobile-menu')).toBeVisible();
     await page.getByRole('button', { name: 'Close menu' }).click();
     await expect(page.locator('#landing-mobile-menu')).toHaveCount(0);
+});
+
+test('admin login access-code toggle is usable on mobile', async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile-only control');
+    await page.goto('/admin/login', { waitUntil: 'domcontentloaded' });
+    const accessCode = page.getByLabel('Access Code');
+    const toggle = page.getByRole('button', { name: 'Show access code' });
+    await expect(accessCode).toBeVisible();
+    await expect(toggle).toBeVisible();
+    await toggle.click();
+    await expect(accessCode).toHaveAttribute('type', 'text');
+    await page.getByRole('button', { name: 'Hide access code' }).click();
+    await expect(accessCode).toHaveAttribute('type', 'password');
+    await auditLayout(page, 'admin-access-code', testInfo);
 });
 
 test('public auth pages have usable form fields on small phones', async ({ page }, testInfo) => {
