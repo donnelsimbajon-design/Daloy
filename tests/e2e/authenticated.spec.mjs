@@ -91,6 +91,27 @@ test('staging: logged-in journeys remain responsive across core pages', async ({
         const response = await page.goto(path, { waitUntil: 'domcontentloaded' });
         expect(response?.status(), `HTTP failure for ${path}`).toBeLessThan(400);
         await expect(page.locator('body')).toBeVisible();
+        if (name === 'feed' && ['mobile-320', 'tablet-768'].includes(testInfo.project.name)) {
+            const launcher = page.getByRole('button', { name: 'Open quick actions' });
+            await expect(launcher).toBeVisible();
+            const metrics = await launcher.evaluate(element => {
+                const rect = element.getBoundingClientRect();
+                return {
+                    top: rect.top,
+                    bottomGap: window.innerHeight - rect.bottom,
+                    rightGap: window.innerWidth - rect.right,
+                    height: rect.height,
+                };
+            });
+            expect(metrics.bottomGap, 'Quick actions should be anchored near the screen bottom').toBeGreaterThanOrEqual(8);
+            expect(metrics.bottomGap, 'Quick actions should be aligned above the safe-area inset').toBeLessThan(72);
+            expect(metrics.rightGap, 'Quick actions should align near the right screen edge').toBeGreaterThanOrEqual(8);
+            expect(metrics.rightGap).toBeLessThan(48);
+            await launcher.click();
+            await expect(page.getByRole('button', { name: 'Close quick actions' })).toHaveAttribute('aria-expanded', 'true');
+            await expect(page.locator('button[title="Messages"]').first()).toBeVisible();
+            await page.getByRole('button', { name: 'Close quick actions' }).click();
+        }
         if (name === 'conversations') {
             // Wait for the conversation list to replace its initial spinner.
             await expect(page.getByText('No conversations yet.')).toBeVisible({ timeout: 20000 });
