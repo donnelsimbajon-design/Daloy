@@ -31,7 +31,11 @@ class StoryController extends Controller
 
         $closeFriendOfIds = $user->closeFriendOf()->pluck('users.id');
 
-        $stories = Story::with(['user:id,name,username,profile_picture', 'reactions'])
+        $stories = Story::with(['user:id,name,username,profile_picture'])
+            ->withCount('views')
+            ->withExists(['reactions as liked_by_viewer' => fn ($q) =>
+                $q->where('user_id', $user->id)->where('type', 'like')
+            ])
             ->where('expires_at', '>', now())
             ->whereNull('archived_at')
             ->whereIn('user_id', $eligibleUserIds)
@@ -58,15 +62,17 @@ class StoryController extends Controller
             );
 
             $isOwner   = $story->user_id === $user->id;
-            $viewCount = $isOwner ? StoryView::where('story_id', $story->id)->count() : null;
-            $liked     = $story->reactions->where('user_id', $user->id)->where('type', 'like')->isNotEmpty();
+            $viewCount = $isOwner ? $story->views_count : null;
+            $liked     = (bool) $story->liked_by_viewer;
+            $image     = $this->accessibleStoryImage($story->media_url);
 
             return [
                 'id'         => $story->id,
                 'user'       => $story->user,
                 'time'       => $timeAgo . ' ago',
                 'content'    => $story->content,
-                'image'      => $story->media_url,
+                'image'      => $image,
+                'media_unavailable' => $story->type !== 'text' && (bool) $story->media_url && !$image,
                 'type'       => $story->type,
                 'is_owner'   => $isOwner,
                 'view_count' => $viewCount,
@@ -75,6 +81,31 @@ class StoryController extends Controller
         });
 
         return response()->json($formatted);
+    }
+
+    /**
+     * Do not send old broken /storage/stories URLs to browsers.
+     * Files created by earlier deployments may have been stored on the
+     * private disk or lost when Render's ephemeral instance restarted.
+     */
+    private function accessibleStoryImage(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $prefix = '/storage/stories/';
+        if (!str_starts_with($path, $prefix)) {
+            return $url;
+        }
+
+        $file = substr($path, strlen('/storage/'));
+        if (!$file || str_contains($file, '..')) {
+            return null;
+        }
+
+        return Storage::disk('public')->exists($file) ? $url : null;
     }
 
     public function store(Request $request)
@@ -387,7 +418,7 @@ class StoryController extends Controller
                     'id'          => $story->id,
                     'user'        => $story->user,
                     'content'     => $story->content,
-                    'image'       => $story->media_url,
+                    'image'       => $this->accessibleStoryImage($story->media_url),
                     'type'        => $story->type,
                     'created_at'  => $story->created_at->toISOString(),
                     'archived_at' => $story->archived_at->toISOString(),
