@@ -22,6 +22,13 @@ export default function PostCard({ post }) {
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [showComments, setShowComments] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [isBookmarked, setIsBookmarked] = useState(Boolean(post.is_bookmarked));
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('spam');
+    const [reportDetails, setReportDetails] = useState('');
+    const [reportBusy, setReportBusy] = useState(false);
+    const [reportSubmitted, setReportSubmitted] = useState(false);
+    const [reportError, setReportError] = useState('');
     const [lightboxIndex, setLightboxIndex] = useState(null);
 
     // Poll state
@@ -125,6 +132,34 @@ export default function PostCard({ post }) {
         });
     };
 
+    const toggleBookmark = async () => {
+        setShowMenu(false);
+        try {
+            const response = await axios.post(`/posts/${post.id}/bookmark`);
+            setIsBookmarked(Boolean(response.data.bookmarked));
+        } catch (error) {
+            console.error('Could not update bookmark:', error);
+            window.alert('Unable to save this post. Please try again.');
+        }
+    };
+
+    const submitReport = async (event) => {
+        event.preventDefault();
+        setReportBusy(true);
+        setReportError('');
+        try {
+            await axios.post(`/posts/${post.id}/report`, {
+                reason: reportReason,
+                details: reportDetails,
+            });
+            setReportSubmitted(true);
+        } catch (error) {
+            setReportError(error.response?.data?.message || 'Unable to submit your report. Please try again.');
+        } finally {
+            setReportBusy(false);
+        }
+    };
+
     // Build display data
     const author = post.user || {};
     const initials = author.name
@@ -219,8 +254,18 @@ export default function PostCard({ post }) {
                                     </button>
                                 </>
                             )}
+                            <button
+                                type="button"
+                                onClick={toggleBookmark}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5A2.25 2.25 0 0 1 7.5 2.25h9A2.25 2.25 0 0 1 18.75 4.5V21l-6.75-4.5L5.25 21V4.5Z" />
+                                </svg>
+                                {isBookmarked ? 'Remove bookmark' : 'Save post'}
+                            </button>
                             {!isOwner && (
-                                <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors">
+                                <button type="button" onClick={() => { setShowMenu(false); setReportError(''); setShowReportModal(true); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
                                     </svg>
@@ -536,6 +581,42 @@ export default function PostCard({ post }) {
                     `}</style>
                 </div>
             , document.body)}
+
+            {/* A real report form, linked to the moderation system. */}
+            {showReportModal && createPortal(
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 px-4 py-6" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowReportModal(false); }}>
+                    <div role="dialog" aria-modal="true" aria-label="Report post" className="w-full max-w-md rounded-2xl border border-ocean-border bg-ocean-card p-5 sm:p-6 shadow-2xl text-ocean-text" onKeyDown={(e) => { if (e.key === 'Escape') setShowReportModal(false); }}>
+                        <h3 className="text-lg font-bold mb-2">Report post</h3>
+                        {reportSubmitted ? (
+                            <div>
+                                <p role="status" className="text-sm text-ocean-text-muted mb-5">Report submitted. A moderator will review it.</p>
+                                <button type="button" onClick={() => setShowReportModal(false)} className="w-full rounded-xl bg-ocean-text text-ocean-deep px-4 py-3 font-semibold">Done</button>
+                            </div>
+                        ) : (
+                            <form onSubmit={submitReport} className="space-y-4">
+                                <p className="text-sm text-ocean-text-muted">Tell us why this post needs review.</p>
+                                <label className="block text-sm font-semibold" htmlFor={`report-reason-${post.id}`}>Reason</label>
+                                <select id={`report-reason-${post.id}`} value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full rounded-xl bg-ocean-surface border border-ocean-border p-3 text-ocean-text">
+                                    <option value="spam">Spam</option>
+                                    <option value="harassment">Harassment</option>
+                                    <option value="inappropriate">Inappropriate content</option>
+                                    <option value="hate_speech">Hate speech</option>
+                                    <option value="threats">Threats</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <label htmlFor={`report-details-${post.id}`} className="block text-sm font-semibold">Additional details (optional)</label>
+                                <textarea id={`report-details-${post.id}`} value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} maxLength={1000} rows={3} className="w-full rounded-xl bg-ocean-surface border border-ocean-border p-3 text-ocean-text" placeholder="Describe the problem..." />
+                                {reportError && <p role="alert" className="text-sm text-ocean-text">{reportError}</p>}
+                                <div className="flex gap-3">
+                                    <button type="button" onClick={() => setShowReportModal(false)} className="flex-1 rounded-xl border border-ocean-border px-4 py-3 font-semibold">Cancel</button>
+                                    <button type="submit" disabled={reportBusy} className="flex-1 rounded-xl bg-ocean-text text-ocean-deep px-4 py-3 font-semibold disabled:opacity-50">{reportBusy ? 'Submitting...' : 'Submit report'}</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Footer */}
             <div className="px-3 sm:px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
