@@ -15,8 +15,8 @@ export default function PostActions({
     repostsCount = 0,
     onShareClick,
 }) {
-    const common = 'daloy-post-action flex min-w-0 min-h-[46px] items-center justify-center gap-1 sm:gap-2 rounded-xl px-1 sm:px-2 py-2.5 text-[11px] sm:text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2';
-    const active = 'daloy-post-action-active bg-ocean-surface text-ocean-text';
+    const common = 'daloy-post-action flex min-w-0 min-h-[46px] items-center justify-center gap-1 sm:gap-2 rounded-full px-1 sm:px-2 py-2.5 text-[11px] sm:text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2';
+    const active = 'daloy-post-action-active text-ocean-text';
     const inactive = 'text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text';
 
     return (

@@ -179,8 +179,8 @@
 }
 .daloy-post-card .daloy-post-action-active,
 .daloy-post-card .daloy-post-action[aria-pressed="true"] {
-  background: var(--color-ocean-surface);
-  border-color: var(--color-ocean-border);
+  background: transparent;
+  border-color: transparent;
   color: var(--color-ocean-text);
 }
 .daloy-post-card .daloy-post-action:active { transform: scale(.98); }
