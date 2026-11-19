@@ -42,7 +42,7 @@ export default function Register() {
 
                 {/* Register Card */}
                 <div className="relative z-10 w-full max-w-md">
-                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8>
+                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8">
                         <h2 className="text-xl font-bold text-ocean-text mb-1">Create your account</h2>
                         <p className="text-sm text-ocean-text-dim mb-6">Start your voyage through the deep</p>
 
