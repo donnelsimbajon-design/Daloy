@@ -172,6 +172,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={handleClose}
+                                aria-label="Close post composer"
                                 className="p-2 -ml-2 rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -384,6 +385,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 <button
                                     type="button"
                                     onClick={() => fileInputRef.current?.click()}
+                                    aria-label="Add photo or video"
                                     disabled={data.media.length >= 4}
                                     className="p-2.5 rounded-full hover:bg-biolum/10 transition-colors disabled:opacity-30 tooltip-trigger relative group"
                                 >
@@ -416,6 +418,8 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 <button
                                     type="button"
                                     onClick={() => setShowPollBuilder(!showPollBuilder)}
+                                    aria-label="Add poll"
+                                    aria-expanded={showPollBuilder}
                                     className={`p-2.5 rounded-full transition-colors ${showPollBuilder ? 'bg-biolum/10' : 'hover:bg-biolum/10'}`}
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
