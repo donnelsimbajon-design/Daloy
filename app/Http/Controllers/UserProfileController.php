@@ -114,7 +114,7 @@ class UserProfileController extends Controller
             }
             $posts = $postsQuery
                 ->with(['user', 'media', 'reactions', 'poll.options', 'repostOf.user:id,name,username,profile_picture', 'repostOf.media'])
-                ->withCount('reactions', 'comments')
+                ->withCount(['reactions', 'comments', 'reposts'])
                 ->withExists(['reposts as is_reposted' => fn ($query) => $query->where('user_id', $authUser->id)])
                 ->orderByDesc('is_pinned')
                 ->latest()

@@ -99,7 +99,7 @@ class PostController extends Controller
                     $q->where('content', 'NOT LIKE', "%{$keyword}%");
                 }
             })
-            ->withCount(['comments', 'reactions', 'bookmarks'])
+            ->withCount(['comments', 'reactions', 'bookmarks', 'reposts'])
             ->withExists(['reposts as is_reposted' => fn ($q) => $q->where('user_id', $user->id)])
             ->withExists(['bookmarks as is_bookmarked' => function ($q) {
                 $q->where('user_id', Auth::id());
@@ -170,7 +170,7 @@ class PostController extends Controller
             'repostOf.user:id,name,username,profile_picture',
             'repostOf.media',
         ]);
-        $post->loadCount(['comments', 'reactions', 'bookmarks']);
+        $post->loadCount(['comments', 'reactions', 'bookmarks', 'reposts']);
 
         $userId = Auth::id();
         $userReaction = $post->reactions()->where('user_id', $userId)->first();

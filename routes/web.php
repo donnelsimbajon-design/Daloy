@@ -173,19 +173,19 @@ Route::middleware('auth')->group(function () {
 
     // Posts
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
-    Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
+    Route::post('/posts', [PostController::class, 'store'])->middleware('throttle:20,1')->name('posts.store');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::post('/posts/{post}/pin', [PostController::class, 'pin'])->name('posts.pin');
     Route::post('/posts/{post}/report', [PostController::class, 'report'])->name('posts.report');
-    Route::post('/posts/{post}/repost', [PostController::class, 'repost'])->name('posts.repost');
+    Route::post('/posts/{post}/repost', [PostController::class, 'repost'])->middleware('throttle:30,1')->name('posts.repost');
 
     // Reactions (updated for multi-type)
     Route::post('/posts/{post}/react', [ReactionController::class, 'toggle'])->name('posts.react');
     Route::post('/posts/{post}/like', [ReactionController::class, 'toggle'])->name('posts.like'); // Legacy compat
 
     // Polls
-    Route::post('/polls/{poll}/vote', [PollController::class, 'vote'])->name('polls.vote');
+    Route::post('/polls/{poll}/vote', [PollController::class, 'vote'])->middleware('throttle:60,1')->name('polls.vote');
 
     // Comments
     Route::get('/posts/{post}/comments', [CommentController::class, 'index'])->name('posts.comments.index');
