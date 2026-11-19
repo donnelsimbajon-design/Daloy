@@ -57,7 +57,7 @@ async function submitPost(page, content) {
   await page.getByPlaceholder("What's flowing through your mind?").fill(content);
   const [postResponse] = await Promise.all([
     page.waitForResponse(r => new URL(r.url()).pathname === '/posts' && r.request().method() === 'POST', { timeout: 40_000 }),
-    page.locator('#actual-submit-btn').click(),
+    page.getByRole('button', { name: 'Post', exact: true }).click(),
   ]);
   expect(postResponse.status(), 'POST /posts should redirect').toBe(302);
   await expect(page.locator('.daloy-post-card').filter({ hasText: content })).toBeVisible({ timeout: 25_000 });
@@ -134,7 +134,7 @@ test('user journey: register → create post → like → comment → edit → s
     page.waitForResponse(r => r.url().endsWith('/posts/' + post.id) && r.request().method() === 'PUT'),
     card.getByRole('button', { name: 'Save', exact: true }).click(),
   ]);
-  expect(editResponse.status()).toBe(302);
+  expect([302, 303], 'Inertia redirect after PUT').toContain(editResponse.status());
   await expect(card).toContainText(edited);
 
   const bookmark = await axiosCall(page, 'post', '/posts/' + post.id + '/bookmark');
@@ -153,7 +153,7 @@ test('user journey: register → create post → like → comment → edit → s
     page.waitForResponse(r => r.url().endsWith('/posts/' + post.id) && r.request().method() === 'DELETE'),
     page.getByRole('button', { name: 'Delete', exact: true }).click(),
   ]);
-  expect(deleteResponse.status()).toBe(302);
+  expect([302, 303], 'Inertia redirect after DELETE').toContain(deleteResponse.status());
   const refreshed = await readProps(page, '/app');
   expect(findPost(refreshed, edited), 'Deleted post should not reappear in feed').toBeFalsy();
   expect(failures, 'Unexpected Laravel HTTP 5xx requests').toEqual([]);
@@ -168,7 +168,7 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   const content = unique('media_text') + ' Image upload validation.';
   await openComposer(page);
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Gh8AAAAASUVORK5CYII=', 'base64');
-  await page.locator('input[type="file"]').setInputFiles({ name: 'staging-only.png', mimeType: 'image/png', buffer: png });
+  await page.getByTestId('post-media-input').setInputFiles({ name: 'staging-only.png', mimeType: 'image/png', buffer: png });
   const post = await submitPost(page, content);
   expect(post.media?.length, 'Stored media record missing').toBeGreaterThan(0);
   const mediaURL = post.media[0].url;
@@ -235,8 +235,8 @@ test('two users: polls, saved permissions, school membership and direct messagin
 
     // Profile route should display the actual user. Write and read profile settings.
     const updatedName = alice.name + ' Updated';
-    const profileUpdate = await axiosCall(page, 'patch', '/settings/profile', {
-      name: updatedName, username: alice.username, email: alice.email, bio: 'Test account biography.',
+    const profileUpdate = await axiosCall(page, 'post', '/settings/profile', {
+      _method: 'PATCH', name: updatedName, username: alice.username, email: alice.email, bio: 'Test account biography.',
     });
     expect(profileUpdate.status, 'Profile update failed').toBe(200);
     const settings = await readProps(page, '/settings');
