@@ -216,9 +216,9 @@ class PostController extends Controller
             // Repost
             'repost_of_id' => 'nullable|integer|exists:posts,id',
             // Poll
-            'poll_question' => 'nullable|string|max:500',
-            'poll_options' => 'nullable|array|min:2|max:4',
-            'poll_options.*' => 'nullable|string|max:200',
+            'poll_question' => 'required_with:poll_options|nullable|string|max:160',
+            'poll_options' => 'required_with:poll_question|nullable|array|min:2|max:4',
+            'poll_options.*' => 'required|string|min:1|max:100',
             'poll_expires_at' => 'nullable|date|after:now',
             // Content Warning
             'has_content_warning' => 'nullable|boolean',
@@ -229,6 +229,26 @@ class PostController extends Controller
             'is_announcement' => 'nullable|boolean',
             'school_id' => 'nullable|integer|exists:schools,id',
         ]);
+
+        // Validate polls as complete, distinct choices before saving anything.
+        if (!empty($validated['poll_options'])) {
+            $choices = array_map(fn ($choice) => trim((string) $choice), $validated['poll_options']);
+            if (count(array_unique(array_map('strtolower', $choices))) !== count($choices)
+                || count(array_filter($choices)) !== count($choices)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'poll_options' => 'Enter 2–4 different, non-empty poll choices.',
+                ]);
+            }
+        }
+
+        // Do not let a repost expose protected posts or private School content.
+        if (!empty($validated['repost_of_id'])) {
+            $source = Post::findOrFail($validated['repost_of_id']);
+            $source = $source->repostOf ?: $source;
+            abort_unless($source && $source->visibility === 'public' && !$source->school_id
+                && $source->isVisibleTo($request->user()), 403);
+            $validated['repost_of_id'] = $source->id;
+        }
 
         // Require at least content, media, poll, or repost
         if (empty($validated['content']) && empty($request->file('media'))
@@ -463,6 +483,65 @@ class PostController extends Controller
         return response()->json([
             'message' => 'Post reported successfully. A moderator will review it.',
         ], 201);
+    }
+
+    /**
+     * One-click repost / undo repost. Reuses the existing repost_of_id column
+     * and soft-deleted record, so a user has one repost per original post.
+     */
+    public function repost(Request $request, Post $post): JsonResponse
+    {
+        $user = $request->user();
+        $source = $post->repostOf ?: $post;
+        abort_unless($source && $source->visibility === 'public' && !$source->school_id
+            && $source->isVisibleTo($user), 403);
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($source, $user) {
+            // Serializes concurrent repost requests for the same source.
+            Post::whereKey($source->id)->lockForUpdate()->firstOrFail();
+            $existing = Post::withTrashed()
+                ->where('user_id', $user->id)
+                ->where('repost_of_id', $source->id)
+                ->first();
+
+            if ($existing && !$existing->trashed()) {
+                $existing->delete();
+                return ['reposted' => false, 'repost_id' => null];
+            }
+
+            if ($existing) {
+                $existing->restore();
+            } else {
+                $existing = Post::create([
+                    'user_id' => $user->id,
+                    'content' => null,
+                    'visibility' => 'public',
+                    'flow_velocity' => 'steady',
+                    'repost_of_id' => $source->id,
+                ]);
+            }
+
+            return ['reposted' => true, 'repost_id' => $existing->id];
+        });
+
+        if ($result['reposted'] && $source->user_id !== $user->id) {
+            Ripple::create([
+                'user_id' => $source->user_id,
+                'sender_id' => $user->id,
+                'type' => 'repost',
+                'notifiable_type' => Post::class,
+                'notifiable_id' => $result['repost_id'],
+                'data' => [
+                    'post_id' => $result['repost_id'],
+                    'original_post_id' => $source->id,
+                    'message' => $user->name.' reposted your post',
+                ],
+            ]);
+        }
+
+        return response()->json($result + [
+            'reposts_count' => $source->reposts()->count(),
+        ]);
     }
 
     private function getReactionCounts(Post $post): array

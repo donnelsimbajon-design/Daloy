@@ -178,6 +178,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
     Route::post('/posts/{post}/pin', [PostController::class, 'pin'])->name('posts.pin');
     Route::post('/posts/{post}/report', [PostController::class, 'report'])->name('posts.report');
+    Route::post('/posts/{post}/repost', [PostController::class, 'repost'])->name('posts.repost');
 
     // Reactions (updated for multi-type)
     Route::post('/posts/{post}/react', [ReactionController::class, 'toggle'])->name('posts.react');
