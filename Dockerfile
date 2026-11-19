@@ -9,9 +9,9 @@ RUN npm run build
 FROM php:8.3-apache-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libicu-dev libzip-dev libonig-dev \
-        libpng-dev libjpeg62-turbo-dev libfreetype6-dev unzip git \
+        libpng-dev libjpeg62-turbo-dev libfreetype6-dev libsqlite3-dev unzip git \
     && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install -j"$(nproc)" bcmath exif gd intl mbstring pdo_mysql pdo_pgsql zip opcache \
+    && docker-php-ext-install -j"$(nproc)" bcmath exif gd intl mbstring pdo_mysql pdo_pgsql pdo_sqlite zip opcache \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
