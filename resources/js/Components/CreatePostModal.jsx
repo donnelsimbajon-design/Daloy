@@ -395,6 +395,7 @@ export default function CreatePostModal({ isOpen, onClose }) {
                                 </button>
                                 <input
                                     ref={fileInputRef}
+                                    data-testid="post-media-input"
                                     type="file"
                                     multiple
                                     accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/mov,video/webm"
