@@ -1,276 +1,221 @@
-import React, { useState, useEffect } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { QRCodeSVG } from 'qrcode.react';
+
+const iconClass = 'h-5 w-5 shrink-0';
+const actionClass = 'flex min-h-[100px] flex-col items-center justify-center gap-2 rounded-2xl border border-ocean-border bg-ocean-surface/60 px-2 text-ocean-text transition-colors hover:bg-ocean-hover focus-visible:outline-2 focus-visible:outline-offset-2';
 
 export default function ShareModal({ isOpen, onClose, postUrl, postId }) {
-    const [view, setView] = useState('main'); // main, qr, message
+    const [view, setView] = useState('main');
     const [copied, setCopied] = useState(false);
-
-    // Message State
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
+    const [error, setError] = useState('');
+    const [searching, setSearching] = useState(false);
 
-    // Reset state when opening
     useEffect(() => {
-        if (isOpen) {
-            setView('main');
-            setSearchQuery('');
-            setSearchResults([]);
-            setSelectedUser(null);
-            setMessage('');
-            setSent(false);
-        }
+        if (!isOpen) return;
+        setView('main');
+        setCopied(false);
+        setSearchQuery('');
+        setSearchResults([]);
+        setSelectedUser(null);
+        setMessage('');
+        setSent(false);
+        setError('');
     }, [isOpen]);
 
-    // Search Users
     useEffect(() => {
-        const delayDebounceFn = setTimeout(async () => {
-            if (searchQuery.length >= 2) {
-                try {
-                    const response = await axios.get(`/share/search-users?query=${searchQuery}`);
-                    setSearchResults(response.data);
-                } catch (error) {
-                    console.error("Search error", error);
-                }
-            } else {
-                setSearchResults([]);
-            }
-        }, 300);
+        if (!isOpen) return;
+        const closeOnEscape = event => {
+            if (event.key === 'Escape') onClose();
+        };
+        document.addEventListener('keydown', closeOnEscape);
+        return () => document.removeEventListener('keydown', closeOnEscape);
+    }, [isOpen, onClose]);
 
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchQuery]);
+    useEffect(() => {
+        if (!isOpen || view !== 'message' || searchQuery.trim().length < 2) {
+            setSearchResults([]);
+            setSearching(false);
+            return;
+        }
+        let active = true;
+        const delay = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const { data } = await axios.get('/share/search-users', {
+                    params: { query: searchQuery.trim() },
+                });
+                if (active) setSearchResults(Array.isArray(data) ? data : []);
+            } catch {
+                if (active) {
+                    setError('Could not search classmates. Please try again.');
+                    setSearchResults([]);
+                }
+            } finally {
+                if (active) setSearching(false);
+            }
+        }, 350);
+        return () => { active = false; clearTimeout(delay); };
+    }, [isOpen, searchQuery, view]);
 
     if (!isOpen) return null;
 
-    const handleCopy = () => {
-        navigator.clipboard.writeText(postUrl);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+    const copyLink = async () => {
+        try {
+            await navigator.clipboard.writeText(postUrl);
+            setCopied(true);
+            setError('');
+        } catch {
+            setError('Copy is not available here. Select the link below to copy it manually.');
+        }
     };
 
-    const handleSend = async () => {
-        if (!selectedUser) return;
+    const sendMessage = async () => {
+        if (!selectedUser || sending) return;
         setSending(true);
+        setError('');
         try {
             await axios.post('/share/send', {
                 recipient_id: selectedUser.id,
-                post_id:      postId || null,
-                post_url:     postUrl,
-                message:      message
+                post_id: postId || null,
+                post_url: postUrl,
+                message: message.trim(),
             });
             setSent(true);
-            setTimeout(() => {
-                onClose();
-            }, 1500);
         } catch (error) {
-            console.error("Send error", error);
+            setError(error.response?.data?.message || 'Message could not be sent. Please try again.');
         } finally {
             setSending(false);
         }
     };
 
-    const handleBackdropClick = (e) => {
-        if (e.target === e.currentTarget) {
-            onClose();
-        }
-    };
-
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-            onClick={handleBackdropClick}
+            role="presentation"
+            onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}
+            className="fixed inset-0 z-[220] flex items-center justify-center bg-black/85 p-3 sm:p-6 backdrop-blur-md"
         >
-            <div className="w-full max-w-sm bg-ocean-deep border border-ocean-border rounded-2xl p-6 relative animate-in zoom-in-95 duration-200 overflow-hidden">
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-ocean-text-muted hover:text-ocean-text transition-colors z-10"
-                >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-
-                {/* --- MAIN VIEW --- */}
-                {view === 'main' && (
-                    <>
-                        <h3 className="text-lg font-bold text-ocean-text mb-6 text-center">Share to Friends</h3>
-                        <div className="grid grid-cols-3 gap-4 mb-6">
-                            {/* Copy Link */}
-                            <button
-                                onClick={handleCopy}
-                                className="flex flex-col items-center gap-2 group"
-                            >
-                                <div className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${copied ? 'bg-emerald-500/20 text-emerald-400' : 'bg-ocean-surface border border-ocean-border text-ocean-text group-hover:border-biolum/50 group-hover:bg-biolum/10'
-                                    }`}>
-                                    {copied ? (
-                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
-                                        </svg>
-                                    )}
-                                </div>
-                                <span className="text-xs text-ocean-text-dim group-hover:text-ocean-text transition-colors">
-                                    {copied ? 'Copied!' : 'Copy Link'}
-                                </span>
-                            </button>
-
-                            {/* QR Code */}
-                            <button
-                                onClick={() => setView('qr')}
-                                className="flex flex-col items-center gap-2 group"
-                            >
-                                <div className="w-14 h-14 rounded-full bg-ocean-surface border border-ocean-border text-ocean-text flex items-center justify-center group-hover:border-purple-500/50 group-hover:bg-purple-500/10 transition-all">
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z" />
-                                    </svg>
-                                </div>
-                                <span className="text-xs text-ocean-text-dim group-hover:text-ocean-text transition-colors">QR Code</span>
-                            </button>
-
-                            {/* Message */}
-                            <button
-                                onClick={() => setView('message')}
-                                className="flex flex-col items-center gap-2 group"
-                            >
-                                <div className="w-14 h-14 rounded-full bg-ocean-surface border border-ocean-border text-ocean-text flex items-center justify-center group-hover:border-blue-400/50 group-hover:bg-blue-400/10 transition-all">
-                                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                                    </svg>
-                                </div>
-                                <span className="text-xs text-ocean-text-dim group-hover:text-ocean-text transition-colors">Message</span>
-                            </button>
-                        </div>
-                        <div className="bg-ocean-surface/50 rounded-xl p-3 flex items-center gap-3 border border-ocean-border/50">
-                            <div className="flex-1 truncate text-xs text-ocean-text-muted font-mono">{postUrl}</div>
-                        </div>
-                    </>
-                )}
-
-                {/* --- QR VIEW --- */}
-                {view === 'qr' && (
-                    <div className="flex flex-col items-center">
-                        <h3 className="text-lg font-bold text-ocean-text mb-6">QR Code</h3>
-                        <div className="bg-white p-4 rounded-xl mb-6">
-                            <QRCodeSVG value={postUrl} size={200} />
-                        </div>
-                        <button
-                            onClick={() => setView('main')}
-                            className="text-sm text-ocean-text-dim hover:text-ocean-text transition-colors"
-                        >
-                            Back to Options
-                        </button>
+            <section
+                role="dialog"
+                aria-modal="true"
+                aria-label="Share post"
+                className="relative flex max-h-[min(90dvh,650px)] w-full max-w-md flex-col overflow-hidden rounded-[26px] border border-ocean-border bg-ocean-card text-ocean-text shadow-2xl"
+            >
+                <header className="flex items-center justify-between gap-3 border-b border-ocean-divider px-5 py-4 sm:px-6">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-extrabold uppercase tracking-[.16em] text-ocean-text-muted">Daloy · Share</p>
+                        <h2 className="mt-1 text-lg font-bold tracking-tight">{view === 'qr' ? 'Scan to open' : view === 'message' ? 'Send to a classmate' : 'Share this post'}</h2>
                     </div>
-                )}
+                    <button type="button" onClick={onClose} aria-label="Close share dialog"
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-ocean-border text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text">
+                        <svg className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" d="M6 6 18 18M18 6 6 18" /></svg>
+                    </button>
+                </header>
 
-                {/* --- MESSAGE VIEW --- */}
-                {view === 'message' && (
-                    <div className="flex flex-col h-[400px]">
-                        <div className="flex items-center gap-2 mb-4">
-                            <button onClick={() => setView('main')} className="text-ocean-text-dim hover:text-ocean-text">
-                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                                </svg>
-                            </button>
-                            <h3 className="text-lg font-bold text-ocean-text">Send to Friend</h3>
+                <div className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6">
+                    {view === 'main' && (
+                        <>
+                            <p className="mb-5 text-sm leading-relaxed text-ocean-text-muted">Share a link, show a QR code, or send this post directly to someone.</p>
+                            <div className="grid grid-cols-3 gap-2.5" aria-label="Share options">
+                                <button type="button" onClick={copyLink} className={actionClass} aria-label="Copy Link">
+                                    <svg className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                    </svg>
+                                    <span className="text-xs font-semibold">{copied ? 'Copied' : 'Copy Link'}</span>
+                                </button>
+                                <button type="button" onClick={() => setView('qr')} className={actionClass} aria-label="QR Code">
+                                    <svg className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zm5 0h2m-2 5h2v2h-2m-5-1v1h2"/>
+                                    </svg>
+                                    <span className="text-xs font-semibold">QR Code</span>
+                                </button>
+                                <button type="button" onClick={() => { setError(''); setView('message'); }} className={actionClass} aria-label="Message">
+                                    <svg className={iconClass} fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                                        <rect x="3" y="5" width="18" height="14" rx="2"/><path strokeLinecap="round" strokeLinejoin="round" d="m4 7 8 6 8-6"/>
+                                    </svg>
+                                    <span className="text-xs font-semibold">Message</span>
+                                </button>
+                            </div>
+                            <label htmlFor="daloy-share-url" className="mt-6 mb-2 block text-xs font-semibold text-ocean-text-muted">Post link</label>
+                            <input id="daloy-share-url" readOnly value={postUrl} onFocus={event => event.target.select()}
+                                className="w-full min-h-[44px] rounded-xl border border-ocean-border bg-ocean-surface px-3 text-xs text-ocean-text" />
+                            {copied && <p role="status" className="mt-3 text-xs text-ocean-text-muted">Link copied. You can paste it anywhere.</p>}
+                        </>
+                    )}
+                    {view === 'qr' && (
+                        <div className="flex flex-col items-center gap-4">
+                            <p className="text-center text-sm text-ocean-text-muted">Scan this code to open the original post.</p>
+                            {/* The white square is intentionally needed for reliable QR scanning, not a lightbox background. */}
+                            <div className="rounded-2xl border border-ocean-border bg-white p-4" aria-label="Post QR code">
+                                <QRCodeSVG value={postUrl} size={198} fgColor="#000000" bgColor="#ffffff" />
+                            </div>
+                            <button type="button" onClick={() => setView('main')}
+                                className="min-h-[44px] rounded-xl border border-ocean-border px-5 text-sm font-semibold text-ocean-text hover:bg-ocean-hover">Back to sharing</button>
                         </div>
-
-                        {!sent ? (
-                            <>
-                                {/* User Search */}
-                                <div className="relative mb-4">
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="Search people..."
-                                        className="w-full bg-ocean-surface border border-ocean-border rounded-xl px-4 py-2.5 text-sm text-ocean-text focus:outline-none focus:ring-2 focus:ring-biolum/20"
-                                    />
-                                    {searchResults.length > 0 && !selectedUser && (
-                                        <div className="absolute top-full left-0 w-full mt-2 bg-ocean-deep border border-ocean-border rounded-xl z-20 max-h-48 overflow-y-auto">
-                                            {searchResults.map(user => (
-                                                <button
-                                                    key={user.id}
-                                                    onClick={() => { setSelectedUser(user); setSearchQuery(''); setSearchResults([]); }}
-                                                    className="w-full text-left px-4 py-3 hover:bg-ocean-surface flex items-center gap-3 transition-colors"
-                                                >
-                                                    <div className="w-8 h-8 rounded-full bg-ocean-surface border border-ocean-border flex items-center justify-center text-xs font-bold text-ocean-text">
-                                                        {user.name && user.name[0]}
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-sm text-ocean-text font-medium">{user.name}</p>
-                                                        <p className="text-xs text-ocean-text-dim">@{user.username}</p>
-                                                    </div>
+                    )}
+                    {view === 'message' && (sent ? (
+                        <div className="flex flex-col items-center gap-3 py-7 text-center" role="status">
+                            <svg className="h-10 w-10 text-ocean-text" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="m5 12 4 4L19 6"/>
+                            </svg>
+                            <h3 className="text-lg font-bold">Message sent</h3>
+                            <p className="text-sm text-ocean-text-muted">Your post has been shared with {selectedUser?.name}.</p>
+                            <button type="button" onClick={onClose} className="mt-3 min-h-[44px] rounded-xl bg-ocean-text px-6 text-sm font-semibold text-ocean-deep">Done</button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <button type="button" onClick={() => { setView('main'); setError(''); }}
+                                className="min-h-[44px] text-xs font-semibold text-ocean-text-muted hover:text-ocean-text">Back to sharing options</button>
+                            {!selectedUser ? (
+                                <>
+                                    <label htmlFor="daloy-share-search" className="block text-sm font-semibold">Find a classmate</label>
+                                    <input id="daloy-share-search" value={searchQuery} onChange={event => { setSearchQuery(event.target.value); setError(''); }}
+                                        placeholder="Search by name or username" autoFocus
+                                        className="min-h-[46px] w-full rounded-xl border border-ocean-border bg-ocean-surface px-4 text-sm text-ocean-text" />
+                                    {searching && <p role="status" className="text-xs text-ocean-text-muted">Searching…</p>}
+                                    {searchResults.length > 0 && (
+                                        <div className="max-h-56 space-y-1 overflow-y-auto rounded-xl border border-ocean-border p-1" aria-label="People found">
+                                            {searchResults.map(person => (
+                                                <button key={person.id} type="button"
+                                                    onClick={() => { setSelectedUser(person); setSearchQuery(''); setSearchResults([]); }}
+                                                    className="flex min-h-[50px] w-full items-center gap-3 rounded-lg px-3 text-left hover:bg-ocean-hover">
+                                                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-ocean-surface text-xs font-bold text-ocean-text">{person.name?.slice(0,1)}</span>
+                                                    <span className="min-w-0"><span className="block truncate text-sm font-semibold">{person.name}</span><span className="block truncate text-xs text-ocean-text-muted">@{person.username}</span></span>
                                                 </button>
                                             ))}
                                         </div>
                                     )}
-                                </div>
-
-                                {/* Selected User */}
-                                {selectedUser ? (
-                                    <div className="flex-1 flex flex-col">
-                                        <div className="flex items-center gap-3 p-3 bg-ocean-surface/30 rounded-xl mb-4 border border-ocean-border/30">
-                                            <div className="w-10 h-10 rounded-full bg-biolum/20 flex items-center justify-center text-sm font-bold text-biolum">
-                                                {selectedUser.name[0]}
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-sm font-bold text-ocean-text">{selectedUser.name}</p>
-                                                <button
-                                                    onClick={() => setSelectedUser(null)}
-                                                    className="text-xs text-rose-400 hover:text-rose-300"
-                                                >
-                                                    Change
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <textarea
-                                            value={message}
-                                            onChange={(e) => setMessage(e.target.value)}
-                                            placeholder="Write a message..."
-                                            className="flex-1 w-full bg-ocean-surface/50 border border-ocean-border rounded-xl p-3 text-sm text-ocean-text focus:outline-none resize-none mb-4"
-                                        />
-
-                                        <button
-                                            onClick={handleSend}
-                                            disabled={sending}
-                                            className="w-full py-3 bg-biolum text-white font-bold rounded-xl hover:bg-biolum-bright transition-colors disabled:opacity-50"
-                                        >
-                                            {sending ? 'Sending...' : 'Send'}
-                                        </button>
+                                    {searchQuery.trim().length < 2 && <p className="text-xs text-ocean-text-muted">Type at least two letters to search.</p>}
+                                    {!searching && searchQuery.trim().length >= 2 && searchResults.length === 0 && !error && (
+                                        <p className="text-xs text-ocean-text-muted">No matching classmates found.</p>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex items-center gap-3 rounded-xl border border-ocean-border bg-ocean-surface p-3">
+                                        <span className="grid h-10 w-10 place-items-center rounded-full border border-ocean-border text-sm font-bold">{selectedUser.name?.slice(0,1)}</span>
+                                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{selectedUser.name}</span>
+                                        <button type="button" onClick={() => setSelectedUser(null)} className="min-h-[44px] px-2 text-xs font-semibold text-ocean-text-muted hover:text-ocean-text">Change</button>
                                     </div>
-                                ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center text-ocean-text-muted opacity-50">
-                                        <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                                        </svg>
-                                        <p className="text-sm">Search for a friend to message</p>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            <div className="flex-1 flex flex-col items-center justify-center text-emerald-400">
-                                <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mb-4">
-                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                    </svg>
-                                </div>
-                                <h3 className="text-lg font-bold text-ocean-text mb-1">Sent!</h3>
-                                <p className="text-sm text-ocean-text-dim text-center">Your message has been sent to {selectedUser?.name}</p>
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
+                                    <label htmlFor="daloy-share-message" className="block text-sm font-semibold">Add a message (optional)</label>
+                                    <textarea id="daloy-share-message" value={message} onChange={event => setMessage(event.target.value)}
+                                        maxLength={500} rows={3} placeholder="Say something about this post…"
+                                        className="w-full resize-y rounded-xl border border-ocean-border bg-ocean-surface p-3 text-sm text-ocean-text" />
+                                    <button type="button" disabled={sending} onClick={sendMessage}
+                                        className="min-h-[46px] w-full rounded-xl bg-ocean-text px-4 text-sm font-bold text-ocean-deep hover:opacity-90 disabled:opacity-50">{sending ? 'Sending…' : 'Send post'}</button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                    {error && <p role="alert" className="mt-4 rounded-xl border border-ocean-border bg-ocean-surface px-3 py-2 text-xs text-ocean-text">{error}</p>}
+                </div>
+            </section>
         </div>
     );
 }
