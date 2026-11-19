@@ -100,10 +100,28 @@ test('user journey: register → create post → like → comment → edit → s
   const account = await registerDisposable(page, 'post');
   const original = unique('post_text') + ' A real text post from Playwright.';
   await openComposer(page);
+  await expect(page.getByRole('dialog', { name: 'Create post' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add location' }).click();
+  await expect(page.getByRole('textbox', { name: 'Location (optional)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove location' }).click();
+  await expect(page.getByRole('textbox', { name: 'Location (optional)' })).toHaveCount(0);
   const post = await submitPost(page, original);
   expect(post.user_id).toBe(account.id);
   const card = page.locator('.daloy-post-card[data-post-id="' + post.id + '"]');
   await expect(card).toContainText(original);
+
+  // Share dialog must support accessible monochrome options.
+  await card.getByRole('button', { name: 'Share', exact: true }).click();
+  const shareDialog = page.getByRole('dialog', { name: 'Share post' });
+  await expect(shareDialog).toBeVisible();
+  await expect(shareDialog.getByRole('button', { name: 'Copy Link' })).toBeVisible();
+  await shareDialog.getByRole('button', { name: 'QR Code' }).click();
+  await expect(shareDialog.getByLabel('Post QR code')).toBeVisible();
+  await shareDialog.getByRole('button', { name: 'Back to sharing' }).click();
+  await shareDialog.getByRole('button', { name: 'Message' }).click();
+  await expect(shareDialog.getByLabel('Find a classmate')).toBeVisible();
+  await shareDialog.getByRole('button', { name: 'Close share dialog' }).click();
+  await expect(shareDialog).toHaveCount(0);
 
   const [likeResponse] = await Promise.all([
     page.waitForResponse(r => r.url().includes('/posts/' + post.id + '/like') && r.request().method() === 'POST'),

@@ -9,11 +9,13 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
     const [mediaPreviews, setMediaPreviews] = useState([]);
     const [showPollBuilder, setShowPollBuilder] = useState(false);
     const [pollDuration, setPollDuration] = useState('24');
+    const [showLocationInput, setShowLocationInput] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showCwInput, setShowCwInput] = useState(false);
     const [showVisMenu, setShowVisMenu] = useState(false);
     const [showVelMenu, setShowVelMenu] = useState(false);
 
-    const { data, setData, processing, errors, reset } = useForm({
+    const { data, setData, processing, errors, reset, setError, clearErrors } = useForm({
         content: '',
         visibility: 'public',
         location_tag: '',
@@ -46,6 +48,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             setMediaPreviews([]);
             setShowPollBuilder(false);
             setPollDuration('24');
+            setShowLocationInput(false);
             setShowCwInput(false);
             setShowVelMenu(false);
             setShowVisMenu(false);
@@ -63,7 +66,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
         const newPreviews = files.map(file => ({
             url: URL.createObjectURL(file),
-            type: file.type.startsWith('video/') ? 'video' : 'image'
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            name: file.name || 'Attached image'
         }));
         setMediaPreviews(prev => [...prev, ...newPreviews]);
 
@@ -106,7 +110,9 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!canSubmit || processing) return;
+        if (!canSubmit || processing || isSubmitting) return;
+        clearErrors();
+        setIsSubmitting(true);
 
         const formData = new FormData();
         formData.append('content', data.content || '');
@@ -143,9 +149,13 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                 reset();
                 setMediaPreviews([]);
                 setShowPollBuilder(false);
+                setPollDuration('24');
+                setShowLocationInput(false);
                 setShowCwInput(false);
                 onClose();
             },
+            onError: validationErrors => setError(validationErrors),
+            onFinish: () => setIsSubmitting(false),
         });
     };
 
@@ -154,6 +164,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
         setMediaPreviews([]);
         setShowPollBuilder(false);
         setPollDuration('24');
+        setShowLocationInput(false);
         setShowCwInput(false);
         setShowVelMenu(false);
         setShowVisMenu(false);
@@ -186,7 +197,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
             {/* Modal */}
             <div className="fixed inset-0 z-[61] flex items-center justify-center p-4 sm:p-6" onClick={() => { setShowVisMenu(false); setShowVelMenu(false); }}>
                 <div
-                    className="w-full max-w-[600px] h-full max-h-[85vh] bg-ocean-card border border-ocean-border sm:rounded-3xl rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.3)] dark:shadow-[0_0_40px_rgba(255,255,255,0.06)] flex flex-col animate-in"
+                    role="dialog" aria-modal="true" aria-label={showPollBuilder ? 'Create poll' : 'Create post'}
+                    className="w-full max-w-[620px] max-h-[calc(100dvh-2rem)] min-h-0 bg-ocean-card border border-ocean-border rounded-[26px] shadow-2xl flex flex-col animate-in"
                     onClick={(e) => e.stopPropagation()}
                     style={{ animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
                 >
@@ -196,20 +208,20 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                             <button
                                 onClick={handleClose}
                                 aria-label="Close post composer"
-                                className="p-2 -ml-2 rounded-full text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors"
+                                className="grid h-11 w-11 -ml-2 place-items-center rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
-                            <h2 className="text-[17px] font-bold text-ocean-text">Draft</h2>
+                            <h2 className="text-[17px] font-bold text-ocean-text">{showPollBuilder ? 'Create poll' : 'Create post'}</h2>
                         </div>
                         
                         {/* Compact Top-Right Post Button */}
                         <button
-                            type="button"
-                            onClick={(e) => document.getElementById('actual-submit-btn').click()}
-                            disabled={processing || !canSubmit}
+                            type="submit"
+                            form="daloy-create-post-form"
+                            disabled={processing || isSubmitting || !canSubmit}
                             className="px-5 py-1.5 rounded-full text-[13px] font-bold text-biolum-foreground bg-biolum hover:bg-biolum-bright transition-all disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent sm:hidden block"
                         >
                             Post
@@ -217,8 +229,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                     </div>
 
                     {/* Scrollable Body */}
-                    <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                        <div className="p-6 flex-1 overflow-y-auto scrollbar-hide shrink-0">
+                    <form id="daloy-create-post-form" onSubmit={handleSubmit} className="flex min-h-0 flex-col overflow-hidden">
+                        <div className="min-h-0 max-h-[min(62dvh,550px)] overflow-y-auto scrollbar-hide px-5 py-5 sm:px-6 sm:py-6">
                             {/* User info row */}
                             <div className="flex items-start gap-3 mb-4">
                                 <div className="w-11 h-11 rounded-full bg-ocean-surface overflow-hidden border border-ocean-border/50 shrink-0">
@@ -312,7 +324,8 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                             <button
                                                 type="button"
                                                 onClick={() => removeMedia(index)}
-                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white hover:bg-rose-500 transition-colors opacity-100 sm:opacity-0 group-hover/media:opacity-100"
+                                                aria-label={`Remove attached file ${index + 1}`}
+                                                className="absolute top-2 right-2 grid h-11 w-11 place-items-center rounded-xl bg-black/70 text-white hover:bg-zinc-800 transition-colors"
                                             >
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -324,7 +337,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                             )}
 
                             {/* Location Tag */}
-                            {data.location_tag !== null && (
+                            {showLocationInput && (
                                 <div className="mt-4">
                                     <div className="flex items-center gap-2">
                                         <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -332,6 +345,9 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                                         </svg>
                                         <input
+                                            id="daloy-post-location"
+                                            aria-label="Location (optional)"
+                                            autoFocus
                                             type="text"
                                             value={data.location_tag}
                                             onChange={(e) => setData('location_tag', e.target.value)}
@@ -449,8 +465,11 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                 {/* Location Tool */}
                                 <button
                                     type="button"
-                                    onClick={() => setData('location_tag', data.location_tag === null ? '' : data.location_tag)}
-                                    aria-label="Add location"
+                                    onClick={() => {
+                                        if (showLocationInput) setData('location_tag', '');
+                                        setShowLocationInput(value => !value);
+                                    }}
+                                    aria-label={showLocationInput ? 'Remove location' : 'Add location'}
                                     className="grid min-h-[44px] min-w-[44px] place-items-center rounded-xl text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text transition-colors"
                                 >
                                     <svg className="w-[22px] h-[22px]" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
@@ -512,17 +531,17 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                             {/* Right: Info and Main Submit Button */}
                             <div className="flex items-center gap-3">
                                 {data.content.length > 0 && (
-                                    <span className={`text-[12px] font-medium ${data.content.length > 1900 ? 'text-rose-500' : 'text-ocean-text-dim'}`}>
+                                    <span className="text-[12px] font-medium text-ocean-text-dim">
                                         {data.content.length}/2000
                                     </span>
                                 )}
                                 <button
                                     id="actual-submit-btn"
                                     type="submit"
-                                    disabled={processing || !canSubmit}
+                                    disabled={processing || isSubmitting || !canSubmit}
                                     className="px-4 sm:px-6 py-2 rounded-full text-[14px] font-bold text-biolum-foreground bg-biolum hover:bg-biolum-bright transition-all duration-200 disabled:opacity-40 disabled:bg-ocean-surface disabled:text-ocean-text-dim border disabled:border-transparent shadow-md hidden sm:flex items-center gap-1.5"
                                 >
-                                    {processing ? '...' : (
+                                    {processing || isSubmitting ? 'Posting…' : (
                                         <>
                                             Post
                                             <Sparkles className="w-3.5 h-3.5" />
