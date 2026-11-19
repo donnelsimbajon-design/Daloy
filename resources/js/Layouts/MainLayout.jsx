@@ -5,7 +5,6 @@ import FloatingActionButton from '@/Components/UI/Buttons/FloatingActionButton';
 import GlobalRightRailWrapper from '@/Layouts/GlobalRightRailWrapper';
 
 import GlobalAnnouncementPopup from '@/Components/Features/Announcements/GlobalAnnouncementPopup';
-import GlobalWelcomeSuggestionsPopup from '@/Components/Features/Announcements/GlobalWelcomeSuggestionsPopup';
 import GlobalCallManager from '@/Components/Features/Messaging/GlobalCallManager';
 
 export default function MainLayout({ children }) {
@@ -62,9 +61,9 @@ export default function MainLayout({ children }) {
         <div className="daloy-app-shell min-h-[100dvh] bg-ocean-deep text-ocean-text relative overflow-x-clip">
             {/* Minimal glass backdrop — barely-visible color washes */}
             <div className="daloy-ambient fixed inset-0 pointer-events-none z-0">
-                <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[160px] opacity-[0.07]" style={{ background: '#A78BFA' }} />
-                <div className="absolute -top-[5%] -right-[15%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.05]" style={{ background: '#60A5FA' }} />
-                <div className="absolute -bottom-[15%] left-[20%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.04]" style={{ background: '#F9A8D4' }} />
+                <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] rounded-full blur-[160px] opacity-[0.07]" style={{ background: '#A1A1AA' }} />
+                <div className="absolute -top-[5%] -right-[15%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.05]" style={{ background: '#52525B' }} />
+                <div className="absolute -bottom-[15%] left-[20%] w-[50%] h-[50%] rounded-full blur-[160px] opacity-[0.04]" style={{ background: '#E4E4E7' }} />
             </div>
 
             <TopNav />
@@ -80,7 +79,8 @@ export default function MainLayout({ children }) {
             </main>
 
             <GlobalAnnouncementPopup />
-            <GlobalWelcomeSuggestionsPopup />
+            {/* Student help is available from the in-feed guide.
+                Do not interrupt active posting with a delayed fullscreen welcome modal. */}
         </div>
     );
 }

@@ -99,6 +99,9 @@ test('user journey: register → create post → like → comment → edit → s
   const failures = observeServerFailures(page);
   const account = await registerDisposable(page, 'post');
   const original = unique('post_text') + ' A real text post from Playwright.';
+  // A delayed welcome overlay must never interrupt a new student's first post.
+  await page.waitForTimeout(3250);
+  await expect(page.getByRole('heading', { name: /^Welcome,/ })).toHaveCount(0);
   await openComposer(page);
   await expect(page.getByRole('dialog', { name: 'Create post' })).toBeVisible();
   await page.getByRole('button', { name: 'Add location' }).click();
