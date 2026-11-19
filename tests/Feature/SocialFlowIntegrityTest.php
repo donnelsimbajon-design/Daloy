@@ -231,4 +231,17 @@ class SocialFlowIntegrityTest extends TestCase
         $this->assertEmpty($visibleParent['replies']);
     }
 
+    public function test_search_people_does_not_leak_private_email_addresses(): void
+    {
+        $visitor = User::factory()->create();
+        $person = User::factory()->create();
+        $response = $this->actingAs($visitor)->getJson('/api/search?type=people&q='.urlencode($person->username));
+        $response->assertOk();
+        $found = collect($response->json('people'))->firstWhere('id', $person->id);
+        $this->assertNotNull($found);
+        $this->assertArrayNotHasKey('email', $found);
+        $this->assertArrayNotHasKey('password', $found);
+        $this->assertSame($person->username, $found['username']);
+    }
+
 }

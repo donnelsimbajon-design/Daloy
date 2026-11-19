@@ -38,6 +38,7 @@ export default function Conversations() {
     const [groupCallActive, setGroupCallActive] = useState(null);
     const [inviteUsername, setInviteUsername] = useState('');
     const [inviteSending, setInviteSending] = useState(false);
+    const [inviteError, setInviteError] = useState('');
     const [editingMessage, setEditingMessage] = useState(null);
     const [editContent, setEditContent] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState(null); // { messageId, scope }
@@ -338,16 +339,35 @@ export default function Conversations() {
     };
 
     const handleInviteMember = async () => {
-        if (!inviteUsername.trim()) return;
+        if (!selectedConversation || selectedConversation.type !== 'group' || !inviteUsername.trim() || inviteSending) return;
         setInviteSending(true);
+        setInviteError('');
         try {
-            // we will search by user ID or username? Wait, let's just make an API call to search user by username or ID
-            // For simplicity, we assume inviteUsername contains the exact user ID right now (since no autocomplete API is built for this yet)
-            // Wait, usually adding someone uses user_id. Let me assume they can type user_id. Or better, just show an alert. 
-            alert('User invitation by username requires a search endpoint which is not yet connected to the modal.');
-            // await axios.post(`/api/conversations/${selectedConversation.id}/invite`, { user_id: inviteUsername });
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to invite.');
+            const input = inviteUsername.trim().replace(/^@/, '');
+            let userId = /^\d+$/.test(input) ? Number(input) : null;
+            if (!userId) {
+                // Match an exact username, never the first partial search result.
+                const search = await axios.get('/api/search', { params: { q: input, type: 'people' } });
+                const match = (search.data.people || []).find(
+                    person => person.username?.toLowerCase() === input.toLowerCase()
+                );
+                userId = match?.id;
+            }
+            if (!userId) {
+                setInviteError('Enter an exact @username or numeric user ID.');
+                return;
+            }
+            const { data } = await axios.post(`/api/conversations/${selectedConversation.id}/invite`, { user_id: userId });
+            setSelectedConversation(prev => ({
+                ...prev,
+                participants: [...(prev.participants || []), data.user].filter(
+                    (member, index, all) => all.findIndex(candidate => candidate.id === member.id) === index
+                ),
+            }));
+            setInviteUsername('');
+            await loadConversations();
+        } catch (error) {
+            setInviteError(error.response?.data?.error || error.response?.data?.message || 'Could not invite this member.');
         } finally {
             setInviteSending(false);
         }
@@ -1205,11 +1225,12 @@ export default function Conversations() {
                             <div className="flex gap-2">
                                 <Input
                                     value={inviteUsername} onChange={e => setInviteUsername(e.target.value)}
-                                    placeholder="Enter User ID to invite..."
+                                    placeholder="Enter @username or user ID..."
                                     className="bg-ocean-surface/50 border-ocean-border text-sm"
                                 />
-                                <Button onClick={handleInviteMember} disabled={inviteSending || !inviteUsername} className="bg-biolum hover:bg-biolum-bright text-white">Add</Button>
+                                <Button onClick={handleInviteMember} disabled={inviteSending || !inviteUsername.trim()} className="bg-ocean-text hover:opacity-90 text-ocean-deep">{inviteSending ? 'Inviting…' : 'Invite'}</Button>
                             </div>
+                            {inviteError && <p role="alert" className="text-xs text-ocean-text-muted">{inviteError}</p>}
                             <ScrollArea className="h-64 rounded-xl border border-ocean-border/50 bg-ocean-surface">
                                 <div className="p-2 space-y-1">
                                     {selectedConversation?.participants?.map(p => (

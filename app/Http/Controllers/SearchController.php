@@ -171,7 +171,9 @@ class SearchController extends Controller
         $results = [];
 
         if (in_array($type, ['all', 'people'])) {
-            $people = User::where('id', '!=', $user->id)
+            $people = User::query()
+                ->select(['id', 'name', 'username', 'profile_picture'])
+                ->where('id', '!=', $user->id)
                 ->whereNotIn('id', $allBlockedIds)
                 ->when($query, function ($q) use ($query) {
                     $q->where(function ($sub) use ($query) {
