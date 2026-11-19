@@ -222,6 +222,21 @@ test('two users: polls, saved permissions, school membership and direct messagin
   test.setTimeout(240_000);
   const failures = observeServerFailures(page);
   const alice = await registerDisposable(page, 'alice');
+  const createdPostIds = [];
+
+  // The profile Poll shortcut should open the poll builder directly, not a
+  // misleading generic composer. It must also have a keyboard usable Flow selector.
+  await page.goto('/users/' + alice.id, { waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Create poll' }).click();
+  const profilePoll = page.getByTestId('poll-builder');
+  await expect(profilePoll).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeDisabled();
+  const flowSelector = page.getByRole('button', { name: 'Flow state' });
+  await expect(flowSelector).toBeVisible();
+  await flowSelector.click();
+  await expect(flowSelector).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: 'Close post composer' }).click();
+
   const otherContext = await browser.newContext({ baseURL: STAGING_URL });
   try {
     const bobPage = await otherContext.newPage();
@@ -239,6 +254,7 @@ test('two users: polls, saved permissions, school membership and direct messagin
     await pollBuilder.getByLabel('Poll duration').selectOption('72');
     await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeEnabled();
     const pollPost = await submitPost(page, pollText);
+    createdPostIds.push(pollPost.id);
     expect(pollPost.poll?.options?.length, 'Poll options were not stored').toBe(2);
     const optionId = pollPost.poll.options[0].id;
     const vote = await axiosCall(page, 'post', '/polls/' + pollPost.poll.id + '/vote', { option_id: optionId });
@@ -280,6 +296,7 @@ test('two users: polls, saved permissions, school membership and direct messagin
     const ownerPosts = await readProps(page, '/app');
     const privatePost = findPost(ownerPosts, privateText);
     expect(privatePost, 'Owner should still see own private post').toBeTruthy();
+    createdPostIds.push(privatePost.id);
     const ownerView = await page.request.get('/posts/' + privatePost.id);
     expect(ownerView.status()).toBe(200);
 
@@ -354,6 +371,12 @@ test('two users: polls, saved permissions, school membership and direct messagin
     expect(failures, 'Unexpected Laravel HTTP 5xx for Alice').toEqual([]);
     expect(bobFailures, 'Unexpected Laravel HTTP 5xx for Bob').toEqual([]);
   } finally {
+    // Only posts created in this disposable staging test are removed; leave
+    // other users' data completely untouched.
+    for (const postId of createdPostIds) {
+      try { await axiosCall(page, 'delete', '/posts/' + postId); }
+      catch (_) { /* disposable preview may reset during a deploy */ }
+    }
     await otherContext.close();
   }
 });
