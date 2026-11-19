@@ -108,9 +108,9 @@ test('staging: logged-in journeys remain responsive across core pages', async ({
             expect(metrics.rightGap, 'Quick actions should align near the right screen edge').toBeGreaterThanOrEqual(8);
             expect(metrics.rightGap).toBeLessThan(48);
             await launcher.click();
-            await expect(page.getByRole('button', { name: 'Close quick actions' })).toHaveAttribute('aria-expanded', 'true');
+            await expect(page.getByRole('button', { name: 'Close quick actions', exact: true })).toHaveAttribute('aria-expanded', 'true');
             await expect(page.locator('.daloy-floating-menu button[title="Messages"]')).toBeVisible();
-            await page.getByRole('button', { name: 'Close quick actions' }).click();
+            await page.getByRole('button', { name: 'Close quick actions', exact: true }).click();
         }
         if (name === 'conversations') {
             // Wait for the conversation list to replace its initial spinner.
