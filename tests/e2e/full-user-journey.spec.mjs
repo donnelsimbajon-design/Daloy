@@ -313,3 +313,91 @@ test('two users: polls, saved permissions, school membership and direct messagin
     await otherContext.close();
   }
 });
+
+
+const TEST_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/Gh8AAAAASUVORK5CYII=';
+
+async function submitUpload(page, url, field, extra = {}) {
+  const [response] = await Promise.all([
+    page.waitForResponse(r => new URL(r.url()).pathname === url && r.request().method() === 'POST', { timeout: 40_000 }),
+    page.evaluate(async ({ url, field, extra, base64 }) => {
+      const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const form = new FormData();
+      for (const [key, value] of Object.entries(extra)) form.append(key, value);
+      form.append(field, new File([bytes], 'playwright-staging-only.png', { type: 'image/png' }));
+      try {
+        await window.axios.post(url, form, { headers: { Accept: 'application/json' } });
+      } catch (error) {
+        // Laravel redirects for profile-image updates; the original POST
+        // status is independently checked via page.waitForResponse above.
+        if (![405].includes(error.response?.status)) throw error;
+      }
+    }, { url, field, extra, base64: TEST_PNG_BASE64 }),
+  ]);
+  return response.status();
+}
+
+test('stories: text privacy, uploaded photo retrieval and deletion', async ({ page, browser }, info) => {
+  test.skip(!permitted, 'Only create stories on the exact isolated Render staging preview');
+  test.skip(info.project.name !== 'desktop-1440', 'Cross-user story permissions on desktop');
+  test.setTimeout(180_000);
+  const fail = observeServerFailures(page);
+  await registerDisposable(page, 'stories_owner');
+  const bobContext = await browser.newContext({ baseURL: STAGING_URL });
+  try {
+    const bob = await bobContext.newPage();
+    await registerDisposable(bob, 'stories_viewer');
+    const secret = unique('secret_story');
+    const privateResponse = await axiosCall(page, 'post', '/stories', { type: 'text', visibility: 'private', content: secret });
+    expect(privateResponse.status).toBe(200);
+    const ownerIndex = await axiosCall(page, 'get', '/stories');
+    expect(ownerIndex.status).toBe(200);
+    const privateStory = ownerIndex.data?.find(s => s.content === secret);
+    expect(privateStory, 'Owner private story missing').toBeTruthy();
+    const blockedView = await axiosCall(bob, 'post', '/stories/' + privateStory.id + '/view');
+    expect(blockedView.status, 'Private story must not be viewable via direct endpoint').toBe(404);
+    const blockedReact = await axiosCall(bob, 'post', '/stories/' + privateStory.id + '/react');
+    expect(blockedReact.status, 'Private story must not receive unauthorised reactions').toBe(404);
+    const blockedReply = await axiosCall(bob, 'post', '/stories/' + privateStory.id + '/reply', { content: 'Should not be delivered' });
+    expect(blockedReply.status, 'Private story must not receive unauthorised replies').toBe(404);
+
+    const mediaContent = unique('photo_story');
+    const status = await submitUpload(page, '/stories', 'media', { type: 'photo', visibility: 'public', content: mediaContent });
+    expect(status, 'Photo story POST failed').toBe(200);
+    const mediaIndex = await axiosCall(page, 'get', '/stories');
+    const mediaStory = mediaIndex.data?.find(s => s.content === mediaContent);
+    expect(mediaStory?.image, 'Stored story photo missing').toBeTruthy();
+    const image = await page.request.get(mediaStory.image);
+    expect(image.status(), 'Uploaded story image is not publicly retrievable').toBe(200);
+    const removed = await axiosCall(page, 'delete', '/stories/' + mediaStory.id);
+    expect(removed.status, 'Deleting story failed').toBe(200);
+    expect((await page.request.get(mediaStory.image)).status(), 'Deleted story photo must be removed').toBe(404);
+    expect(fail).toEqual([]);
+  } finally {
+    await bobContext.close();
+  }
+});
+
+test('settings: profile photo uploads and replacement are readable', async ({ page }, info) => {
+  test.skip(!permitted, 'Only upload files on the isolated Render staging preview');
+  test.skip(info.project.name !== 'desktop-1440', 'Profile image check on desktop');
+  test.setTimeout(140_000);
+  const fail = observeServerFailures(page);
+  await registerDisposable(page, 'avatar');
+  const first = await submitUpload(page, '/settings/profile-picture', 'profile_picture');
+  expect([302, 303]).toContain(first);
+  let data = await readProps(page, '/settings');
+  const initial = data.user?.profile_picture;
+  expect(initial).toContain('/storage/profile-pictures/');
+  expect((await page.request.get(initial)).status(), 'Profile image not accessible').toBe(200);
+
+  const second = await submitUpload(page, '/settings/profile-picture', 'profile_picture');
+  expect([302, 303]).toContain(second);
+  data = await readProps(page, '/settings');
+  const replacement = data.user?.profile_picture;
+  expect(replacement).toContain('/storage/profile-pictures/');
+  expect(replacement, 'Replacing photo should update URL').not.toBe(initial);
+  expect((await page.request.get(replacement)).status(), 'New profile image not accessible').toBe(200);
+  expect((await page.request.get(initial)).status(), 'Old profile photo should be deleted').toBe(404);
+  expect(fail).toEqual([]);
+});
