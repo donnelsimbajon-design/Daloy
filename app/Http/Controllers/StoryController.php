@@ -102,8 +102,8 @@ class StoryController extends Controller
         $type = 'text';
 
         if ($storyType !== 'text' && $request->hasFile('media')) {
-            $path      = $request->file('media')->store('stories');
-            $url       = Storage::url($path);
+            $path      = $request->file('media')->store('stories', 'public');
+            $url       = Storage::disk('public')->url($path);
             $extension = strtolower($request->file('media')->getClientOriginalExtension());
             $type      = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
         }
@@ -126,6 +126,7 @@ class StoryController extends Controller
     public function recordView(Story $story): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($story->isVisibleTo($user), 404);
 
         if ($story->user_id === $user->id) {
             return response()->json(['ok' => true]);
@@ -208,6 +209,7 @@ class StoryController extends Controller
     public function react(Story $story): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($story->isVisibleTo($user), 404);
 
         $existing = $story->reactions()
             ->where('user_id', $user->id)
@@ -257,6 +259,7 @@ class StoryController extends Controller
         $request->validate(['content' => 'required|string|max:1000']);
 
         $sender     = Auth::user();
+        abort_unless($story->isVisibleTo($sender), 404);
         $receiverId = $story->user_id;
 
         if ($sender->id === $receiverId) {
@@ -321,7 +324,11 @@ class StoryController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Delete associated views and reactions
+        // Remove public media belonging to this story, not arbitrary URL paths.
+        $mediaPath = parse_url((string) $story->media_url, PHP_URL_PATH) ?: '';
+        if (str_starts_with($mediaPath, '/storage/stories/')) {
+            Storage::disk('public')->delete(substr($mediaPath, strlen('/storage/')));
+        }
         $story->views()->delete();
         $story->reactions()->delete();
         $story->delete();
