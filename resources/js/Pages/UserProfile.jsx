@@ -178,8 +178,9 @@ export default function UserProfile() {
     const avatarText = profileUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const isPrivateAndLocked = profileUser.privacy_setting === 'private' && !canViewProfile;
     const tabs = [
-        { id: 'posts', label: 'Feed', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
-        { id: 'articles', label: 'Articles', icon: 'M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25H5.625a2.25 2.25 0 01-2.25-2.25V8.625c0-.621.504-1.125 1.125-1.125H6.75' },
+        { id: 'posts', label: 'Posts', icon: 'M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z' },
+        { id: 'reposts', label: 'Reposts', icon: 'M4 8V6a2 2 0 0 1 2-2h12l3 3m0 0-3 3m3-3H9M20 16v2a2 2 0 0 1-2 2H6l-3-3m0 0 3-3m-3 3h12' },
+        { id: 'articles', label: 'About', icon: 'M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25H5.625a2.25 2.25 0 01-2.25-2.25V8.625c0-.621.504-1.125 1.125-1.125H6.75' },
         { id: 'gallery', label: 'Gallery', icon: 'm2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M6.75 21h10.5a2.25 2.25 0 002.25-2.25V6a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6v12.75a2.25 2.25 0 002.25 2.25z' },
         ...(isSelf ? [{ id: 'archived', label: 'Archived', icon: 'm20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z' }] : []),
     ];
@@ -235,7 +236,7 @@ export default function UserProfile() {
                 ))}
                 {/* Friend */}
                 {!blocked && (friendshipStatus === 'friends' ? (
-                    <button onClick={removeFriend} disabled={loading === 'friend'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-ocean-border text-emerald-500 text-sm font-medium hover:border-rose-500/50 hover:text-rose-500 transition-colors disabled:opacity-50">
+                    <button onClick={removeFriend} disabled={loading === 'friend'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-ocean-border text-ocean-text-muted text-sm font-medium hover:border-ocean-border hover:text-ocean-text transition-colors disabled:opacity-50">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
                         {loading === 'friend' ? '...' : 'Friends'}
                     </button>
@@ -262,7 +263,7 @@ export default function UserProfile() {
                 )}
                 {/* Blocked indicator */}
                 {blocked && (
-                    <button onClick={handleUnblock} disabled={loading === 'block'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-ocean-border text-rose-400 text-sm font-medium hover:border-rose-500/50 transition-colors disabled:opacity-50">
+                    <button onClick={handleUnblock} disabled={loading === 'block'} className="inline-flex items-center gap-2 px-5 py-2 rounded-xl border border-ocean-border text-ocean-text-muted text-sm font-medium hover:border-ocean-border transition-colors disabled:opacity-50">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                         {loading === 'block' ? '...' : 'Unblock'}
                     </button>
@@ -277,7 +278,7 @@ export default function UserProfile() {
                             <div className="fixed inset-0 z-40" onClick={() => setShowMoreMenu(false)} />
                             <div className="absolute right-0 top-14 w-52 bg-ocean-card border border-ocean-border rounded-xl shadow-2xl z-50 overflow-hidden py-1">
                                 {!blocked ? (
-                                    <button onClick={handleBlock} disabled={loading === 'block'} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-rose-400 hover:bg-rose-500/10 transition-all text-left">
+                                    <button onClick={handleBlock} disabled={loading === 'block'} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-ocean-text-muted hover:bg-ocean-hover transition-all text-left">
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                                         {loading === 'block' ? 'Blocking...' : `Block ${profileUser.name?.split(' ')[0]}`}
                                     </button>
@@ -303,7 +304,7 @@ export default function UserProfile() {
 
             {/* ── ═══════ FULL-WIDTH HEADER ═══════ ── */}
             <div 
-                className={`absolute top-0 left-0 w-full h-[160px] sm:h-[240px] md:h-[320px] ${profileUser.background_picture ? 'cursor-pointer' : ''}`}
+                className={`daloy-profile-cover absolute top-0 left-0 w-full h-[160px] sm:h-[240px] md:h-[320px] ${profileUser.background_picture ? 'cursor-pointer' : ''}`}
                 onClick={() => profileUser.background_picture && setFullscreenMedia(profileUser.background_picture)}
             >
                 {profileUser.background_picture ? (
@@ -318,7 +319,7 @@ export default function UserProfile() {
             <div className="daloy-page daloy-profile max-w-6xl mx-auto pt-[80px] sm:pt-[160px] md:pt-[200px] text-ocean-text px-3 sm:px-4 relative z-10">
                 
                 {/* ── ═══════ CENTERED PROFILE INFO ═══════ ── */}
-                <div className="flex flex-col items-center text-center -mt-12 sm:-mt-16 md:-mt-20">
+                <div className="daloy-profile-identity flex flex-col items-center text-center -mt-12 sm:-mt-16 md:-mt-20">
                     {/* Avatar positioned "inside" the background */}
                     <div className="relative group/avatar">
                         <div 
@@ -432,17 +433,15 @@ export default function UserProfile() {
                     )}
                     
                     {/* Tabs — horizontal scroll on mobile */}
-                    <div className={`${isSelf ? 'mt-2' : 'mt-4'} flex items-center border-b border-ocean-border w-full py-1 gap-6 sm:gap-10 overflow-x-auto scrollbar-hide justify-start sm:justify-center`}>
+                    <div className={`daloy-profile-tabs ${isSelf ? 'mt-4' : 'mt-5'} flex items-center border-b border-ocean-border w-full py-1 gap-2 sm:gap-3 overflow-x-auto scrollbar-hide justify-start sm:justify-center`}>
                         {tabs.map((tab) => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                                className={`profile-tab-btn flex items-center gap-2 pb-4 text-sm font-medium transition-all relative ${activeTab === tab.id
+                                className={`profile-tab-btn flex shrink-0 items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all relative ${activeTab === tab.id
                                     ? 'text-ocean-text'
                                     : 'text-ocean-text-dim hover:text-ocean-text'
                                     }`}>
                                 {tab.label}
-                                {activeTab === tab.id && (
-                                    <span className="absolute bottom-[-1px] left-0 w-full h-[1px] bg-ocean-text" />
-                                )}
+
                             </button>
                         ))}
                     </div>
@@ -563,10 +562,10 @@ export default function UserProfile() {
                                                     {schools.map((school, idx) => {
                                                         const colors = [
                                                             'bg-biolum text-white',
-                                                            'bg-emerald-600 text-white',
+                                                            'bg-ocean-surface text-white',
                                                             'bg-violet-600 text-white',
-                                                            'bg-amber-600 text-white',
-                                                            'bg-rose-600 text-white',
+                                                            'bg-ocean-surface text-white',
+                                                            'bg-ocean-surface text-white',
                                                         ];
                                                         return (
                                                             <Link key={school.id} href={`/schools/${school.id}`} className={`flex items-center gap-3 px-4 py-3 rounded-xl ${colors[idx % colors.length]} hover:opacity-90 hover:shadow-md transition-all group`}>
@@ -599,20 +598,18 @@ export default function UserProfile() {
                                                         Share a new voyage update...
                                                     </button>
                                                 </div>
-                                                <div className="flex items-center gap-1 mt-3 ml-[52px]">
-                                                    <button onClick={() => setShowCreatePost(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-ocean-text-dim hover:text-biolum hover:bg-biolum/8 transition-all text-xs font-bold">
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
+                                                <div className="mt-3 flex flex-wrap items-center gap-2 sm:ml-[52px]">
+                                                    <button type="button" onClick={() => setShowCreatePost(true)} aria-label="Create photo post"
+                                                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-ocean-border bg-ocean-surface px-3 text-xs font-semibold text-ocean-text hover:bg-ocean-hover">
+                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3" /><circle cx="8.5" cy="9" r="1.5"/><path d="m3 18 5-5 4 4 3-3 6 6"/></svg> Photo
                                                     </button>
-                                                    <button onClick={() => setShowCreatePost(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-ocean-text-dim hover:text-biolum hover:bg-biolum/8 transition-all text-xs font-bold">
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
-                                                    </button>
-                                                    <button onClick={() => setShowCreatePost(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-ocean-text-dim hover:text-biolum hover:bg-biolum/8 transition-all text-xs font-bold">
-                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 01-6.364 0M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" /></svg>
+                                                    <button type="button" onClick={() => setShowCreatePost(true)} aria-label="Create poll"
+                                                        className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-ocean-border bg-ocean-surface px-3 text-xs font-semibold text-ocean-text hover:bg-ocean-hover">
+                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><path d="M5 19V9m7 10V5m7 14v-7" strokeLinecap="round"/></svg> Poll
                                                     </button>
                                                     <div className="flex-1" />
-                                                    <button onClick={() => setShowCreatePost(true)} className="px-5 py-2 bg-biolum text-white font-bold text-xs rounded-full hover:bg-biolum-bright transition-all shadow-sm">
-                                                        Post
-                                                    </button>
+                                                    <button type="button" onClick={() => setShowCreatePost(true)}
+                                                        className="min-h-[44px] rounded-xl bg-biolum px-5 text-xs font-bold text-biolum-foreground hover:bg-biolum-bright">Create post</button>
                                                 </div>
                                             </div>
                                         )}
@@ -628,6 +625,21 @@ export default function UserProfile() {
                                         )}
                                     </div>
                                 </div>
+                            )}
+
+                            {activeTab === 'reposts' && (
+                                <section className="mx-auto max-w-[820px] space-y-4 pb-20" aria-label="Reposted posts">
+                                    <div className="rounded-2xl border border-ocean-border bg-ocean-card p-5">
+                                        <h2 className="text-lg font-bold tracking-tight text-ocean-text">Reposts</h2>
+                                        <p className="mt-1 text-sm text-ocean-text-muted">Public posts shared again by {isSelf ? 'you' : profileUser.name}.</p>
+                                    </div>
+                                    {posts.filter(post => post.repost_of_id).length > 0
+                                        ? posts.filter(post => post.repost_of_id).map(post => <PostCard key={post.id} post={post} />)
+                                        : <div className="rounded-2xl border border-dashed border-ocean-border bg-ocean-card/70 px-5 py-14 text-center">
+                                            <p className="font-semibold text-ocean-text">No reposts yet</p>
+                                            <p className="mt-2 text-sm text-ocean-text-muted">Use the Repost button on a public post to share it here.</p>
+                                        </div>}
+                                </section>
                             )}
 
                             {/* ── ARTICLES ── */}
@@ -682,7 +694,7 @@ export default function UserProfile() {
                                                 </div>
                                                 <div className="p-4 bg-ocean-surface border border-ocean-border rounded-xl hover:border-biolum/20 transition-all group">
                                                     <div className="flex items-center gap-2.5">
-                                                        <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 shrink-0"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg></div>
+                                                        <div className="w-8 h-8 rounded-lg bg-ocean-surface flex items-center justify-center text-ocean-text-muted shrink-0"><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg></div>
                                                         <div>
                                                             <p className="text-xs font-medium text-ocean-text-dim mb-0.5">Joined</p>
                                                             <p className="text-sm font-semibold text-ocean-text">{joinedDate || '—'}</p>
@@ -816,7 +828,7 @@ export default function UserProfile() {
                                                             </button>
                                                             <button
                                                                 onClick={(e) => { e.stopPropagation(); handleDeleteArchivedStory(story.id); }}
-                                                                className="py-1.5 px-2.5 text-[10px] font-bold text-white bg-rose-500/60 hover:bg-rose-500 rounded-lg transition-colors"
+                                                                className="py-1.5 px-2.5 text-[10px] font-bold text-white bg-ocean-surface hover:bg-ocean-hover rounded-lg transition-colors"
                                                             >
                                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>
                                                             </button>
@@ -850,7 +862,7 @@ export default function UserProfile() {
                         {/* Modal Header */}
                         <div className="p-8 pb-4 flex items-center justify-between">
                             <h2 className="text-2xl font-bold text-ocean-text tracking-tight">Edit Media</h2>
-                            <button onClick={() => setShowMediaModal(false)} className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim hover:bg-rose-500/10 hover:text-rose-500 transition-all">
+                            <button onClick={() => setShowMediaModal(false)} className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim hover:bg-ocean-hover hover:text-ocean-text transition-all">
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
@@ -915,10 +927,13 @@ export default function UserProfile() {
 
             {/* ── ═══════ FULLSCREEN MEDIA VIEWER ═══════ ── */}
             {fullscreenMedia && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in duration-200">
+                <div role="dialog" aria-modal="true" aria-label="Profile photo viewer"
+                    className="daloy-photo-lightbox fixed inset-0 z-[300] flex items-center justify-center bg-black backdrop-blur-sm animate-in fade-in duration-200">
                     <button 
                         onClick={() => setFullscreenMedia(null)} 
-                        className="absolute top-6 right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+                        aria-label="Close fullscreen photo"
+                        type="button"
+                        className="absolute top-6 right-6 grid h-11 w-11 place-items-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
                     >
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
