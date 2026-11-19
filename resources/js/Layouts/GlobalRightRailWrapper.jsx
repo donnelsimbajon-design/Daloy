@@ -11,7 +11,7 @@ const DraggableMobileActionMenu = ({
     switchPanel
 }) => {
     const [position, setPosition] = useState({
-        x: typeof window !== 'undefined' ? window.innerWidth - 72 : 0,
+        x: typeof window !== 'undefined' ? Math.max(8, window.innerWidth - 72) : 0,
         y: 80
     });
     const isDragging = useRef(false);
@@ -25,10 +25,10 @@ const DraggableMobileActionMenu = ({
                 setMobileMenuExpanded(false);
             } else {
                 setPosition(prev => {
-                    if (prev.x < 0 || prev.x > window.innerWidth) {
-                        return { x: window.innerWidth - 72, y: 80 };
-                    }
-                    return prev;
+                    return {
+                        x: Math.max(8, Math.min(prev.x, Math.max(8, window.innerWidth - 64))),
+                        y: Math.max(72, Math.min(prev.y, Math.max(72, window.innerHeight - 72)))
+                    };
                 });
             }
         };
@@ -100,6 +100,9 @@ const DraggableMobileActionMenu = ({
                 onMouseMove={handlePointerMove}
                 onTouchMove={handlePointerMove}
                 onClick={handleClick}
+                type="button"
+                aria-label={mobileMenuExpanded ? 'Close quick actions' : 'Open quick actions'}
+                aria-expanded={mobileMenuExpanded}
                 style={{ touchAction: 'none' }}
                 className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 relative select-none ${mobileMenuExpanded ? 'bg-ocean-card border border-ocean-border text-ocean-text' : 'bg-biolum text-ocean-deep'}`}
             >
@@ -192,20 +195,20 @@ export default function GlobalRightRailWrapper({ children }) {
     );
 
     return (
-        <div className="flex w-full min-h-[calc(100vh-4rem)] relative items-stretch">
+        <div className="flex w-full min-w-0 min-h-[calc(100dvh-4rem)] relative items-stretch">
             {/* 
                 Content area dynamically adjusts padding for the reef panel.
                 Post cards maintain fixed width via feed max-width and center when panel closes.
             */}
-            <div className={`flex-1 transition-all duration-400 ease-in-out w-full max-w-full ${activePanel ? 'lg:pr-[480px]' : 'lg:pr-[80px]'}`}>
+            <div className={`flex-1 min-w-0 transition-all duration-400 ease-in-out w-full max-w-full ${activePanel ? 'lg:pr-[400px] xl:pr-[480px]' : 'lg:pr-[80px]'}`}>
                 {children}
             </div>
 
             {/* Fixed Desktop Right Rail */}
             <div className="hidden lg:flex fixed right-0 top-16 bottom-0 z-20 pointer-events-none">
                 {/* Panel Container */}
-                <div className={`pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[400px]' : 'w-0'}`}>
-                    <div className="w-[400px] h-full overflow-y-auto">
+                <div className={`pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[320px] xl:w-[400px]' : 'w-0'}`}>
+                    <div className="w-full min-w-0 h-full overflow-y-auto">
                         <div className="p-3">
                             <ReefPanel activePanel={activePanel} />
                         </div>
@@ -234,7 +237,7 @@ export default function GlobalRightRailWrapper({ children }) {
                     <div className="p-4 h-[100dvh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6 pt-4">
                             <h2 className="text-lg font-bold text-ocean-text capitalize">{activePanel}</h2>
-                            <button onClick={() => setActivePanel(null)} className="p-2 text-ocean-text-dim hover:text-ocean-text">
+                            <button onClick={() => setActivePanel(null)} aria-label="Close quick actions panel" className="p-2 text-ocean-text-dim hover:text-ocean-text">
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
