@@ -181,9 +181,16 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   expect(fetched.status(), 'Uploaded image returned 404: public storage symlink may be missing').toBe(200);
   expect(fetched.headers()['content-type'] || '').toMatch(/image\/png|image\//);
 
-  // Removing a post must also remove its actual file, not just its DB record.
-  const deleted = await axiosCall(page, 'delete', '/posts/' + post.id);
-  expect(deleted.status, 'Deleting the image post failed').toBe(200);
+  // Drive the same Inertia delete flow the user sees instead of Axios
+  // (a raw Axios DELETE follows Laravel's redirect differently).
+  const card = page.locator('.daloy-post-card[data-post-id="' + post.id + '"]');
+  await card.getByRole('button', { name: 'Post options' }).click();
+  await card.getByRole('button', { name: 'Delete Post' }).click();
+  const [deleteResponse] = await Promise.all([
+    page.waitForResponse(r => r.url().endsWith('/posts/' + post.id) && r.request().method() === 'DELETE'),
+    page.getByRole('button', { name: 'Delete', exact: true }).click(),
+  ]);
+  expect([302, 303], 'Deleting the image post should redirect').toContain(deleteResponse.status());
   const afterDelete = await page.request.get(mediaURL);
   expect(afterDelete.status(), 'Deleted post image should not remain publicly available').toBe(404);
 
