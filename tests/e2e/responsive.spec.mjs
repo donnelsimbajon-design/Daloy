@@ -84,7 +84,7 @@ test('mobile landing navigation opens and closes', async ({ page }, testInfo) =>
 test('admin login access-code toggle is usable on mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile'), 'mobile-only control');
     await page.goto('/admin/login', { waitUntil: 'domcontentloaded' });
-    const accessCode = page.getByLabel('Access Code');
+    const accessCode = page.locator('#admin-access-code');
     const toggle = page.getByRole('button', { name: 'Show access code' });
     await expect(accessCode).toBeVisible();
     await expect(toggle).toBeVisible();
