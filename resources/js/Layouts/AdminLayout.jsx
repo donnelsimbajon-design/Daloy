@@ -48,7 +48,7 @@ export default function AdminLayout({ children, currentPage }) {
     };
 
     return (
-        <div className="daloy-admin">
+        <div className="daloy-admin tideglass-admin">
             <Sidebar
                 currentPage={currentPage}
                 isOpen={sidebarOpen}
@@ -66,12 +66,11 @@ export default function AdminLayout({ children, currentPage }) {
                 </main>
                 <footer className="adm-footer">
                     <div className="adm-footer-left">
-                        <span>System Status: Operational</span>
+                        <span>Daloy administrative workspace</span>
                         <span className="adm-footer-dot"></span>
                     </div>
                     <div className="adm-footer-right">
-                        <a href="#">Privacy</a>
-                        <a href="#">Terms</a>
+                        <span>Secure admin area</span>
                         <span>© 2026 Daloy Admin</span>
                     </div>
                 </footer>

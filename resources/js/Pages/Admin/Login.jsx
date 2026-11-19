@@ -33,7 +33,7 @@ export default function AdminLogin() {
                 </div>
 
                 {/* Login Card */}
-                <div style={{
+                <div className="admin-login-card" style={{
                     background: '#ffffff',
                     border: '1px solid #e5e5e5',
                     borderRadius: '12px',

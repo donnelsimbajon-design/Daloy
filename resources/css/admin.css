@@ -2437,3 +2437,117 @@
     outline: 2px solid #111 !important;
     outline-offset: 2px !important;
 }
+
+
+/* DALOY TIDEGLASS — Admin workspace restyling (all existing pages inherit) */
+.daloy-admin {
+  --adm-bg: #ffffff;
+  --adm-bg-alt: #edf5f6;
+  --adm-bg-hover: #e7f2f2;
+  --adm-surface: #ffffff;
+  --adm-border: #d8e7e8;
+  --adm-border-light: #e7eff0;
+  --adm-text: #183742;
+  --adm-text-secondary: #506f78;
+  --adm-text-muted: #73929a;
+  --adm-text-dim: #86a0a7;
+  --adm-black: #0c7580;
+  --adm-white: #ffffff;
+  --adm-accent: #0c8790;
+  --adm-sidebar-w: 248px;
+  --adm-radius: 12px;
+  --adm-radius-sm: 10px;
+  --adm-shadow: 0 5px 22px rgba(18, 73, 89, .055);
+  --adm-shadow-md: 0 13px 31px rgba(18, 73, 89, .085);
+  background: var(--adm-bg-alt);
+}
+.tideglass-admin { background: radial-gradient(ellipse 50% 36% at 75% -12%, rgba(25, 158, 160, .1), transparent 90%), #edf5f6; }
+.tideglass-admin .adm-sidebar {
+  background: linear-gradient(175deg, #fcffff, #eff9f9);
+  border-right: 1px solid #d6e9e8;
+  box-shadow: 7px 0 30px rgba(29, 86, 101, .035);
+}
+.tideglass-admin .adm-sidebar-brand {
+  padding-block: 27px 24px;
+  border-bottom: 1px solid #e2f0ef;
+}
+.tideglass-admin .adm-sidebar-brand h1 { color: #087e89; letter-spacing: -.06em; }
+.tideglass-admin .adm-sidebar-brand span { color: #75939a; }
+.tideglass-admin .adm-nav-item { border: 1px solid transparent; border-radius: 12px; margin-block: 2px; }
+.tideglass-admin .adm-nav-item:hover { background: #e0f3f1; color: #075d6c; }
+.tideglass-admin .adm-nav-item.active {
+  background: linear-gradient(110deg, #0a7784, #119a90);
+  color: #fff; box-shadow: 0 8px 20px rgba(9, 126, 127, .18);
+}
+.tideglass-admin .adm-nav-item.active svg { stroke: #fff; }
+.tideglass-admin .adm-main-wrapper { min-width: 0; }
+.tideglass-admin .adm-topbar {
+  background: rgba(255, 255, 255, .89);
+  backdrop-filter: blur(15px);
+  border-bottom-color: #d9eaea;
+  box-shadow: 0 5px 18px rgba(11, 67, 85, .035);
+}
+.tideglass-admin .adm-topbar h2 { color: #153941; font-weight: 800; letter-spacing: -.035em; }
+.tideglass-admin .adm-topbar-right { gap: 12px; }
+.tideglass-admin .adm-main-content {
+  min-width: 0;
+  background: transparent;
+  padding: clamp(16px, 2.5vw, 34px);
+}
+.tideglass-admin .adm-card, .tideglass-admin .adm-stat-card, .tideglass-admin .adm-health-panel,
+.tideglass-admin .adm-info-card, .tideglass-admin .adm-alert-panel {
+  background: #fff; border: 1px solid #dce8e9; border-radius: 18px;
+  box-shadow: 0 5px 21px rgba(12, 58, 78, .047);
+}
+.tideglass-admin .adm-card-header { background: linear-gradient(100deg, rgba(10, 136, 146, .045), transparent); }
+.tideglass-admin .adm-stat-label { color: #58727b; }
+.tideglass-admin .adm-stat-value { color: #124451; letter-spacing: -.045em; }
+.tideglass-admin .adm-toggle-btn.active { background: #0e858e; color: #fff; }
+.tideglass-admin .adm-btn-primary, .tideglass-admin .adm-info-card.dark {
+  background: #087d86; color: #fff;
+}
+.tideglass-admin .adm-btn-primary:hover { background: #076972; }
+.tideglass-admin .adm-table-wrapper { max-width: 100%; overflow-x: auto; }
+.tideglass-admin .adm-table { min-width: 600px; }
+.tideglass-admin :is(input,textarea,select) {
+  min-width: 0;
+  border-radius: 11px;
+}
+.tideglass-admin :is(input,textarea,select):focus-visible, .tideglass-admin button:focus-visible,
+.tideglass-admin a:focus-visible { outline: 2px solid #0b8790 !important; outline-offset: 2px !important; }
+.tideglass-admin .adm-footer { background: transparent; color: #657f85; }
+.tideglass-admin .adm-footer-dot { background: #40b4aa; }
+
+/* Authenticated admin access is intentionally separate from the member app. */
+.daloy-admin.admin-login-shell {
+  background:
+    radial-gradient(ellipse 60% 60% at 0% 2%, rgba(14, 163, 168, .2), transparent 75%),
+    linear-gradient(155deg, #e7f7f7, #f7fbfa 70%) !important;
+  color: #173743;
+}
+.admin-login-shell > div { max-width: 460px !important; }
+.admin-login-shell h1 { color: #0b8190; font-family: "Pacifico", cursive; font-size: 34px !important; }
+.admin-login-shell h1 + span { color: #64878e !important; letter-spacing: .22em !important; }
+.admin-login-shell .admin-login-card {
+  border: 1px solid #d7e9e8 !important; border-radius: 23px !important;
+  box-shadow: 0 25px 70px rgba(16, 75, 88, .13) !important;
+}
+.admin-login-shell .admin-login-card h2 { color: #133a45; font-size: 23px !important; letter-spacing: -.04em; }
+.admin-login-shell .admin-login-card > p { color: #63808a !important; }
+.admin-login-shell .adm-form-label { color: #466771; }
+.admin-login-shell .adm-form-input {
+  background: #f3fafa; color: #133a45; border: 1px solid #d1e4e4;
+  border-radius: 11px; min-height: 46px;
+}
+.admin-login-shell .adm-btn-primary {
+  background: linear-gradient(110deg, #0a7481, #0c998f); color: #fff;
+  border-radius: 12px; min-height: 48px;
+}
+.admin-login-shell .adm-btn-primary:hover { filter: brightness(1.09); }
+.admin-login-shell :is(input,button):focus-visible { outline-color: #0c8790 !important; }
+@media (max-width: 768px) {
+  .tideglass-admin .adm-main-content { padding: 15px; }
+  .tideglass-admin .adm-stats-grid { gap: 12px; }
+  .tideglass-admin .adm-topbar { min-height: 62px; }
+  .admin-login-shell { padding: 15px !important; }
+}
