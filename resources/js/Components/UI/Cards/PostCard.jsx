@@ -99,6 +99,11 @@ export default function PostCard({ post }) {
 
     const handlePollVote = async (optionId) => {
         if (!pollData) return;
+        setPollError('');
+        if (pollData.expires_at && new Date(pollData.expires_at).getTime() <= Date.now()) {
+            setPollError('This poll has closed.');
+            return;
+        }
         // Optimistic update
         const prevData = pollData;
         const prevVoted = votedOptionId;
@@ -118,6 +123,7 @@ export default function PostCard({ post }) {
             setVotedOptionId(prevVoted);
             setPollData(prevData);
             console.error('Vote error:', error);
+            setPollError(error.response?.data?.message || 'Your vote could not be saved. Please try again.');
         }
     };
 
@@ -195,6 +201,7 @@ export default function PostCard({ post }) {
     const mediaItems = post.media || [];
     const originalPost = post.repost_of || post.repostOf || null;
     const flowVelocity = post.flow_velocity || 'steady';
+    const pollClosed = Boolean(pollData?.expires_at && new Date(pollData.expires_at).getTime() <= Date.now());
 
     const visibilityIcon = {
         public: <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
@@ -273,7 +280,7 @@ export default function PostCard({ post }) {
                                     </button>
                                     <button
                                         onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-hover transition-colors"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -354,14 +361,17 @@ export default function PostCard({ post }) {
                         <div className="space-y-2">
                             {(pollData.options || []).map((option) => {
                                 const isVoted = votedOptionId === option.id;
-                                const hasVoted = !!votedOptionId;
+                                const hasVoted = !!votedOptionId || pollClosed;
                                 const pct = option.percentage || 0;
 
                                 return (
                                     <button
                                         key={option.id}
+                                        type="button"
+                                        aria-pressed={isVoted}
+                                        disabled={pollClosed}
                                         onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePollVote(option.id); }}
-                                        className={`relative w-full text-left rounded-xl overflow-hidden transition-all border ${
+                                        className={`relative w-full min-h-[48px] text-left rounded-xl overflow-hidden transition-all border ${
                                             isVoted
                                                 ? 'border-biolum/40 bg-biolum/10'
                                                 : 'border-ocean-border hover:border-biolum/30 hover:bg-biolum/5 cursor-pointer'
@@ -400,15 +410,11 @@ export default function PostCard({ post }) {
                                 {pollData.total_votes || 0} vote{(pollData.total_votes || 0) !== 1 ? 's' : ''}
                                 {pollData.expires_at && ` · Ends ${new Date(pollData.expires_at).toLocaleDateString()}`}
                             </p>
-                            {votedOptionId && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setVotedOptionId(null); }}
-                                    className="text-[11px] text-ocean-text-dim hover:text-biolum transition-colors"
-                                >
-                                    Change vote
-                                </button>
-                            )}
+                            {pollClosed
+                                ? <span className="text-[11px] text-ocean-text-muted">Poll closed</span>
+                                : votedOptionId ? <span className="text-[11px] text-ocean-text-muted">Tap another option to change vote</span> : null}
                         </div>
+                        {pollError && <p role="alert" className="mt-3 text-xs text-ocean-text-muted">{pollError}</p>}
                     </div>
                 </div>
             )}
@@ -453,12 +459,12 @@ export default function PostCard({ post }) {
                                         muted
                                     />
                                 ) : (
-                                    <SafeMediaImage
-                                        src={media.url}
-                                        alt="Post photo"
-                                        className={`w-full h-full object-cover cursor-pointer ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
+                                    <button type="button" aria-label={`View photo ${index + 1}`}
                                         onClick={() => setLightboxIndex(index)}
-                                    />
+                                        className="absolute inset-0 h-full w-full cursor-zoom-in overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px]">
+                                        <SafeMediaImage src={media.url} alt="Post photo"
+                                            className="h-full w-full object-contain bg-ocean-deep" />
+                                    </button>
                                 )}
                                 {/* Gradient overlay for depth */}
                                 {media.type !== 'video' && (
@@ -473,8 +479,9 @@ export default function PostCard({ post }) {
             {/* ── Image Lightbox (Portal) ────────────────────────────── */}
             {lightboxIndex !== null && mediaItems[lightboxIndex] && createPortal(
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+                    role="dialog" aria-modal="true" aria-label="Post photo viewer" data-testid="photo-lightbox"
+                    className="daloy-photo-lightbox fixed inset-0 z-[9999] flex items-center justify-center bg-black px-3 py-12 sm:px-16"
+                    style={{ backgroundColor: '#000000', backdropFilter: 'blur(12px)' }}
                     onClick={() => setLightboxIndex(null)}
                     onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                     onTouchEnd={(e) => {
@@ -488,7 +495,8 @@ export default function PostCard({ post }) {
                     {/* Close */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-                        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                        type="button" aria-label="Close photo viewer"
+                        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-11 h-11 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                     >
                         <X size={20} />
                     </button>
@@ -504,7 +512,8 @@ export default function PostCard({ post }) {
                     {lightboxIndex > 0 && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev - 1); }}
-                            className="absolute left-2 sm:left-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                            type="button" aria-label="Previous photo"
+                            className="absolute left-2 sm:left-6 z-10 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                         >
                             <ChevronLeft size={24} />
                         </button>
@@ -514,22 +523,28 @@ export default function PostCard({ post }) {
                     {lightboxIndex < mediaItems.length - 1 && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev + 1); }}
-                            className="absolute right-2 sm:right-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                            type="button" aria-label="Next photo"
+                            className="absolute right-2 sm:right-6 z-10 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                         >
                             <ChevronRight size={24} />
                         </button>
                     )}
 
-                    {/* Image */}
-                    <SafeMediaImage
-                        key={mediaItems[lightboxIndex].url}
-                        src={mediaItems[lightboxIndex].url}
-                        alt={`Image ${lightboxIndex + 1}`}
-                        className="max-w-[95vw] max-h-[90vh] sm:max-w-[85vw] sm:max-h-[85vh] object-contain rounded-xl select-none"
-                        style={{ animation: 'lbFadeIn 0.2s ease-out' }}
-                        onClick={(e) => e.stopPropagation()}
-                        draggable={false}
-                    />
+                    {/* Photos remain in original color against a true-black lightbox. */}
+                    <div className="flex max-h-[85dvh] w-full items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        {mediaItems[lightboxIndex].type === 'video' ? (
+                            <video src={mediaItems[lightboxIndex].url} controls autoPlay playsInline className="max-h-[85dvh] max-w-full rounded-lg bg-black" />
+                        ) : (
+                            <SafeMediaImage
+                                key={mediaItems[lightboxIndex].url}
+                                src={mediaItems[lightboxIndex].url}
+                                alt={`Photo ${lightboxIndex + 1}`}
+                                loading="eager"
+                                className="max-w-[92vw] max-h-[85dvh] sm:max-w-[80vw] object-contain rounded-xl select-none bg-black"
+                                draggable={false}
+                            />
+                        )}
+                    </div>
 
                     <style>{`
                         @keyframes lbFadeIn { from { opacity:0; transform:scale(0.96) } to { opacity:1; transform:scale(1) } }
