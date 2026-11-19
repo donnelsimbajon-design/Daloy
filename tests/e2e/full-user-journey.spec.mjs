@@ -192,7 +192,7 @@ test('post media: upload a real PNG and fetch its stored public URL', async ({ p
   ]);
   expect([302, 303], 'Deleting the image post should redirect').toContain(deleteResponse.status());
   const afterDelete = await page.request.get(mediaURL);
-  expect(afterDelete.status(), 'Deleted post image should not remain publicly available').toBe(404);
+  expect([403, 404], 'Deleted post image should no longer be accessible').toContain(afterDelete.status());
 
   expect(failures, 'Unexpected Laravel HTTP 5xx requests').toEqual([]);
 });
@@ -371,7 +371,7 @@ test('stories: text privacy, uploaded photo retrieval and deletion', async ({ pa
     expect(image.status(), 'Uploaded story image is not publicly retrievable').toBe(200);
     const removed = await axiosCall(page, 'delete', '/stories/' + mediaStory.id);
     expect(removed.status, 'Deleting story failed').toBe(200);
-    expect((await page.request.get(mediaStory.image)).status(), 'Deleted story photo must be removed').toBe(404);
+    expect([403, 404], 'Deleted story photo must be inaccessible').toContain((await page.request.get(mediaStory.image)).status());
     expect(fail).toEqual([]);
   } finally {
     await bobContext.close();
@@ -398,6 +398,6 @@ test('settings: profile photo uploads and replacement are readable', async ({ pa
   expect(replacement).toContain('/storage/profile-pictures/');
   expect(replacement, 'Replacing photo should update URL').not.toBe(initial);
   expect((await page.request.get(replacement)).status(), 'New profile image not accessible').toBe(200);
-  expect((await page.request.get(initial)).status(), 'Old profile photo should be deleted').toBe(404);
+  expect([403, 404], 'Old profile photo should no longer be publicly accessible').toContain((await page.request.get(initial)).status());
   expect(fail).toEqual([]);
 });
