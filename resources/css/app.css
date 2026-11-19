@@ -870,3 +870,13 @@ img {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* Create Post keeps an accessible rounded focus shell instead of a sharp
+   outline that covers the writing surface in dark and light themes. */
+#daloy-create-post-form .daloy-composer-textarea:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+#daloy-create-post-form .daloy-composer-input-shell:focus-within {
+    border-color: var(--color-ocean-text-dim, #8b8b8b);
+}

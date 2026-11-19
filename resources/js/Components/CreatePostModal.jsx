@@ -76,6 +76,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
     };
 
     const removeMedia = (index) => {
+        if (mediaPreviews[index]?.url) URL.revokeObjectURL(mediaPreviews[index].url);
         setData('media', data.media.filter((_, i) => i !== index));
         setMediaPreviews((prev) => prev.filter((_, i) => i !== index));
     };
@@ -281,7 +282,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                     </div>
                                     
                                     {/* Textarea */}
-                                    <div className="mt-3">
+                                    <div className="daloy-composer-input-shell mt-3 rounded-2xl border border-transparent px-2.5 py-2 transition-colors focus-within:border-ocean-border focus-within:bg-ocean-surface/25">
                                         <textarea
                                             ref={textareaRef}
                                             value={data.content}
@@ -289,7 +290,7 @@ export default function CreatePostModal({ isOpen, onClose, initialMode = null })
                                             placeholder="What's flowing through your mind?"
                                             rows={2}
                                             maxLength={2000}
-                                            className="w-full bg-transparent text-ocean-text placeholder-ocean-text-dim text-[16px] xl:text-[18px] leading-relaxed resize-none focus:outline-none border-none p-0 overflow-hidden"
+                                            className="daloy-composer-textarea w-full bg-transparent text-ocean-text placeholder-ocean-text-dim text-[16px] xl:text-[18px] leading-relaxed resize-none focus:outline-none border-none p-0 overflow-hidden"
                                             style={{ minHeight: '60px' }}
                                         />
                                     </div>
