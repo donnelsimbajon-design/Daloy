@@ -436,6 +436,7 @@ export default function UserProfile() {
                     <div className={`daloy-profile-tabs ${isSelf ? 'mt-4' : 'mt-5'} flex items-center border-b border-ocean-border w-full py-1 gap-2 sm:gap-3 overflow-x-auto scrollbar-hide justify-start sm:justify-center`}>
                         {tabs.map((tab) => (
                             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                aria-selected={activeTab === tab.id}
                                 className={`profile-tab-btn flex shrink-0 items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all relative ${activeTab === tab.id
                                     ? 'text-ocean-text'
                                     : 'text-ocean-text-dim hover:text-ocean-text'

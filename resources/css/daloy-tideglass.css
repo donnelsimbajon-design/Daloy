@@ -159,3 +159,100 @@
 @media (prefers-reduced-motion:reduce) {
   .daloy-landing-video { display:none; }
 }
+
+/* Daloy monochrome refinement — UI chrome only; uploaded media stays in color. */
+.daloy-app-shell svg, .daloy-app-shell [data-lucide] {
+  filter: grayscale(1);
+}
+.daloy-post-card { contain: layout; }
+.daloy-post-card > div, .daloy-post-card > section { min-width: 0; }
+.daloy-post-card .daloy-post-actions { width: 100%; }
+.daloy-post-card .daloy-post-action {
+  color: var(--color-ocean-text-muted);
+  border: 1px solid transparent;
+  background: transparent;
+}
+.daloy-post-card .daloy-post-action:hover,
+.daloy-post-card .daloy-post-action:focus-visible {
+  background: var(--color-ocean-surface);
+  color: var(--color-ocean-text);
+}
+.daloy-post-card .daloy-post-action-active,
+.daloy-post-card .daloy-post-action[aria-pressed="true"] {
+  background: var(--color-ocean-surface);
+  border-color: var(--color-ocean-border);
+  color: var(--color-ocean-text);
+}
+.daloy-post-card .daloy-post-action:active { transform: scale(.98); }
+.daloy-poll-builder {
+  box-shadow: inset 0 1px 0 var(--color-ocean-border);
+}
+.daloy-poll-builder input, .daloy-poll-builder select {
+  color: var(--color-ocean-text);
+  background: var(--color-ocean-card);
+  border-color: var(--color-ocean-border);
+}
+.daloy-poll-builder :is(input, select, button):focus-visible {
+  outline: 2px solid var(--color-biolum) !important;
+  outline-offset: 2px;
+}
+.daloy-photo-lightbox {
+  background: #000 !important;
+  color: #fff;
+}
+.daloy-photo-lightbox :is(img,video) { background: #000 !important; }
+.daloy-photo-lightbox button { color: #fff; }
+.daloy-photo-lightbox button:focus-visible {
+  outline: 2px solid white !important; outline-offset: 3px !important;
+}
+.daloy-profile { max-width: 1100px; }
+.daloy-profile-cover { background: var(--color-ocean-deep); overflow: hidden; }
+.daloy-profile-cover img { filter: none !important; }
+.daloy-profile-identity {
+  background: var(--color-ocean-card);
+  border: 1px solid var(--color-ocean-border);
+  border-radius: 28px;
+  padding: clamp(15px, 3vw, 30px);
+  padding-top: 12px;
+  padding-bottom: 8px;
+  box-shadow: 0 15px 55px rgba(0,0,0,.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.daloy-profile-identity > .mt-4 { max-width: 100%; }
+.daloy-profile-tabs { scrollbar-width: none; }
+.daloy-profile-tabs::-webkit-scrollbar { display: none; }
+.daloy-profile-tabs .profile-tab-btn {
+  min-height: 44px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.daloy-profile-tabs .profile-tab-btn:hover { background: var(--color-ocean-hover); }
+.daloy-profile-tabs .profile-tab-btn[aria-selected="true"] {
+  background: var(--color-ocean-surface);
+  border-color: var(--color-ocean-border);
+  color: var(--color-ocean-text);
+}
+.daloy-profile .lg\:col-span-1 { min-width: 0; }
+.daloy-profile .lg\:col-span-2 { min-width: 0; }
+.daloy-profile .rounded-\[20px\] { border-radius: 22px; }
+.daloy-profile .daloy-post-card { margin-bottom: 0; }
+.daloy-profile-identity > div:last-child { max-width: 100%; }
+@media (max-width: 640px) {
+  .daloy-post-card .daloy-post-action { padding-inline: 2px; gap: 4px; }
+  .daloy-post-card .daloy-post-action svg { width: 18px; height: 18px; }
+  .daloy-profile-identity { border-radius: 22px; }
+  .daloy-profile-tabs { justify-content: flex-start; }
+  .daloy-profile .daloy-post-card { border-radius: 20px !important; }
+}
+
+/* Avoid hiding photos behind an accidental white surface in any portal. */
+.daloy-photo-lightbox [data-testid="media-unavailable"] {
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+/* Motion preference affects transitions, not the functional UI. */
+@media (prefers-reduced-motion: reduce) {
+  .daloy-post-card .daloy-post-action:active { transform: none; }
+}
