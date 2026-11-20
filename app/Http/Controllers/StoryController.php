@@ -298,6 +298,17 @@ class StoryController extends Controller
             return response()->json(['message' => 'Cannot reply to your own story.'], 400);
         }
 
+        // Story replies are direct messages, so do not bypass DM privacy/restrictions.
+        $receiver = $story->user;
+        if (!$receiver || $receiver->isBlockedWith($sender) || $receiver->hasRestricted($sender)) {
+            return response()->json(['message' => 'You cannot reply to this story.'], 403);
+        }
+        $isFriend = $sender->isFriend($receiver);
+        $mutualFollowing = $sender->isFollowing($receiver) && $receiver->isFollowing($sender);
+        if ($receiver->privacy_setting === 'private' && !$isFriend && !$mutualFollowing) {
+            return response()->json(['message' => 'This user only accepts messages from connections.'], 403);
+        }
+
         // Find existing direct conversation using participants pivot (NOT user1_id/user2_id)
         $conversation = Conversation::where('type', 'direct')
             ->whereHas('participants', fn($q) => $q->where('user_id', $sender->id))

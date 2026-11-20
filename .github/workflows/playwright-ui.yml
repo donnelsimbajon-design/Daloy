@@ -70,8 +70,9 @@ jobs:
           php -l routes/web.php
           php -l tests/Feature/SocialFlowIntegrityTest.php
           php -l tests/Feature/CommunicationAccessTest.php
+          php -l tests/Feature/EventStoryAccessTest.php
       - name: Test social flow permissions using in-memory SQLite
-        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php
+        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php
 
       - name: Install Playwright test runner (no lockfile mutation)
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1
