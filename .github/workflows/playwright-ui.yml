@@ -15,6 +15,7 @@ on:
       - 'composer.json'
       - 'composer.lock'
       - 'tests/e2e/**'
+      - 'tests/Feature/**'
       - 'playwright.config.mjs'
       - '.github/workflows/playwright-ui.yml'
 
@@ -62,10 +63,15 @@ jobs:
           php -l app/Http/Controllers/MessagingController.php
           php -l app/Http/Controllers/CommentController.php
           php -l app/Http/Controllers/PostController.php
+          php -l app/Http/Controllers/GroupCallController.php
+          php -l app/Http/Controllers/SchoolCallController.php
+          php -l app/Http/Controllers/ShareController.php
+          php -l app/Http/Controllers/SearchController.php
           php -l routes/web.php
           php -l tests/Feature/SocialFlowIntegrityTest.php
+          php -l tests/Feature/CommunicationAccessTest.php
       - name: Test social flow permissions using in-memory SQLite
-        run: php artisan test --filter=SocialFlowIntegrityTest
+        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php
 
       - name: Install Playwright test runner (no lockfile mutation)
         run: npm install --no-save --package-lock=false @playwright/test@1.56.1

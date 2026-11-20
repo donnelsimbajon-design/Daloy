@@ -49,14 +49,27 @@ class ShareController extends Controller
         $validated = $request->validate([
             'recipient_id' => 'required|exists:users,id',
             'post_id'      => 'nullable|exists:posts,id',
-            'post_url'     => 'required|string',
+            'post_url'     => 'required|string|max:2048',
             'message'      => 'nullable|string|max:500',
         ]);
 
         $recipientId = $validated['recipient_id'];
         $authId      = Auth::id();
         $authUser    = Auth::user();
-        $recipient   = User::find($recipientId);
+        $recipient   = User::findOrFail($recipientId);
+        if ((int) $recipientId === $authId) {
+            return response()->json(['message' => 'You cannot share a post with yourself.'], 422);
+        }
+
+        // The share-dialog must not bypass direct-message privacy restrictions.
+        if ($recipient->hasRestricted($authUser)) {
+            return response()->json(['message' => 'You cannot message this user.'], 403);
+        }
+        $isFriend = $authUser->isFriend($recipient);
+        $isMutualFollow = $authUser->isFollowing($recipient) && $recipient->isFollowing($authUser);
+        if (!$isFriend && !$isMutualFollow && $recipient->privacy_setting === 'private') {
+            return response()->json(['message' => 'This user only accepts messages from connections.'], 403);
+        }
 
         // Block check
         if ($recipient) {
@@ -70,8 +83,11 @@ class ShareController extends Controller
         // Build rich post metadata snapshot
         $metadata = null;
         if (!empty($validated['post_id'])) {
-            $post = Post::with(['user:id,name,username,profile_picture', 'media'])->find($validated['post_id']);
-            if ($post) {
+            $post = Post::with(['user:id,name,username,profile_picture', 'media'])
+                ->findOrFail($validated['post_id']);
+            // The recipient must be able to open the post as well as the sender.
+            // Otherwise the rich preview would disclose private text and media.
+            abort_unless($post->isVisibleTo($authUser) && $post->isVisibleTo($recipient), 404);
                 // Get first media item (image or video)
                 $firstMedia = $post->media->first();
 
@@ -85,7 +101,6 @@ class ShareController extends Controller
                     'media_url'      => $firstMedia?->url ?? ($post->media_urls[0] ?? null),
                     'media_type'     => $firstMedia?->type ?? null,
                 ];
-            }
         }
 
         // Fallback simple metadata if no post_id

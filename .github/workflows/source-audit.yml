@@ -1,0 +1,73 @@
+name: Daloy source integrity
+
+on:
+  push:
+    branches:
+      - chore/render-migration-20261119
+    paths:
+      - 'app/**'
+      - 'routes/**'
+      - 'database/**'
+      - 'resources/**'
+      - 'tests/Feature/**'
+      - 'composer.json'
+      - 'composer.lock'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/source-audit.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: daloy-source-integrity-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: PHP syntax and social permissions (isolated SQLite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      SESSION_DRIVER: array
+      CACHE_STORE: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, pdo_sqlite, sqlite3, gd, zip
+          coverage: none
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Configure isolated test environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+      - name: Validate PHP syntax
+        run: |
+          for file in app/Http/Controllers/GroupCallController.php app/Http/Controllers/SchoolCallController.php app/Http/Controllers/ShareController.php app/Http/Controllers/MessagingController.php app/Http/Controllers/CommentController.php tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php routes/web.php; do
+            php -l "$file"
+          done
+      - name: Run permission and privacy regression suites
+        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php
+
+  frontend:
+    name: React/Vite compile
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
