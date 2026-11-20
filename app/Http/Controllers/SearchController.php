@@ -31,7 +31,7 @@ class SearchController extends Controller
 
         // Featured posts — high-engagement public posts with media from the last 3 days
         $featuredPosts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name', 'hashtags:id,name'])
-            ->where('visibility', 'public')
+            ->discoverableBy(Auth::user())
             ->whereNotIn('user_id', $allBlockedIds)
             ->where('created_at', '>=', now()->subDays(3))
             ->whereHas('media') // must have at least one image
@@ -44,7 +44,7 @@ class SearchController extends Controller
         if ($featuredPosts->count() < 3) {
             $moreIds = $featuredPosts->pluck('id')->toArray();
             $morePosts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name', 'hashtags:id,name'])
-                ->where('visibility', 'public')
+                ->discoverableBy(Auth::user())
                 ->whereNotIn('user_id', $allBlockedIds)
                 ->whereNotIn('id', $moreIds)
                 ->withCount(['reactions', 'comments'])
@@ -59,6 +59,11 @@ class SearchController extends Controller
             return DB::table('post_hashtags')
                 ->join('posts', 'post_hashtags.post_id', '=', 'posts.id')
                 ->join('hashtags', 'post_hashtags.hashtag_id', '=', 'hashtags.id')
+                ->leftJoin('schools', 'posts.school_id', '=', 'schools.id')
+                ->where('posts.visibility', 'public')
+                ->where(function ($q) {
+                    $q->whereNull('posts.school_id')->orWhere('schools.privacy', 'public');
+                })
                 ->where('posts.created_at', '>=', now()->subDay())
                 ->whereNull('posts.deleted_at')
                 ->select('hashtags.id', 'hashtags.name', DB::raw('COUNT(*) as post_count'))
@@ -70,7 +75,7 @@ class SearchController extends Controller
 
         // Trending posts for the feed section
         $trendingPosts = Post::with(['user:id,name,username,profile_picture', 'media', 'school:id,name'])
-            ->where('visibility', 'public')
+            ->discoverableBy(Auth::user())
             ->whereNotIn('user_id', $allBlockedIds)
             ->where('created_at', '>=', now()->subDays(2))
             ->withCount(['reactions', 'comments', 'bookmarks'])
@@ -198,7 +203,7 @@ class SearchController extends Controller
         if (in_array($type, ['all', 'posts'])) {
             $posts = Post::with(['user:id,name,username,profile_picture', 'media'])
                 ->whereNotIn('user_id', $allBlockedIds)
-                ->where('visibility', 'public')
+                ->discoverableBy(Auth::user())
                 ->when($query, function ($q) use ($query) {
                     $q->where('content', 'LIKE', '%' . addcslashes($query, '%_\\') . '%');
                 })
@@ -257,6 +262,11 @@ class SearchController extends Controller
             return DB::table('post_hashtags')
                 ->join('posts', 'post_hashtags.post_id', '=', 'posts.id')
                 ->join('hashtags', 'post_hashtags.hashtag_id', '=', 'hashtags.id')
+                ->leftJoin('schools', 'posts.school_id', '=', 'schools.id')
+                ->where('posts.visibility', 'public')
+                ->where(function ($q) {
+                    $q->whereNull('posts.school_id')->orWhere('schools.privacy', 'public');
+                })
                 ->where('posts.created_at', '>=', now()->subDay())
                 ->whereNull('posts.deleted_at')
                 ->select('hashtags.id', 'hashtags.name', DB::raw('COUNT(*) as post_count'))
@@ -283,7 +293,7 @@ class SearchController extends Controller
         $posts = Cache::remember('trending_posts_' . $user->id, 600, function () use ($allBlockedIds) {
             return Post::with(['user:id,name,username,profile_picture', 'media'])
                 ->where('created_at', '>=', now()->subDay())
-                ->where('visibility', 'public')
+                ->discoverableBy(Auth::user())
                 ->whereNotIn('user_id', $allBlockedIds)
                 ->withCount(['reactions', 'comments'])
                 ->orderByRaw('(reactions_count * 2) + comments_count DESC')
@@ -455,7 +465,7 @@ class SearchController extends Controller
         if (empty($hashtagIds)) {
             // Fallback: search posts by collection name
             $posts = Post::with(['user:id,name,username,profile_picture', 'media'])
-                ->where('visibility', 'public')
+                ->discoverableBy(Auth::user())
                 ->where('content', 'LIKE', "%{$collection->name}%")
                 ->withCount(['comments', 'reactions'])
                 ->latest()
@@ -463,7 +473,7 @@ class SearchController extends Controller
         } else {
             $posts = Post::with(['user:id,name,username,profile_picture', 'media'])
                 ->whereHas('hashtags', fn($q) => $q->whereIn('hashtags.id', $hashtagIds))
-                ->where('visibility', 'public')
+                ->discoverableBy(Auth::user())
                 ->withCount(['comments', 'reactions'])
                 ->latest()
                 ->paginate(15);

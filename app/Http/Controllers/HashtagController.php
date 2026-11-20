@@ -30,7 +30,7 @@ class HashtagController extends Controller
                     $q->where('hashtags.id', $hashtagModel->id);
                 })
                 ->whereNotIn('user_id', $allBlockedIds)
-                ->where('visibility', 'public')
+                ->discoverableBy($user)
                 ->withCount(['comments', 'reactions'])
                 ->withExists(['reactions as liked_by_user' => function ($q) {
                     $q->where('user_id', Auth::id())->where('type', 'like');

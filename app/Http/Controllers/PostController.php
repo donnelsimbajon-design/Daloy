@@ -73,20 +73,36 @@ class PostController extends Controller
                 // Also show followers-only posts from people you follow/friend
                 $query->orWhere(function ($q) use ($feedUserIds) {
                     $q->whereIn('user_id', $feedUserIds)
-                      ->where('visibility', 'followers');
+                      ->where('visibility', 'followers')
+                      ->whereNull('school_id');
                 });
 
                 // Close friends visibility: only if I'm in their close friends
                 if (!empty($closeFriendOfIds)) {
                     $query->orWhere(function ($q) use ($closeFriendOfIds) {
                         $q->whereIn('user_id', $closeFriendOfIds)
-                          ->where('visibility', 'close_friends');
+                          ->where('visibility', 'close_friends')
+                          ->whereNull('school_id');
                     });
                 }
 
-                // Posts from joined schools
+                // School membership is necessary for private schools, but
+                // membership never bypasses a post's own audience selection.
                 if (!empty($joinedSchoolIds)) {
-                    $query->orWhereIn('school_id', $joinedSchoolIds);
+                    $query->orWhere(function ($schoolPosts) use ($joinedSchoolIds, $feedUserIds, $friendIds, $closeFriendOfIds) {
+                        $schoolPosts->whereIn('school_id', $joinedSchoolIds)
+                            ->where(function ($audience) use ($feedUserIds, $friendIds, $closeFriendOfIds) {
+                                $audience->where('visibility', 'public')
+                                    ->orWhere(fn ($q) => $q->where('visibility', 'followers')
+                                        ->whereIn('user_id', $feedUserIds))
+                                    ->orWhere(fn ($q) => $q->where('visibility', 'friends')
+                                        ->whereIn('user_id', $friendIds));
+                                if (!empty($closeFriendOfIds)) {
+                                    $audience->orWhere(fn ($q) => $q->where('visibility', 'close_friends')
+                                        ->whereIn('user_id', $closeFriendOfIds));
+                                }
+                            });
+                    });
                 }
 
                 // Always include own posts regardless of visibility

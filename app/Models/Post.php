@@ -121,17 +121,13 @@ class Post extends Model
             return false;
         }
 
-        // Members can access posts shared inside their Schools. Private
-        // Schools do not expose their posts to nonmembers.
+        // School membership does not override the author's selected audience.
+        // Private schools additionally require membership, even for public posts.
         if ($this->school_id) {
             $school = $this->school;
-            if (!$school) {
-                return false;
-            }
-            if ($school->members()->where('users.id', $viewer->id)->exists()) {
-                return true;
-            }
-            if ($school->privacy === 'private') {
+            if (!$school) return false;
+            if ($school->privacy === 'private' &&
+                !$school->members()->where('users.id', $viewer->id)->exists()) {
                 return false;
             }
         }
@@ -143,6 +139,33 @@ class Post extends Model
             'close_friends' => $owner->isCloseFriend($viewer),
             default => false,
         };
+    }
+
+    /**
+     * Consistent discovery filter for Explore, Search and hashtag results.
+     * A public visibility flag does not make a private School public.
+     */
+    public function scopeDiscoverableBy($query, User $viewer)
+    {
+        $joinedSchools = $viewer->schools()->pluck('schools.id')->all();
+        $blocked = array_unique(array_merge(
+            $viewer->blockedUsers()->pluck('users.id')->all(),
+            $viewer->blockedBy()->pluck('users.id')->all()
+        ));
+
+        return $query->where('visibility', 'public')
+            ->whereNotIn('user_id', $blocked)
+            ->where(function ($posts) use ($joinedSchools) {
+                $posts->whereNull('school_id')
+                    ->orWhereHas('school', function ($schools) use ($joinedSchools) {
+                        $schools->where(function ($accessible) use ($joinedSchools) {
+                            $accessible->where('privacy', 'public');
+                            if (!empty($joinedSchools)) {
+                                $accessible->orWhereIn('schools.id', $joinedSchools);
+                            }
+                        });
+                    });
+            });
     }
 
     // --- Scopes ---

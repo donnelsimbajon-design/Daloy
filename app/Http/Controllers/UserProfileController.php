@@ -209,6 +209,12 @@ class UserProfileController extends Controller
             $featuredPost = Post::with(['user', 'media'])
                 ->withCount('reactions', 'comments')
                 ->find($user->featured_post_id);
+            // Pinned/featured content must pass the same audience policy as the
+            // regular profile feed (including private-school membership).
+            if ($featuredPost && ($featuredPost->user_id !== $user->id ||
+                !$featuredPost->isVisibleTo($authUser))) {
+                $featuredPost = null;
+            }
         }
 
         // Tide Score
