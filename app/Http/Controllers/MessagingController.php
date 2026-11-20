@@ -390,7 +390,8 @@ class MessagingController extends Controller
         // Handle group avatar
         $avatarUrl = null;
         if ($request->hasFile('avatar')) {
-            $avatarUrl = Storage::url($request->file('avatar')->store('group_avatars'));
+            $path = $request->file('avatar')->store('group_avatars', 'public');
+            $avatarUrl = Storage::disk('public')->url($path);
         }
 
         $conversation = Conversation::create([
@@ -687,6 +688,10 @@ class MessagingController extends Controller
         }
 
         $conversation->participants()->attach($targetId, ['role' => 'member']);
-        return response()->json(['status' => 'invited', 'user' => $targetUser]);
+        // The participant list must never serialize a user's email or account settings.
+        return response()->json([
+            'status' => 'invited',
+            'user' => $targetUser->only(['id', 'name', 'username', 'profile_picture']),
+        ]);
     }
 }

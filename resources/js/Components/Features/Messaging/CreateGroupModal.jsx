@@ -18,7 +18,13 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
     const [creating, setCreating] = useState(false);
     const [searching, setSearching] = useState(false);
     const avatarInputRef = useRef(null);
+    const avatarObjectUrlRef = useRef(null);
     const searchTimeout = useRef(null);
+
+    useEffect(() => () => {
+        if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+        if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    }, []);
 
     // Load friends as initial suggestions when modal opens
     useEffect(() => {
@@ -45,6 +51,8 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
             setSelectedUsers([]);
             setGroupName('');
             setAvatar(null);
+            if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+            avatarObjectUrlRef.current = null;
             setAvatarPreview(null);
         }
     }, [open]);
@@ -84,8 +92,10 @@ export default function CreateGroupModal({ open, onClose, onCreated, currentUser
     const handleAvatarChange = (e) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (avatarObjectUrlRef.current) URL.revokeObjectURL(avatarObjectUrlRef.current);
+            avatarObjectUrlRef.current = URL.createObjectURL(file);
             setAvatar(file);
-            setAvatarPreview(URL.createObjectURL(file));
+            setAvatarPreview(avatarObjectUrlRef.current);
         }
     };
 

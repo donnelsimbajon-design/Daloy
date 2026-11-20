@@ -8,6 +8,8 @@ use App\Models\Post;
 use App\Models\School;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -126,4 +128,65 @@ class CommunicationAccessTest extends TestCase
         $this->assertSame('shared_post', $message->metadata['type']);
         $this->assertSame($post->id, $message->metadata['post_id']);
     }
+    public function test_group_invitation_does_not_expose_email_or_private_account_fields(): void
+    {
+        $admin = User::factory()->create();
+        $invitee = User::factory()->create();
+        $conversation = Conversation::create(['type' => 'group', 'name' => 'Group']);
+        $conversation->participants()->attach($admin->id, ['role' => 'admin']);
+
+        $result = $this->actingAs($admin)->postJson("/api/conversations/{$conversation->id}/invite", [
+            'user_id' => $invitee->id,
+        ])->assertOk();
+
+        $this->assertSame($invitee->id, $result->json('user.id'));
+        $this->assertArrayNotHasKey('email', $result->json('user'));
+        $this->assertArrayNotHasKey('privacy_setting', $result->json('user'));
+        $this->assertArrayNotHasKey('password', $result->json('user'));
+    }
+
+    public function test_group_avatar_upload_is_saved_to_the_public_disk(): void
+    {
+        Storage::fake('public');
+        $creator = User::factory()->create();
+        $invitee = User::factory()->create();
+
+        $result = $this->actingAs($creator)->postJson('/api/conversations/group', [
+            'name' => 'Group with Photo',
+            'member_ids' => [$invitee->id],
+            'avatar' => UploadedFile::fake()->image('group-avatar.jpg'),
+        ])->assertOk();
+
+        $avatarUrl = $result->json('avatar_url');
+        $this->assertNotEmpty($avatarUrl);
+        $publicPath = parse_url($avatarUrl, PHP_URL_PATH) ?: $avatarUrl;
+        $storedPath = preg_replace('#^/storage/#', '', $publicPath);
+        Storage::disk('public')->assertExists($storedPath);
+    }
+
+    public function test_school_post_supports_five_photos_and_stores_every_attachment(): void
+    {
+        Storage::fake('public');
+        $owner = User::factory()->create();
+        $school = School::create([
+            'name' => 'Photo School', 'privacy' => 'public', 'created_by' => $owner->id,
+        ]);
+        $school->members()->attach($owner->id, ['role' => 'admin']);
+
+        $files = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $files[] = UploadedFile::fake()->image("gallery-{$i}.jpg");
+        }
+
+        $this->actingAs($owner)->from("/schools/{$school->id}")->post("/schools/{$school->id}/posts", [
+            'content' => 'Five photos from our school',
+            'visibility' => 'public',
+            'media' => $files,
+        ])->assertRedirect();
+
+        $post = Post::where('school_id', $school->id)
+            ->where('content', 'Five photos from our school')->firstOrFail();
+        $this->assertSame(5, $post->media()->count());
+    }
+
 }

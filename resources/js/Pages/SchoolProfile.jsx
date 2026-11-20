@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Head, usePage, Link, router } from '@inertiajs/react';
 import MainLayout from '@/Layouts/MainLayout';
 import PostCard from '@/Components/UI/Cards/PostCard';
@@ -45,8 +45,10 @@ const SpinnerIcon = () => (
 export default function SchoolProfile() {
     const { school: initialSchool, posts: initialPosts, members: initialMembers, events: initialEvents, auth, activeSession, blockedIds } = usePage().props;
     const [school, setSchool] = useState(initialSchool);
-    const [posts] = useState(initialPosts?.data || []);
-    const [members] = useState(initialMembers?.data || []);
+    // Inertia can retain the component after a new post or member action.
+    // Use updated page props, not a stale useState snapshot.
+    const posts = initialPosts?.data || [];
+    const members = initialMembers?.data || [];
     const [events, setEvents] = useState(initialEvents || []);
     const [activeTab, setActiveTab] = useState('posts');
     const [joiningCall, setJoiningCall] = useState(false);
@@ -57,6 +59,17 @@ export default function SchoolProfile() {
     const [newPostContent, setNewPostContent] = useState('');
     const [mediaFiles, setMediaFiles] = useState([]);
     const [mediaPreviews, setMediaPreviews] = useState([]);
+    const postPreviewsRef = useRef([]);
+    const clearPostMedia = () => {
+        postPreviewsRef.current.forEach(preview => URL.revokeObjectURL(preview.url));
+        postPreviewsRef.current = [];
+        setMediaFiles([]);
+        setMediaPreviews([]);
+    };
+    useEffect(() => () => {
+        postPreviewsRef.current.forEach(preview => URL.revokeObjectURL(preview.url));
+        postPreviewsRef.current = [];
+    }, []);
     const [posting, setPosting] = useState(false);
     const fileInputRef = useRef(null);
     const postFileInputRef = useRef(null);
@@ -143,28 +156,38 @@ export default function SchoolProfile() {
     // ── Post Composer with media ─────────────────────────────────────────
     const handlePostFileSelect = (e) => {
         const files = Array.from(e.target.files || []);
-        const remaining = 4 - mediaFiles.length;
-        const newFiles = files.slice(0, remaining);
-        if (newFiles.length === 0) return;
-
-        setMediaFiles(prev => [...prev, ...newFiles]);
-        newFiles.forEach(file => {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                setMediaPreviews(prev => [...prev, {
-                    url: ev.target.result,
-                    type: file.type.startsWith('video/') ? 'video' : 'image',
-                    name: file.name,
-                }]);
-            };
-            reader.readAsDataURL(file);
-        });
         if (postFileInputRef.current) postFileInputRef.current.value = '';
+        if (!files.length) return;
+
+        if (mediaFiles.length + files.length > 10) {
+            window.alert('A school post can include up to 10 photos or videos.');
+            return;
+        }
+        if (files.some(file => file.size > 50 * 1024 * 1024)) {
+            window.alert('Each attachment must be 50 MB or less.');
+            return;
+        }
+        if ([...mediaFiles, ...files].reduce((sum, file) => sum + file.size, 0) > 90 * 1024 * 1024) {
+            window.alert('Photos and videos must total 90 MB or less.');
+            return;
+        }
+
+        const previews = files.map(file => ({
+            url: URL.createObjectURL(file),
+            type: file.type.startsWith('video/') ? 'video' : 'image',
+            name: file.name,
+        }));
+        postPreviewsRef.current = [...postPreviewsRef.current, ...previews];
+        setMediaFiles(prev => [...prev, ...files]);
+        setMediaPreviews([...postPreviewsRef.current]);
     };
 
     const removePostMedia = (index) => {
+        const removed = postPreviewsRef.current[index];
+        if (removed) URL.revokeObjectURL(removed.url);
+        postPreviewsRef.current = postPreviewsRef.current.filter((_, i) => i !== index);
         setMediaFiles(prev => prev.filter((_, i) => i !== index));
-        setMediaPreviews(prev => prev.filter((_, i) => i !== index));
+        setMediaPreviews([...postPreviewsRef.current]);
     };
 
     const handleCreatePost = (e) => {
@@ -183,10 +206,10 @@ export default function SchoolProfile() {
             forceFormData: true,
             onSuccess: () => {
                 setNewPostContent('');
-                setMediaFiles([]);
-                setMediaPreviews([]);
+                clearPostMedia();
                 setShowPostForm(false);
             },
+            onError: (errors) => window.alert(errors.media || errors.content || 'Could not publish this school post.'),
             onFinish: () => setPosting(false),
         });
     };
@@ -521,14 +544,14 @@ export default function SchoolProfile() {
 
                                         {/* Media Previews */}
                                         {mediaPreviews.length > 0 && (
-                                            <div className={`grid gap-1 mt-3 rounded-xl overflow-hidden border border-ocean-border ${mediaPreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                                            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 max-h-[340px] overflow-y-auto rounded-xl border border-ocean-border p-2 ${mediaPreviews.length === 1 ? 'grid-cols-1' : ''}`}>
                                                 {mediaPreviews.map((preview, i) => (
-                                                    <div key={i} className={`relative aspect-video bg-ocean-surface group/media ${mediaPreviews.length === 1 ? 'col-span-2' : ''}`}>
+                                                    <div key={i} className="relative aspect-square overflow-hidden rounded-xl bg-ocean-surface">
                                                         {preview.type === 'video'
                                                             ? <video src={preview.url} className="w-full h-full object-cover" muted />
-                                                            : <img src={preview.url} className="w-full h-full object-cover" />
+                                                            : <img src={preview.url} alt={preview.name} className="w-full h-full object-cover" />
                                                         }
-                                                        <button type="button" onClick={() => removePostMedia(i)} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-red-500 transition-colors opacity-0 group-hover/media:opacity-100">
+                                                        <button type="button" onClick={() => removePostMedia(i)} aria-label={`Remove attachment ${i + 1}`} className="absolute top-2 right-2 h-11 w-11 rounded-full bg-black/75 flex items-center justify-center text-white hover:bg-black transition-colors focus-visible:outline-2 focus-visible:outline-white">
                                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                                         </button>
                                                     </div>
@@ -540,14 +563,14 @@ export default function SchoolProfile() {
                                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-ocean-border">
                                             <div className="flex items-center gap-1">
                                                 <input ref={postFileInputRef} type="file" multiple accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/mov,video/webm" onChange={handlePostFileSelect} className="hidden" />
-                                                <button type="button" onClick={() => postFileInputRef.current?.click()} disabled={mediaFiles.length >= 4} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-ocean-text-dim hover:text-biolum hover:bg-biolum/10 transition-all text-xs font-bold disabled:opacity-30">
+                                                <button type="button" onClick={() => postFileInputRef.current?.click()} disabled={mediaFiles.length >= 10} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-ocean-text-dim hover:text-biolum hover:bg-biolum/10 transition-all text-xs font-bold disabled:opacity-30">
                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" /></svg>
                                                     Photo/Video
-                                                    {mediaFiles.length > 0 && <span className="text-[10px] text-biolum">({mediaFiles.length}/4)</span>}
+                                                    {mediaFiles.length > 0 && <span className="text-[10px] text-biolum">({mediaFiles.length}/10)</span>}
                                                 </button>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <button type="button" onClick={() => { setShowPostForm(false); setNewPostContent(''); setMediaFiles([]); setMediaPreviews([]); }} className="px-5 py-2 rounded-xl border border-ocean-border text-ocean-text text-xs font-semibold hover:bg-ocean-surface transition-colors">
+                                                <button type="button" onClick={() => { setShowPostForm(false); setNewPostContent(''); clearPostMedia(); }} className="px-5 py-2 rounded-xl border border-ocean-border text-ocean-text text-xs font-semibold hover:bg-ocean-surface transition-colors">
                                                     Cancel
                                                 </button>
                                                 <button type="submit" disabled={posting || (!newPostContent.trim() && mediaFiles.length === 0)} className="px-5 py-2 rounded-xl bg-biolum text-ocean-deep text-xs font-semibold hover:bg-biolum-bright transition-colors disabled:opacity-40">

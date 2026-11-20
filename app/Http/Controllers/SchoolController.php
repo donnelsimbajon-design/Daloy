@@ -299,11 +299,19 @@ class SchoolController extends Controller
         $validated = $request->validate([
             'content' => 'nullable|string|max:2000',
             'visibility' => 'required|in:public,followers,private',
-            'media' => 'nullable|array|max:4',
+            'media' => 'nullable|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
         ]);
 
-        if (empty($validated['content']) && empty($request->file('media'))) {
+        $mediaFiles = $request->file('media', []);
+        $totalBytes = array_sum(array_map(fn ($file) => $file->getSize(), $mediaFiles));
+        if ($totalBytes > 90 * 1024 * 1024) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'media' => 'Photos and videos must total 90 MB or less.',
+            ]);
+        }
+
+        if (empty($validated['content']) && empty($mediaFiles)) {
             return back()->withErrors(['content' => 'Please write something or attach media.']);
         }
 
