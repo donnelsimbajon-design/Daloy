@@ -9,7 +9,7 @@ on:
       - 'routes/**'
       - 'database/**'
       - 'resources/**'
-      - 'tests/Feature/**'
+      - 'tests/**'
       - 'composer.json'
       - 'composer.lock'
       - 'package.json'
@@ -51,13 +51,14 @@ jobs:
         run: |
           cp .env.example .env
           php artisan key:generate --ansi
-      - name: Validate PHP syntax
+      - name: Lint controllers, middleware, routes, migrations and tests
         run: |
-          for file in app/Http/Controllers/GroupCallController.php app/Http/Controllers/SchoolCallController.php app/Http/Controllers/ShareController.php app/Http/Controllers/MessagingController.php app/Http/Controllers/CommentController.php tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php tests/Feature/MediaLifecycleTest.php app/Http/Controllers/AnnouncementInteractionController.php app/Http/Controllers/EventController.php app/Http/Controllers/StoryController.php routes/web.php; do
-            php -l "$file"
-          done
-      - name: Run permission and privacy regression suites
-        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php tests/Feature/MediaLifecycleTest.php
+          find app/Http/Controllers app/Http/Middleware routes database/migrations tests \
+            -type f -name '*.php' -print0 | xargs -0 -n1 php -l
+      - name: Verify all registered routes compile
+        run: php artisan route:list --except-vendor > /dev/null
+      - name: Run complete PHP test suite (disposable SQLite)
+        run: php artisan test
 
   frontend:
     name: React/Vite compile
