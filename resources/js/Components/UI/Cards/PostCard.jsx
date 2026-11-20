@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { router, usePage, Link } from '@inertiajs/react';
 import axios from 'axios';
+import SafeMediaImage from '@/Components/UI/SafeMediaImage';
 import PostActions from '@/Components/Features/Posts/PostActions';
 import CommentsSection from '@/Components/Features/Comments/CommentsSection';
 import ShareModal from '@/Components/Features/Messaging/ShareModal';
@@ -22,7 +23,22 @@ export default function PostCard({ post }) {
     const [commentsCount, setCommentsCount] = useState(post.comments_count || 0);
     const [showComments, setShowComments] = useState(false);
     const [showShareModal, setShowShareModal] = useState(false);
+    const [isBookmarked, setIsBookmarked] = useState(Boolean(post.is_bookmarked));
+    const [isReposted, setIsReposted] = useState(Boolean(post.is_reposted || (post.repost_of_id && post.user_id === currentUser?.id)));
+    const [repostsCount, setRepostsCount] = useState(post.reposts_count || 0);
+    const [repostBusy, setRepostBusy] = useState(false);
+    const [repostNotice, setRepostNotice] = useState('');
+    const [pollError, setPollError] = useState('');
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportReason, setReportReason] = useState('spam');
+    const [reportDetails, setReportDetails] = useState('');
+    const [reportBusy, setReportBusy] = useState(false);
+    const [reportSubmitted, setReportSubmitted] = useState(false);
+    const [reportError, setReportError] = useState('');
     const [lightboxIndex, setLightboxIndex] = useState(null);
+    const [mediaItems, setMediaItems] = useState(post.media || []);
+    const [removingMediaId, setRemovingMediaId] = useState(null);
+    useEffect(() => { setMediaItems(post.media || []); }, [post.media]);
 
     // Poll state
     const [pollData, setPollData] = useState(post.poll || null);
@@ -46,9 +62,9 @@ export default function PostCard({ post }) {
     const handleLightboxKey = useCallback((e) => {
         if (lightboxIndex === null) return;
         if (e.key === 'Escape') setLightboxIndex(null);
-        if (e.key === 'ArrowRight') setLightboxIndex(prev => Math.min(prev + 1, (post.media || []).length - 1));
+        if (e.key === 'ArrowRight') setLightboxIndex(prev => Math.min(prev + 1, mediaItems.length - 1));
         if (e.key === 'ArrowLeft') setLightboxIndex(prev => Math.max(prev - 1, 0));
-    }, [lightboxIndex, post.media]);
+    }, [lightboxIndex, mediaItems.length]);
 
     useEffect(() => {
         if (lightboxIndex !== null) {
@@ -86,6 +102,11 @@ export default function PostCard({ post }) {
 
     const handlePollVote = async (optionId) => {
         if (!pollData) return;
+        setPollError('');
+        if (pollData.expires_at && new Date(pollData.expires_at).getTime() <= Date.now()) {
+            setPollError('This poll has closed.');
+            return;
+        }
         // Optimistic update
         const prevData = pollData;
         const prevVoted = votedOptionId;
@@ -105,6 +126,7 @@ export default function PostCard({ post }) {
             setVotedOptionId(prevVoted);
             setPollData(prevData);
             console.error('Vote error:', error);
+            setPollError(error.response?.data?.message || 'Your vote could not be saved. Please try again.');
         }
     };
 
@@ -125,14 +147,79 @@ export default function PostCard({ post }) {
         });
     };
 
+    const toggleRepost = async () => {
+        if (repostBusy) return;
+        setRepostBusy(true);
+        setRepostNotice('');
+        try {
+            const originalId = post.repost_of_id || post.id;
+            const { data } = await axios.post(`/posts/${originalId}/repost`);
+            setIsReposted(Boolean(data.reposted));
+            setRepostsCount(data.reposts_count || 0);
+            setRepostNotice(data.reposted ? 'Reposted to your profile.' : 'Repost removed.');
+            router.reload({ only: ['posts'], preserveState: true, preserveScroll: true });
+        } catch (error) {
+            setRepostNotice(error.response?.status === 403
+                ? 'Only public posts can be reposted.'
+                : 'Unable to repost. Please try again.');
+        } finally {
+            setRepostBusy(false);
+        }
+    };
+
+    const removePostedMedia = async (media) => {
+        if (!isOwner || removingMediaId || !media?.id) return;
+        if (!window.confirm('Permanently remove this photo or video from your post?')) return;
+        setRemovingMediaId(media.id);
+        try {
+            await axios.delete(`/posts/${post.id}/media/${media.id}`);
+            setMediaItems(items => items.filter(item => item.id !== media.id));
+            setLightboxIndex(null);
+        } catch (error) {
+            window.alert(error.response?.data?.message || 'Could not remove this photo. Please try again.');
+        } finally {
+            setRemovingMediaId(null);
+        }
+    };
+
+    const toggleBookmark = async () => {
+        setShowMenu(false);
+        try {
+            const response = await axios.post(`/posts/${post.id}/bookmark`);
+            setIsBookmarked(Boolean(response.data.bookmarked));
+        } catch (error) {
+            console.error('Could not update bookmark:', error);
+            window.alert('Unable to save this post. Please try again.');
+        }
+    };
+
+    const submitReport = async (event) => {
+        event.preventDefault();
+        setReportBusy(true);
+        setReportError('');
+        try {
+            await axios.post(`/posts/${post.id}/report`, {
+                reason: reportReason,
+                details: reportDetails,
+            });
+            setReportSubmitted(true);
+        } catch (error) {
+            setReportError(error.response?.data?.message || 'Unable to submit your report. Please try again.');
+        } finally {
+            setReportBusy(false);
+        }
+    };
+
     // Build display data
     const author = post.user || {};
     const initials = author.name
         ? author.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
         : '?';
     const timeAgo = getTimeAgo(post.created_at);
-    const mediaItems = post.media || [];
+    const originalPost = post.repost_of || post.repostOf || null;
     const flowVelocity = post.flow_velocity || 'steady';
+    const flowLabel = { low: 'Low-key', steady: 'Steady', high: 'High energy' }[flowVelocity] || 'Steady';
+    const pollClosed = Boolean(pollData?.expires_at && new Date(pollData.expires_at).getTime() <= Date.now());
 
     const visibilityIcon = {
         public: <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />,
@@ -141,10 +228,10 @@ export default function PostCard({ post }) {
     };
 
     return (
-        <div className="bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
+        <div data-post-id={post.id} className="daloy-post-card bg-ocean-card/70 backdrop-blur-sm rounded-[18px] border border-ocean-divider hover:border-ocean-hover transition-all duration-300 group shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.06),0_8px_16px_rgba(0,0,0,0.04),0_16px_32px_rgba(0,0,0,0.03)] hover:-translate-y-[1px]">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 pt-4 pb-0">
-                <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-start justify-between gap-3 px-4 pt-4 pb-0">
+                <div className="flex min-w-0 items-center gap-3">
                     <Link href={`/users/${author.id}`} className="shrink-0">
                         <div className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text-dim/50 ring-2 ring-ocean-divider overflow-hidden hover:ring-biolum/40 transition-all shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
                             {author.profile_picture ? (
@@ -156,11 +243,11 @@ export default function PostCard({ post }) {
                             )}
                         </div>
                     </Link>
-                    <div>
-                        <Link href={`/users/${author.id}`} className="flex items-center gap-2 group">
+                    <div className="min-w-0">
+                        <Link href={`/users/${author.id}`} className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 group">
                             <h3 className="text-sm font-bold text-ocean-text group-hover:text-biolum transition-colors tracking-[-0.01em]">{author.name || 'Unknown'}</h3>
                             {author.username && (
-                                <span className="text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
+                                <span className="max-w-[180px] truncate text-xs text-ocean-text-dim/70 group-hover:text-ocean-text-muted transition-colors font-normal">@{author.username}</span>
                             )}
                         </Link>
                         {post.school && (
@@ -177,6 +264,7 @@ export default function PostCard({ post }) {
                             {timeAgo}
                             {post.location_tag && ` · ${post.location_tag}`}
                             {' · '}{visibilityIcon[post.visibility] || <Globe2 className="w-3.5 h-3.5 inline text-ocean-text-dim" />}
+                            <span className="ml-2 text-[11px] text-ocean-text-dim" title="Post mood only; it does not affect reach" aria-label={`Post mood: ${flowLabel}`}>{flowLabel}</span>
                         </p>
                     </div>
                 </div>
@@ -185,7 +273,10 @@ export default function PostCard({ post }) {
                 <div className="relative" ref={menuRef}>
                     <button
                         onClick={() => setShowMenu(!showMenu)}
-                        className="p-1.5 rounded-lg text-ocean-text-dim hover:text-ocean-text-muted hover:bg-ocean-surface transition-colors"
+                        type="button"
+                        aria-label="Post options"
+                        aria-expanded={showMenu}
+                        className="flex h-11 w-11 items-center justify-center rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM18.75 12a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0Z" />
@@ -207,7 +298,7 @@ export default function PostCard({ post }) {
                                     </button>
                                     <button
                                         onClick={() => { setShowDeleteConfirm(true); setShowMenu(false); }}
-                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition-colors"
+                                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-hover transition-colors"
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -216,8 +307,18 @@ export default function PostCard({ post }) {
                                     </button>
                                 </>
                             )}
+                            <button
+                                type="button"
+                                onClick={toggleBookmark}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors"
+                            >
+                                <svg className="w-4 h-4" fill={isBookmarked ? "currentColor" : "none"} viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 4.5A2.25 2.25 0 0 1 7.5 2.25h9A2.25 2.25 0 0 1 18.75 4.5V21l-6.75-4.5L5.25 21V4.5Z" />
+                                </svg>
+                                {isBookmarked ? 'Remove bookmark' : 'Save post'}
+                            </button>
                             {!isOwner && (
-                                <button className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors">
+                                <button type="button" onClick={() => { setShowMenu(false); setReportError(''); setShowReportModal(true); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-ocean-text-muted hover:text-ocean-text hover:bg-ocean-surface transition-colors">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0 2.77-.693a9 9 0 0 1 6.208.682l.108.054a9 9 0 0 0 6.086.71l3.114-.732a48.524 48.524 0 0 1-.005-10.499l-3.11.732a9 9 0 0 1-6.085-.711l-.108-.054a9 9 0 0 0-6.208-.682L3 4.5M3 15V4.5" />
                                     </svg>
@@ -259,7 +360,7 @@ export default function PostCard({ post }) {
                             </button>
                             <button
                                 onClick={handleUpdate}
-                                className="px-4 py-1.5 text-xs font-bold text-ocean-text bg-biolum rounded-lg transition-all"
+                                className="px-4 py-1.5 text-xs font-bold text-biolum-foreground bg-biolum rounded-lg transition-all"
                             >
                                 Save
                             </button>
@@ -278,14 +379,17 @@ export default function PostCard({ post }) {
                         <div className="space-y-2">
                             {(pollData.options || []).map((option) => {
                                 const isVoted = votedOptionId === option.id;
-                                const hasVoted = !!votedOptionId;
+                                const hasVoted = !!votedOptionId || pollClosed;
                                 const pct = option.percentage || 0;
 
                                 return (
                                     <button
                                         key={option.id}
+                                        type="button"
+                                        aria-pressed={isVoted}
+                                        disabled={pollClosed}
                                         onClick={(e) => { e.stopPropagation(); e.preventDefault(); handlePollVote(option.id); }}
-                                        className={`relative w-full text-left rounded-xl overflow-hidden transition-all border ${
+                                        className={`relative w-full min-h-[48px] text-left rounded-xl overflow-hidden transition-all border ${
                                             isVoted
                                                 ? 'border-biolum/40 bg-biolum/10'
                                                 : 'border-ocean-border hover:border-biolum/30 hover:bg-biolum/5 cursor-pointer'
@@ -324,32 +428,44 @@ export default function PostCard({ post }) {
                                 {pollData.total_votes || 0} vote{(pollData.total_votes || 0) !== 1 ? 's' : ''}
                                 {pollData.expires_at && ` · Ends ${new Date(pollData.expires_at).toLocaleDateString()}`}
                             </p>
-                            {votedOptionId && (
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); setVotedOptionId(null); }}
-                                    className="text-[11px] text-ocean-text-dim hover:text-biolum transition-colors"
-                                >
-                                    Change vote
-                                </button>
-                            )}
+                            {pollClosed
+                                ? <span className="text-[11px] text-ocean-text-muted">Poll closed</span>
+                                : votedOptionId ? <span className="text-[11px] text-ocean-text-muted">Tap another option to change vote</span> : null}
                         </div>
+                        {pollError && <p role="alert" className="mt-3 text-xs text-ocean-text-muted">{pollError}</p>}
                     </div>
                 </div>
+            )}
+
+            {post.repost_of_id && (
+                <section className="mx-4 mb-4 rounded-2xl border border-ocean-border bg-ocean-surface/50 p-4" aria-label="Original reposted post">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[.13em] text-ocean-text-dim">{author.name} reposted</p>
+                    {originalPost ? (
+                        <Link href={`/posts/${originalPost.id}`} className="block rounded-xl p-2 hover:bg-ocean-hover focus-visible:outline-2">
+                            <p className="text-xs font-semibold text-ocean-text mb-2">{originalPost.user?.name || 'Original author'}</p>
+                            {originalPost.content && <p className="whitespace-pre-wrap break-words text-sm text-ocean-text leading-relaxed line-clamp-5">{originalPost.content}</p>}
+                            {originalPost.media?.[0]?.type !== 'video' && originalPost.media?.[0]?.url && (
+                                <SafeMediaImage src={originalPost.media[0].url} alt="Reposted photo" className="mt-3 max-h-64 w-full rounded-xl object-contain bg-ocean-deep" />
+                            )}
+                            {originalPost.media?.[0]?.type === 'video' && <p className="mt-2 text-xs text-ocean-text-muted">View the original video post</p>}
+                            <p className="mt-3 text-[11px] text-ocean-text-muted">View original post</p>
+                        </Link>
+                    ) : <p className="text-sm text-ocean-text-muted">The original post is no longer available.</p>}
+                </section>
             )}
 
             {/* Media Gallery */}
             {mediaItems.length > 0 && (
                 <div className="px-4 pb-3">
-                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1' :
+                    <div className={`grid gap-[2px] rounded-[16px] overflow-hidden border border-ocean-divider bg-ocean-surface/40 w-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.02)] ${mediaItems.length === 1 ? 'grid-cols-1 grid-rows-1 aspect-[4/3] sm:aspect-[16/9] max-h-[600px]' :
                             mediaItems.length === 2 ? 'grid-cols-2 grid-rows-1 aspect-[4/3] sm:aspect-[16/9]' :
                                 mediaItems.length === 3 ? 'grid-cols-2 grid-rows-2 aspect-[4/3] sm:aspect-[16/9]' :
-                                    'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 items
+                                    'grid-cols-2 grid-rows-2 aspect-[4/3]' // 4 shown, with a +N indicator
                         }`}>
                         {mediaItems.slice(0, 4).map((media, index) => (
                             <div
                                 key={media.id || index}
-                                className={`relative w-full h-full bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''
-                                    } ${mediaItems.length === 1 ? 'max-h-[600px]' : 'min-h-[120px]'}`}
+                                className={`relative w-full h-full min-h-0 overflow-hidden bg-ocean-deep/50 ${mediaItems.length === 3 && index === 0 ? 'row-span-2' : ''}`}
                             >
                                 {media.type === 'video' ? (
                                     <video
@@ -360,12 +476,25 @@ export default function PostCard({ post }) {
                                         muted
                                     />
                                 ) : (
-                                    <img
-                                        src={media.url}
-                                        alt="Post media"
-                                        className={`w-full h-full object-cover cursor-pointer ${mediaItems.length === 1 ? 'max-h-[600px] block' : 'absolute inset-0'}`}
+                                    <button type="button" aria-label={`View photo ${index + 1}`}
                                         onClick={() => setLightboxIndex(index)}
-                                    />
+                                        className="absolute inset-0 z-[1] block h-full w-full cursor-zoom-in overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-[-3px]">
+                                        <SafeMediaImage src={media.url} alt="Post photo"
+                                            className={`h-full w-full bg-ocean-deep ${mediaItems.length === 1 ? 'object-contain' : 'object-cover'}`} />
+                                    </button>
+                                )}
+                                {mediaItems.length > 4 && index === 3 && (
+                                    <button type="button" onClick={() => setLightboxIndex(3)} aria-label={`View ${mediaItems.length - 4} more photos or videos`}
+                                        className="absolute inset-0 z-[2] grid place-items-center bg-black/55 text-3xl font-bold text-white hover:bg-black/65 focus-visible:outline-2 focus-visible:outline-offset-[-4px]">
+                                        +{mediaItems.length - 4}
+                                    </button>
+                                )}
+                                {isOwner && (
+                                    <button type="button" onClick={() => removePostedMedia(media)} disabled={removingMediaId !== null}
+                                        aria-label={`Delete photo or video ${index + 1} from post`}
+                                        className="absolute right-2 top-2 z-10 grid h-11 w-11 place-items-center rounded-full bg-black/75 text-white shadow-sm hover:bg-black disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-white">
+                                        <X size={19} aria-hidden="true" />
+                                    </button>
                                 )}
                                 {/* Gradient overlay for depth */}
                                 {media.type !== 'video' && (
@@ -380,8 +509,9 @@ export default function PostCard({ post }) {
             {/* ── Image Lightbox (Portal) ────────────────────────────── */}
             {lightboxIndex !== null && mediaItems[lightboxIndex] && createPortal(
                 <div
-                    className="fixed inset-0 z-[9999] flex items-center justify-center"
-                    style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+                    role="dialog" aria-modal="true" aria-label="Post photo viewer" data-testid="photo-lightbox"
+                    className="daloy-photo-lightbox fixed inset-0 z-[9999] flex items-center justify-center bg-black px-3 py-12 sm:px-16"
+                    style={{ backgroundColor: '#000000', backdropFilter: 'blur(12px)' }}
                     onClick={() => setLightboxIndex(null)}
                     onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                     onTouchEnd={(e) => {
@@ -392,10 +522,20 @@ export default function PostCard({ post }) {
                         touchStartX.current = null;
                     }}
                 >
+                    {/* Owners can remove files beyond the four visible collage tiles. */}
+                    {isOwner && (
+                        <button type="button" onClick={(e) => { e.stopPropagation(); removePostedMedia(mediaItems[lightboxIndex]); }}
+                            disabled={removingMediaId !== null}
+                            aria-label="Delete current photo or video from post"
+                            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 min-h-11 rounded-full border border-white/15 bg-white/10 px-4 text-sm font-semibold text-white hover:bg-white/20 disabled:opacity-50">
+                            Remove photo
+                        </button>
+                    )}
                     {/* Close */}
                     <button
                         onClick={(e) => { e.stopPropagation(); setLightboxIndex(null); }}
-                        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-10 h-10 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                        type="button" aria-label="Close photo viewer"
+                        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 w-11 h-11 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                     >
                         <X size={20} />
                     </button>
@@ -411,7 +551,8 @@ export default function PostCard({ post }) {
                     {lightboxIndex > 0 && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev - 1); }}
-                            className="absolute left-2 sm:left-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                            type="button" aria-label="Previous photo"
+                            className="absolute left-2 sm:left-6 z-10 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                         >
                             <ChevronLeft size={24} />
                         </button>
@@ -421,21 +562,28 @@ export default function PostCard({ post }) {
                     {lightboxIndex < mediaItems.length - 1 && (
                         <button
                             onClick={(e) => { e.stopPropagation(); setLightboxIndex(prev => prev + 1); }}
-                            className="absolute right-2 sm:right-6 z-10 w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
+                            type="button" aria-label="Next photo"
+                            className="absolute right-2 sm:right-6 z-10 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/10 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer"
                         >
                             <ChevronRight size={24} />
                         </button>
                     )}
 
-                    {/* Image */}
-                    <img
-                        src={mediaItems[lightboxIndex].url}
-                        alt={`Image ${lightboxIndex + 1}`}
-                        className="max-w-[95vw] max-h-[90vh] sm:max-w-[85vw] sm:max-h-[85vh] object-contain rounded-xl select-none"
-                        style={{ animation: 'lbFadeIn 0.2s ease-out' }}
-                        onClick={(e) => e.stopPropagation()}
-                        draggable={false}
-                    />
+                    {/* Photos remain in original color against a true-black lightbox. */}
+                    <div className="flex max-h-[85dvh] w-full items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                        {mediaItems[lightboxIndex].type === 'video' ? (
+                            <video src={mediaItems[lightboxIndex].url} controls autoPlay playsInline className="max-h-[85dvh] max-w-full rounded-lg bg-black" />
+                        ) : (
+                            <SafeMediaImage
+                                key={mediaItems[lightboxIndex].url}
+                                src={mediaItems[lightboxIndex].url}
+                                alt={`Photo ${lightboxIndex + 1}`}
+                                loading="eager"
+                                className="max-w-[92vw] max-h-[85dvh] sm:max-w-[80vw] object-contain rounded-xl select-none bg-black"
+                                draggable={false}
+                            />
+                        )}
+                    </div>
 
                     <style>{`
                         @keyframes lbFadeIn { from { opacity:0; transform:scale(0.96) } to { opacity:1; transform:scale(1) } }
@@ -447,7 +595,7 @@ export default function PostCard({ post }) {
             {mediaItems.length === 0 && post.media_urls && post.media_urls.length > 0 && (
                 <div className="px-4 pb-3">
                     <div className="rounded-[16px] overflow-hidden border border-ocean-divider relative shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                        <img
+                        <SafeMediaImage
                             src={post.media_urls[0]}
                             alt="Post media"
                             className="w-full h-40 sm:h-56 object-cover group-hover:scale-[1.02] transition-transform duration-500"
@@ -534,30 +682,63 @@ export default function PostCard({ post }) {
                 </div>
             , document.body)}
 
+            {/* A real report form, linked to the moderation system. */}
+            {showReportModal && createPortal(
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70 px-4 py-6" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowReportModal(false); }}>
+                    <div role="dialog" aria-modal="true" aria-label="Report post" className="w-full max-w-md rounded-2xl border border-ocean-border bg-ocean-card p-5 sm:p-6 shadow-2xl text-ocean-text" onKeyDown={(e) => { if (e.key === 'Escape') setShowReportModal(false); }}>
+                        <h3 className="text-lg font-bold mb-2">Report post</h3>
+                        {reportSubmitted ? (
+                            <div>
+                                <p role="status" className="text-sm text-ocean-text-muted mb-5">Report submitted. A moderator will review it.</p>
+                                <button type="button" onClick={() => setShowReportModal(false)} className="w-full rounded-xl bg-ocean-text text-ocean-deep px-4 py-3 font-semibold">Done</button>
+                            </div>
+                        ) : (
+                            <form onSubmit={submitReport} className="space-y-4">
+                                <p className="text-sm text-ocean-text-muted">Tell us why this post needs review.</p>
+                                <label className="block text-sm font-semibold" htmlFor={`report-reason-${post.id}`}>Reason</label>
+                                <select id={`report-reason-${post.id}`} value={reportReason} onChange={(e) => setReportReason(e.target.value)} className="w-full rounded-xl bg-ocean-surface border border-ocean-border p-3 text-ocean-text">
+                                    <option value="spam">Spam</option>
+                                    <option value="harassment">Harassment</option>
+                                    <option value="inappropriate">Inappropriate content</option>
+                                    <option value="hate_speech">Hate speech</option>
+                                    <option value="threats">Threats</option>
+                                    <option value="other">Other</option>
+                                </select>
+                                <label htmlFor={`report-details-${post.id}`} className="block text-sm font-semibold">Additional details (optional)</label>
+                                <textarea id={`report-details-${post.id}`} value={reportDetails} onChange={(e) => setReportDetails(e.target.value)} maxLength={1000} rows={3} className="w-full rounded-xl bg-ocean-surface border border-ocean-border p-3 text-ocean-text" placeholder="Describe the problem..." />
+                                {reportError && <p role="alert" className="text-sm text-ocean-text">{reportError}</p>}
+                                <div className="flex gap-3">
+                                    <button type="button" onClick={() => setShowReportModal(false)} className="flex-1 rounded-xl border border-ocean-border px-4 py-3 font-semibold">Cancel</button>
+                                    <button type="submit" disabled={reportBusy} className="flex-1 rounded-xl bg-ocean-text text-ocean-deep px-4 py-3 font-semibold disabled:opacity-50">{reportBusy ? 'Submitting...' : 'Submit report'}</button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>,
+                document.body
+            )}
+
             {/* Footer */}
             <div className="px-3 sm:px-4 py-3 border-t border-ocean-divider-subtle shadow-[0_-1px_2px_rgba(0,0,0,0.015)]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="w-full">
                     <PostActions
                         reactionsCount={reactionsCount}
                         commentsCount={commentsCount}
                         isLiked={isLiked}
                         onLike={handleLike}
+                        isReposted={isReposted}
+                        onRepost={toggleRepost}
+                        repostsCount={repostsCount}
                         onCommentClick={() => setShowComments(!showComments)}
                         onShareClick={() => setShowShareModal(true)}
                     />
 
-                    {/* Flow Velocity Badge */}
-                    <div className={`px-2 sm:px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase ${flowVelocity === 'high'
-                        ? 'text-biolum bg-biolum/10 border border-biolum/20'
-                        : 'text-ocean-text-dim/70 bg-ocean-surface/60 border border-ocean-divider-subtle'
-                        }`}>
-                        {flowVelocity}
-                    </div>
                 </div>
 
+                {repostNotice && <p role="status" className="mt-2 px-2 text-xs text-ocean-text-muted">{repostNotice}</p>}
                 {/* Comments Section */}
                 {showComments && (
-                    <CommentsSection postId={post.id} />
+                    <CommentsSection postId={post.id} postOwnerId={post.user_id || post.user?.id} />
                 )}
             </div>
 

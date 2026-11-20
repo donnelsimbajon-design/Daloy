@@ -49,21 +49,6 @@ function FeatureCard({ icon: Icon, title, description, index }) {
     );
 }
 
-// ── Stats Item ────────────────────────────────────────────────────
-function StatItem({ value, label, index }) {
-    const [ref, visible] = useReveal();
-    return (
-        <div ref={ref} className="text-center" style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? 'translateY(0)' : 'translateY(20px)',
-            transition: `opacity 0.6s ease ${index * 0.12}s, transform 0.6s ease ${index * 0.12}s`,
-        }}>
-            <div className="text-3xl sm:text-4xl md:text-5xl font-bold text-white tracking-tighter mb-1 sm:mb-2">{value}</div>
-            <div className="text-white/40 text-xs sm:text-sm font-medium uppercase tracking-widest">{label}</div>
-        </div>
-    );
-}
-
 export default function Landing() {
     const [scrolled, setScrolled] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -97,7 +82,7 @@ export default function Landing() {
         <>
             <Head title="Daloy — Dive into the Current" />
 
-            <div className="min-h-screen bg-black text-white overflow-x-hidden" style={{ fontFamily: '"Inter", "SF Pro Display", system-ui, sans-serif' }}>
+            <div className="daloy-landing min-h-screen bg-black text-white overflow-x-hidden" style={{ fontFamily: '"Inter", "SF Pro Display", system-ui, sans-serif' }}>
 
                 {/* ── Nav ─────────────────────────────────────────────── */}
                 <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-xl border-b border-white/8' : ''}`}>
@@ -117,9 +102,9 @@ export default function Landing() {
                         </div>
 
                         {/* Mobile */}
-                        <div className="flex md:hidden items-center gap-2">
+                        <div className="flex md:hidden items-center gap-1 sm:gap-2">
                             <Link href="/login" className="text-white/70 text-sm font-medium px-3 py-1.5 rounded-full border border-white/15 hover:border-white/30 transition-colors">Sign in</Link>
-                            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white/60 hover:text-white transition-colors" aria-label="Menu">
+                            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white/60 hover:text-white transition-colors" aria-label={mobileMenuOpen ? "Close menu" : "Open menu"} aria-expanded={mobileMenuOpen} aria-controls="landing-mobile-menu">
                                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                             </button>
                         </div>
@@ -127,7 +112,7 @@ export default function Landing() {
 
                     {/* Mobile dropdown */}
                     {mobileMenuOpen && (
-                        <div className="md:hidden bg-black/95 backdrop-blur-xl border-b border-white/10 px-4 pb-4 space-y-1">
+                        <div id="landing-mobile-menu" className="md:hidden bg-black/95 backdrop-blur-xl border-b border-white/10 px-4 pb-4 space-y-1">
                             <button onClick={() => scrollTo('about')} className="block w-full text-left text-white/60 hover:text-white py-3 text-sm font-medium border-b border-white/5 transition-colors">About</button>
                             <button onClick={() => scrollTo('features')} className="block w-full text-left text-white/60 hover:text-white py-3 text-sm font-medium border-b border-white/5 transition-colors">Features</button>
                             <Link href="/register" className="block mt-3 text-center bg-white text-black text-sm font-semibold px-4 py-3 rounded-full hover:bg-white/90 transition-all">Get started free</Link>
@@ -136,25 +121,25 @@ export default function Landing() {
                 </nav>
 
                 {/* ── Hero ────────────────────────────────────────────── */}
-                <section className="relative min-h-screen flex flex-col justify-center px-6 sm:px-12 md:px-20 overflow-hidden">
-                    {/* Background Video Layer */}
-                    <div className="absolute inset-0 pointer-events-none z-0 bg-black">
+                <section className="daloy-landing-hero relative min-h-[100svh] flex flex-col justify-center px-5 py-28 sm:px-12 md:px-20 overflow-hidden">
+                    {/* Keep the original Daloy rotating background videos. */}
+                    <div className="absolute inset-0 z-0 pointer-events-none bg-black" aria-hidden="true">
                         <video
                             key={currentVideo}
                             src={`/video/video${currentVideo}.mp4`}
-                            autoPlay
-                            muted
-                            playsInline
-                            onEnded={() => setCurrentVideo(v => v === 1 ? 2 : 1)}
-                            className="w-full h-full object-cover opacity-100 transition-opacity duration-1000 animate-[fadeIn_2s_ease-out]"
+                            className="daloy-landing-video absolute inset-0"
+                            autoPlay muted playsInline
+                            preload="metadata"
+                            onEnded={() => setCurrentVideo(video => video === 1 ? 2 : 1)}
+                            tabIndex={-1}
                         />
-                        {/* Just a simple gradient to blend the top nav and bottom content seamlessly into the black page theme */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black" />
+                        <div className="daloy-landing-video-scrim absolute inset-0" />
                     </div>
 
                     <div ref={heroRef} style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? 'translateY(0)' : 'translateY(24px)', transition: 'opacity 0.9s ease, transform 0.9s ease' }}
                         className="relative z-10 max-w-6xl mx-auto w-full text-left">
 
+                        <div className="min-w-0 max-w-3xl">
                         <div className="inline-flex items-center gap-2 border border-white/20 rounded-full px-4 py-1.5 mb-6 text-white text-[10px] font-bold uppercase tracking-[0.2em] backdrop-blur-xl bg-white/5 shadow-xl transition-transform hover:scale-105 cursor-default">
                             <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/50 opacity-75"></span>
@@ -163,7 +148,7 @@ export default function Landing() {
                             Social Media, Redefined
                         </div>
 
-                        <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.05] tracking-tight text-white mb-6 drop-shadow-2xl max-w-3xl">
+                        <h1 className="text-[clamp(2.75rem,10vw,5.5rem)] sm:text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.05] tracking-tight text-white mb-6 drop-shadow-2xl max-w-3xl">
                             Dive into
                             <br />
                             <span className="italic font-normal text-white/80 pb-1 inline-block">the current.</span>
@@ -176,7 +161,7 @@ export default function Landing() {
 
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                             <Link href="/register"
-                                className="group inline-flex items-center justify-center gap-2 bg-white text-black font-bold px-6 py-3.5 rounded-full hover:bg-gray-200 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] text-sm w-full sm:w-auto">
+                                className="daloy-primary-cta group inline-flex items-center justify-center gap-2 bg-white text-black font-bold px-6 py-3.5 rounded-full hover:bg-gray-200 transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.15)] text-sm w-full sm:w-auto">
                                 Start voyaging
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                             </Link>
@@ -185,6 +170,7 @@ export default function Landing() {
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform opacity-50 group-hover:opacity-100" />
                             </button>
                         </div>
+                        </div>
                     </div>
 
                     <div className="absolute bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2 opacity-20">
@@ -192,13 +178,34 @@ export default function Landing() {
                     </div>
                 </section>
 
-                {/* ── Stats ───────────────────────────────────────────── */}
-                <section className="border-y border-white/8 py-10 sm:py-16 px-4 sm:px-6">
-                    <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-10">
-                        <StatItem value="10K+" label="Voyagers" index={0} />
-                        <StatItem value="500+" label="Schools" index={1} />
-                        <StatItem value="1M+" label="Messages" index={2} />
-                        <StatItem value="99.9%" label="Uptime" index={3} />
+                {/* The product preview sits below the video hero, not over the headline. */}
+                <section className="daloy-preview-section border-y border-white/10 bg-black px-4 py-12 sm:px-8 sm:py-16" aria-label="Daloy product preview">
+                    <div className="mx-auto w-full max-w-5xl">
+                        <div className="mx-auto mb-8 max-w-2xl text-center">
+                            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.2em] text-white/45">A closer look</p>
+                            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">See what flows inside Daloy.</h2>
+                            <p className="mx-auto mt-3 max-w-lg text-sm sm:text-base leading-relaxed text-white/55">Explore conversations, communities, music and the moments you share.</p>
+                        </div>
+                        <LandingPreview />
+                    </div>
+                </section>
+
+                {/* Product capabilities — no unverified user-count or uptime claims */}
+                <section className="daloy-capabilities px-5 py-8 sm:px-10">
+                    <div className="max-w-6xl mx-auto grid gap-5 sm:grid-cols-3">
+                        {[
+                            ['01', 'Make genuine connections', 'Meet people who share your interests.'],
+                            ['02', 'Share what matters', 'Create posts, stories, music moments and memories.'],
+                            ['03', 'Find your community', 'Discover Schools, events and conversations.'],
+                        ].map(([num, title, desc]) => (
+                            <div key={num} className="flex items-start gap-4 px-2 py-2">
+                                <strong className="text-xl font-extrabold tracking-tight">{num}</strong>
+                                <div>
+                                    <h2 className="text-white text-sm font-bold mb-1">{title}</h2>
+                                    <p className="text-white/50 text-xs leading-relaxed">{desc}</p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </section>
 
@@ -246,6 +253,54 @@ export default function Landing() {
                 </footer>
             </div>
         </>
+    );
+}
+
+function LandingPreview() {
+    return (
+        <div className="daloy-landing-preview" aria-hidden="true">
+            <div className="daloy-preview-window">
+                <div className="daloy-preview-window-header">
+                    <span className="daloy-preview-dot" />
+                    <span className="daloy-preview-dot" />
+                    <span className="daloy-preview-dot" />
+                    <span className="ml-auto text-xs font-bold tracking-wide text-white/70" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</span>
+                </div>
+                <div className="daloy-preview-row flex flex-wrap items-center gap-3">
+                    <div className="daloy-preview-avatar"><Waves size={21} /></div>
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-white">Your current</p>
+                        <p className="text-xs text-[#a1a1aa] mt-1">A place to share your story.</p>
+                    </div>
+                    <span className="daloy-preview-status">Explore</span>
+                </div>
+                <div className="daloy-preview-row">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="h-10 w-10 rounded-full border border-[#71717a]/30 bg-[#27272a] grid place-items-center text-[#e4e4e7]"><Users size={19} /></div>
+                        <div>
+                            <p className="text-sm font-semibold text-white">Find your people</p>
+                            <p className="text-xs text-[#a1a1aa]">Community starts with a hello.</p>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#27272a] to-[#09090b] border border-[#71717a]/20">
+                            <MessageSquare size={19} className="text-[#e4e4e7] mb-3" />
+                            <p className="text-sm font-semibold text-white">Conversations</p>
+                            <p className="text-xs text-[#a1a1aa] mt-1">Stay connected</p>
+                        </div>
+                        <div className="rounded-2xl p-4 bg-gradient-to-br from-[#27272a] to-[#09090b] border border-[#71717a]/20">
+                            <Music size={19} className="text-[#e4e4e7] mb-3" />
+                            <p className="text-sm font-semibold text-white">Currents</p>
+                            <p className="text-xs text-[#a1a1aa] mt-1">Share the rhythm</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="daloy-preview-row flex items-center justify-between gap-2">
+                    <span className="text-xs text-[#a1a1aa]">Stories, communities, and more.</span>
+                    <span className="daloy-preview-pill flex gap-1.5 items-center">Find your flow <ArrowRight size={12} /></span>
+                </div>
+            </div>
+        </div>
     );
 }
 

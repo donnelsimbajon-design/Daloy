@@ -26,6 +26,31 @@ class Story extends Model
         ];
     }
 
+    /** Same audience rules as the story feed, enforced on direct endpoints. */
+    public function isVisibleTo(User $viewer): bool
+    {
+        if ($this->archived_at !== null || !$this->expires_at?->isFuture()) {
+            return false;
+        }
+        if ($this->user_id === $viewer->id) {
+            return true;
+        }
+        $owner = $this->user;
+        if (!$owner || $owner->isBlockedWith($viewer)) {
+            return false;
+        }
+        $friend = $viewer->isFriend($owner);
+        if (!$friend && !$viewer->isFollowing($owner)) {
+            return false;
+        }
+        return match ($this->visibility) {
+            'public' => true,
+            'friends' => $friend,
+            'close_friends' => $owner->isCloseFriend($viewer),
+            default => false,
+        };
+    }
+
     public function isArchived(): bool
     {
         return $this->archived_at !== null;

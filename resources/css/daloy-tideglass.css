@@ -1,0 +1,268 @@
+/* Daloy Layout Refresh — NO PALETTE CHANGES.
+ * The original minimal-white and black/gray color tokens stay in app.css.
+ * This file changes geometry, visual hierarchy, accessibility and responsiveness ONLY.
+ * For colored backgrounds/text, use original --color-ocean-* and --color-biolum-* tokens.
+ */
+.daloy-app-shell { background: var(--color-ocean-deep); }
+.daloy-app-main, .daloy-app-content, .daloy-page, .daloy-post-list { min-width: 0; }
+.daloy-app-content { isolation: isolate; }
+.daloy-topnav { background: var(--color-ocean-deep); border-color: var(--color-ocean-divider); backdrop-filter: blur(20px); }
+.daloy-topnav #topnav-burger-btn { border-radius: 14px; background: var(--color-ocean-surface); border: 1px solid var(--color-ocean-border); }
+.daloy-topnav #topnav-search-input { min-height: 43px; border-radius: 14px; background: var(--color-ocean-surface); border-color: var(--color-ocean-border); }
+.daloy-drawer { box-shadow: 14px 0 45px rgba(0,0,0,.2); }
+.daloy-drawer nav a:hover { background: var(--color-ocean-hover); }
+.daloy-quick-panel { background: var(--color-ocean-deep); }
+.daloy-floating-menu > button { border-radius: 18px; }
+@media (max-width: 640px) {
+  .daloy-app-content { padding-bottom: max(5rem, calc(env(safe-area-inset-bottom) + 4rem)) !important; }
+}
+
+/* Feed, posts, communities, conversations — keep the original neutral surfaces. */
+.daloy-feed-header, .daloy-page-intro {
+  border-radius: 24px;
+  padding: clamp(18px, 4vw, 28px);
+  background: var(--color-ocean-card);
+  border: 1px solid var(--color-ocean-border);
+  box-shadow: 0 5px 22px rgba(0,0,0,.055);
+  margin-bottom: 18px;
+}
+.daloy-feed-header h1 { font-size: clamp(1.55rem, 4vw, 2.35rem); line-height: 1.15; letter-spacing: -.04em; font-weight: 800; }
+.daloy-feed-header p:last-of-type { color: var(--color-ocean-text-muted); max-width: 36rem; }
+.daloy-eyebrow { color: var(--color-ocean-text-muted); letter-spacing: .16em; text-transform: uppercase; font-size: .72rem; font-weight: 800; }
+.daloy-composer, .daloy-post-card, .daloy-empty-feed {
+  background: var(--color-ocean-card);
+  border: 1px solid var(--color-ocean-border) !important;
+  border-radius: 22px !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,.06);
+}
+.daloy-composer { padding: clamp(14px, 3vw, 20px) !important; }
+.daloy-composer > div:first-child > button { min-height: 48px; border-radius: 15px; background: var(--color-ocean-surface); border: 1px solid var(--color-ocean-border); }
+.daloy-composer > div:last-child { gap: 5px; }
+.daloy-composer > div:last-child > button { min-height: 44px; border-radius: 12px; }
+.daloy-post-card { overflow: hidden; margin-bottom: 16px; }
+.daloy-post-card:hover { border-color: var(--color-ocean-text-dim) !important; transform: translateY(-1px); }
+.daloy-empty-feed { padding: 55px 18px !important; }
+.daloy-story-rail { border-radius: 22px; }
+.daloy-post-list > div { min-width: 0; }
+.daloy-page h1, .daloy-page h2, .daloy-page h3 { letter-spacing: -.03em; }
+.daloy-page :where(input:not([type=checkbox]):not([type=radio]), textarea, select) { max-width: 100%; }
+.daloy-explore :where(.rounded-2xl, .rounded-3xl),
+.daloy-schools :where(.rounded-2xl, .rounded-3xl),
+.daloy-events :where(.rounded-2xl, .rounded-3xl),
+.daloy-voyagers :where(.rounded-2xl, .rounded-3xl),
+.daloy-settings :where(.rounded-2xl, .rounded-3xl) { border-radius: 22px; }
+.daloy-conversations { background: var(--color-ocean-deep); }
+.daloy-conversations > div:first-child { background: var(--color-ocean-card); }
+.daloy-conversations :where(.rounded-2xl,.rounded-xl) { border-radius: 17px; }
+.daloy-settings { max-width: 1120px; min-width: 0; margin-inline: auto; }
+.daloy-profile { min-width: 0; }
+.daloy-profile :where(.rounded-2xl,.rounded-3xl) { border-radius: 22px; }
+.daloy-community-grid > a, .daloy-community-grid > div { box-shadow: 0 4px 20px rgba(0,0,0,.055); }
+
+/* Two-column auth composition. All colors inherit the ORIGINAL light/dark app palette. */
+.daloy-auth-shell {
+  min-height: 100dvh;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center; gap: clamp(12px, 4vw, 56px);
+  padding: clamp(14px, 3vw, 46px) !important;
+  background: var(--color-ocean-deep);
+}
+.daloy-auth-aside {
+  min-height: min(760px, calc(100dvh - 60px)); align-self: stretch;
+  display: flex; flex-direction: column; justify-content: space-between; overflow: hidden;
+  padding: clamp(28px, 5vw, 64px); border-radius: 30px;
+  background: var(--color-ocean-card); color: var(--color-ocean-text);
+  border: 1px solid var(--color-ocean-border);
+  box-shadow: 0 15px 50px rgba(0,0,0,.09);
+}
+.daloy-auth-aside::before {
+  content:""; position:absolute; bottom:-165px; right:-150px;
+  width:480px; height:480px; border-radius:50%;
+  border: 1px solid var(--color-ocean-border);
+  box-shadow: 0 0 0 44px var(--color-ocean-surface), 0 0 0 96px var(--color-ocean-hover);
+  pointer-events:none;
+}
+.daloy-auth-aside { position:relative; }
+.daloy-auth-aside > * { position: relative; z-index: 1; }
+.daloy-auth-aside .brand { font: 500 2.1rem/1.3 "Pacifico", cursive; }
+.daloy-auth-aside h2 { max-width: 13ch; font-size: clamp(2.4rem, 5vw, 4.1rem); line-height: 1.08; font-weight: 800; letter-spacing: -.06em; }
+.daloy-auth-aside p { max-width: 28rem; color: var(--color-ocean-text-muted); line-height: 1.7; }
+.daloy-auth-aside .auth-aside-mark { display:inline-flex; align-items:center; gap:9px; font-size:.78rem; font-weight:750; letter-spacing:.1em; text-transform:uppercase; color: var(--color-ocean-text-muted); }
+.daloy-auth-form-column { width: min(100%, 490px); margin-inline:auto; min-width:0; }
+.daloy-auth-form-column > div:first-child { margin-bottom: 22px; }
+.daloy-auth-card {
+  background: var(--color-ocean-card) !important; border: 1px solid var(--color-ocean-border) !important;
+  border-radius: 26px !important; padding: clamp(21px, 3vw, 36px) !important;
+  box-shadow: 0 10px 35px rgba(0,0,0,.075) !important;
+}
+.daloy-auth-card h2 { font-size: 1.55rem; letter-spacing: -.035em; }
+.daloy-auth-card input:not([type="checkbox"]) {
+  background: var(--color-ocean-surface); border: 1px solid var(--color-ocean-border);
+  border-radius: 13px; min-height: 46px; font-size: 16px;
+}
+.daloy-auth-card button[type="submit"] { border-radius: 14px; min-height: 48px; }
+@media (max-width: 900px) {
+  .daloy-auth-shell { grid-template-columns: minmax(0,1fr); }
+  .daloy-auth-aside { display:none; }
+  .daloy-auth-form-column { width: min(100%, 480px); padding-block: 10px; }
+}
+@media (max-width: 390px) {
+  .daloy-auth-shell { padding: 12px !important; }
+  .daloy-auth-card { padding: 18px !important; }
+}
+
+/* Original landing black/white palette and videos remain intact. */
+.daloy-landing { background: #000; color:#fff; }
+.daloy-landing-hero { background:#000; }
+.daloy-landing-video { width:100%; height:100%; object-fit:cover; object-position:center; }
+.daloy-landing-video-scrim { background: linear-gradient(90deg,rgba(0,0,0,.85),rgba(0,0,0,.42) 54%,rgba(0,0,0,.65)), linear-gradient(0deg,#000,transparent 32%,transparent 80%,#000); }
+.daloy-landing-preview { position:relative; padding:14px; border-radius:28px; border:1px solid rgba(255,255,255,.23); background:rgba(0,0,0,.45); backdrop-filter:blur(17px); box-shadow:0 32px 70px rgba(0,0,0,.3); transform:rotate(-2deg); }
+.daloy-preview-window { background:rgba(0,0,0,.72); border:1px solid rgba(255,255,255,.16); border-radius:20px; overflow:hidden; }
+.daloy-preview-window-header { display:flex; align-items:center; gap:8px; padding:14px 20px; border-bottom:1px solid rgba(255,255,255,.12); }
+.daloy-preview-dot { width:9px; height:9px; background:rgba(255,255,255,.8); border-radius:50%; }
+.daloy-preview-dot:nth-child(2) { opacity:.5; } .daloy-preview-dot:nth-child(3) { opacity:.25; }
+.daloy-preview-row { padding:17px 20px; border-bottom:1px solid rgba(255,255,255,.12); }
+.daloy-preview-row:last-child { border-bottom:0; }
+.daloy-preview-avatar { flex:none; display:grid; place-items:center; width:39px;height:39px; border-radius:12px; background:#27272a; color:#fff; }
+.daloy-preview-pill { border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff; border-radius:999px; padding:6px 10px; font-size:.74rem; }
+.daloy-preview-status { display:flex; align-items:center; gap:7px; font-size:.75rem; color:#e4e4e7; }
+.daloy-preview-status::before { content:""; width:7px;height:7px;border-radius:50%;background:#fff; }
+.daloy-landing #features .group { background:rgba(255,255,255,.02); border-radius:22px; }
+.daloy-landing #features .group:hover { background:rgba(255,255,255,.055); }
+.daloy-capabilities { background:#09090b; border-block:1px solid rgba(255,255,255,.11); }
+.daloy-capabilities strong { color:#fff; }
+/* Below-hero editorial preview: centered, readable, and shown on every device. */
+.daloy-preview-section { background: #000; }
+.daloy-preview-section .daloy-landing-preview {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  transform: none;
+  box-sizing: border-box;
+}
+.daloy-preview-section .daloy-preview-window { width: 100%; }
+@media (max-width: 640px) {
+  .daloy-preview-section .daloy-landing-preview { padding: 8px; border-radius: 22px; }
+  .daloy-preview-section .daloy-preview-window { border-radius: 15px; }
+  .daloy-preview-section .daloy-preview-row { padding: 13px 14px; }
+  .daloy-preview-section .daloy-preview-window-header { padding: 11px 14px; }
+}
+@media (max-width: 370px) {
+  .daloy-preview-section .daloy-preview-row .grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width:640px) {
+  .daloy-feed-header { padding:20px; border-radius:20px; }
+  .daloy-composer > div:last-child > button { font-size:11px; gap:4px; padding-inline:4px; }
+  .daloy-landing-video-scrim { background:linear-gradient(0deg,#000,rgba(0,0,0,.45) 35%,rgba(0,0,0,.6) 75%,#000); }
+  .daloy-conversations { padding-bottom:env(safe-area-inset-bottom); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .daloy-landing-video { display:none; }
+}
+
+/* Daloy monochrome refinement — UI chrome only; uploaded media stays in color. */
+.daloy-app-shell svg, .daloy-app-shell [data-lucide] {
+  filter: grayscale(1);
+}
+.daloy-post-card { contain: layout; }
+.daloy-post-card > div, .daloy-post-card > section { min-width: 0; }
+.daloy-post-card .daloy-post-actions { width: 100%; }
+.daloy-post-card .daloy-post-action {
+  color: var(--color-ocean-text-muted);
+  border: 1px solid transparent;
+  background: transparent;
+}
+.daloy-post-card .daloy-post-action:hover,
+.daloy-post-card .daloy-post-action:focus-visible {
+  background: var(--color-ocean-surface);
+  color: var(--color-ocean-text);
+}
+.daloy-post-card .daloy-post-action-active,
+.daloy-post-card .daloy-post-action[aria-pressed="true"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-ocean-text);
+}
+.daloy-post-card .daloy-post-action:active { transform: scale(.98); }
+.daloy-poll-builder {
+  box-shadow: inset 0 1px 0 var(--color-ocean-border);
+}
+.daloy-poll-builder input, .daloy-poll-builder select {
+  color: var(--color-ocean-text);
+  background: var(--color-ocean-card);
+  border-color: var(--color-ocean-border);
+}
+.daloy-poll-builder :is(input, select, button):focus-visible {
+  outline: 2px solid var(--color-biolum) !important;
+  outline-offset: 2px;
+}
+.daloy-photo-lightbox {
+  background: #000 !important;
+  color: #fff;
+}
+.daloy-photo-lightbox :is(img,video) { background: #000 !important; }
+.daloy-photo-lightbox button { color: #fff; }
+.daloy-photo-lightbox button:focus-visible {
+  outline: 2px solid white !important; outline-offset: 3px !important;
+}
+.daloy-profile { max-width: 1100px; }
+.daloy-profile-cover { background: var(--color-ocean-deep); overflow: hidden; }
+.daloy-profile-cover img { filter: none !important; }
+.daloy-profile-identity {
+  background: var(--color-ocean-card);
+  border: 1px solid var(--color-ocean-border);
+  border-radius: 28px;
+  padding: clamp(15px, 3vw, 30px);
+  padding-top: 12px;
+  padding-bottom: 8px;
+  box-shadow: 0 15px 55px rgba(0,0,0,.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.daloy-profile-identity > .mt-4 { max-width: 100%; }
+.daloy-profile-tabs { scrollbar-width: none; }
+.daloy-profile-tabs::-webkit-scrollbar { display: none; }
+.daloy-profile-tabs .profile-tab-btn {
+  min-height: 44px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.daloy-profile-tabs .profile-tab-btn:hover { background: var(--color-ocean-hover); }
+.daloy-profile-tabs .profile-tab-btn[aria-selected="true"] {
+  background: var(--color-ocean-surface);
+  border-color: var(--color-ocean-border);
+  color: var(--color-ocean-text);
+}
+.daloy-profile .lg\:col-span-1 { min-width: 0; }
+.daloy-profile .lg\:col-span-2 { min-width: 0; }
+.daloy-profile .rounded-\[20px\] { border-radius: 22px; }
+.daloy-profile .daloy-post-card { margin-bottom: 0; }
+.daloy-profile-identity > div:last-child { max-width: 100%; }
+@media (max-width: 640px) {
+  .daloy-post-card .daloy-post-action { padding-inline: 2px; gap: 4px; }
+  .daloy-post-card .daloy-post-action svg { width: 18px; height: 18px; }
+  .daloy-profile-identity { border-radius: 22px; }
+  .daloy-profile-tabs { justify-content: flex-start; }
+  .daloy-profile .daloy-post-card { border-radius: 20px !important; }
+}
+
+/* Avoid hiding photos behind an accidental white surface in any portal. */
+.daloy-photo-lightbox [data-testid="media-unavailable"] {
+  background: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+/* Motion preference affects transitions, not the functional UI. */
+@media (prefers-reduced-motion: reduce) {
+  .daloy-post-card .daloy-post-action:active { transform: none; }
+}
+
+/* Portals render under body, outside the member-app shell. Keep their icons
+   monochrome without filtering images/video uploaded by students. */
+body button svg, body nav svg, body [role="dialog"] svg {
+  filter: grayscale(1);
+}
+.daloy-app-shell :is(button, a)[class*="bg-biolum"],
+.daloy-profile :is(button, a)[class*="bg-biolum"] {
+  color: var(--color-biolum-foreground);
+}

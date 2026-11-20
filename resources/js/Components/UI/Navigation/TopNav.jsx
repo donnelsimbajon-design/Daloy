@@ -29,6 +29,32 @@ export default function TopNav() {
     const notifications = social?.recent_notifications || [];
     const unreadNotifCount = (social?.unread_notifications || 0) + (social?.pending_friend_requests || 0) + (social?.pending_follow_requests || 0);
 
+    // Update notification and message badges in visible tabs.
+    // Polling is a fallback until a push/WebSocket transport is configured.
+    useEffect(() => {
+        if (!user?.id) return;
+        let pending = false;
+        const refreshSocial = () => {
+            if (document.visibilityState !== 'visible' || pending) return;
+            pending = true;
+            router.reload({
+                only: ['social'],
+                preserveState: true,
+                preserveScroll: true,
+                onFinish: () => { pending = false; },
+            });
+        };
+        const interval = window.setInterval(refreshSocial, 8000);
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') refreshSocial();
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [user?.id]);
+
     // Dark mode state
     const [isDark, setIsDark] = useState(() => {
         if (typeof document !== 'undefined') {
@@ -116,28 +142,29 @@ export default function TopNav() {
 
     return (
         <>
-            <nav className="fixed top-0 left-0 right-0 z-40 bg-ocean-deep border-b border-ocean-divider shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]">
+            <nav className="daloy-topnav fixed top-0 left-0 right-0 z-40 bg-ocean-deep border-b border-ocean-divider shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)]">
                 <div className="w-full px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center h-16 relative w-full">
 
                         {/* Logo & Burger (Left Corner) */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
                             <button
                                 onClick={() => setIsDrawerOpen(true)}
                                 className="p-2 rounded-xl text-ocean-text group hover:bg-ocean-surface transition-colors focus:outline-none"
                                 aria-label="Open menu"
+                                aria-expanded={isDrawerOpen}
                                 id="topnav-burger-btn"
                             >
                                 <WavyBurgerIcon isOpen={isDrawerOpen} />
                             </button>
 
                             <Link href="/" className="flex items-center gap-0 group">
-                                <span className="text-3xl font-medium text-ocean-text tracking-wide group-hover:opacity-80 transition-colors ml-2" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</span>
+                                <span className="text-2xl sm:text-3xl font-medium text-ocean-text tracking-wide group-hover:opacity-80 transition-colors ml-1 sm:ml-2" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</span>
                             </Link>
                         </div>
 
                         {/* Search Bar — desktop (Perfectly Centered) with Live Dropdown */}
-                        <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 w-full max-w-md transition-all" ref={dropdownRef}>
+                        <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 w-[min(36vw,28rem)] max-w-md transition-all" ref={dropdownRef}>
                             <form onSubmit={handleSearchSubmit} className="relative w-full">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                     <svg className="w-4 h-4 text-ocean-text-dim" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -260,7 +287,7 @@ export default function TopNav() {
 
                         {/* Mobile Search Overlay Toggle */}
                         {isMobileSearchOpen && (
-                            <div className="md:hidden absolute inset-x-0 top-0 h-16 bg-ocean-deep z-50 flex items-center px-4 animate-in slide-in-from-top duration-300">
+                            <div className="lg:hidden absolute inset-x-0 top-0 h-16 bg-ocean-deep z-50 flex items-center px-4 animate-in slide-in-from-top duration-300">
                                 <form onSubmit={handleSearchSubmit} className="flex-1 mr-2">
                                     <input
                                         autoFocus
@@ -276,11 +303,11 @@ export default function TopNav() {
                         )}
 
                         {/* Right Icons (Pushed to the Far Right) */}
-                        <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+                        <div className="flex items-center gap-0 sm:gap-2 ml-auto shrink-0">
                             {/* Mobile Search Button */}
                             <button
                                 onClick={() => setIsMobileSearchOpen(true)}
-                                className="md:hidden p-2.5 text-ocean-text-muted hover:text-ocean-text"
+                                className="lg:hidden p-2.5 text-ocean-text-muted hover:text-ocean-text"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
                             </button>
@@ -528,7 +555,7 @@ export default function TopNav() {
                                             </Link>
 
                                             <Link
-                                                href="/bookmarks"
+                                                href="/saved"
                                                 onClick={() => setIsProfileOpen(false)}
                                                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-ocean-text hover:bg-ocean-surface/50 transition-colors"
                                             >

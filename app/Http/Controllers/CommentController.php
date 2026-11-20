@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class CommentController extends Controller
 {
@@ -19,6 +20,7 @@ class CommentController extends Controller
     public function index(Post $post): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($post->isVisibleTo($user), 404);
 
         // Get IDs of users restricted by the post author
         $restrictedByAuthor = [];
@@ -27,10 +29,25 @@ class CommentController extends Controller
                 ->pluck('users.id')->toArray();
         }
 
+        // Apply the same visibility rule to every reply depth. Filtering only
+        // root comments leaked restricted commenters through nested replies.
+        $visibleReplies = function ($query) use ($post, $restrictedByAuthor, $user) {
+            $query->where('post_id', $post->id)
+                ->where(function ($q) use ($restrictedByAuthor, $user) {
+                    $q->whereNotIn('user_id', $restrictedByAuthor)
+                      ->orWhere('user_id', $user->id);
+                });
+        };
+
         $comments = $post->comments()
             ->with([
                 'user:id,name,username,profile_picture',
+                'replies' => $visibleReplies,
                 'replies.user:id,name,username,profile_picture',
+                'replies.replies' => $visibleReplies,
+                'replies.replies.user:id,name,username,profile_picture',
+                'replies.replies.replies' => $visibleReplies,
+                'replies.replies.replies.user:id,name,username,profile_picture',
             ])
             ->whereNull('parent_id')
             // Hide comments from users restricted by the post author
@@ -51,6 +68,7 @@ class CommentController extends Controller
     public function store(Request $request, Post $post): JsonResponse
     {
         $authUser = Auth::user();
+        abort_unless($post->isVisibleTo($authUser), 404);
         $postOwner = $post->user;
 
         // Block check
@@ -73,8 +91,22 @@ class CommentController extends Controller
 
         $validated = $request->validate([
             'content'   => 'required|string|max:1000',
-            'parent_id' => 'nullable|integer|exists:comments,id',
+            'parent_id' => ['nullable', 'integer', Rule::exists('comments', 'id')
+                ->where('post_id', $post->id)->whereNull('deleted_at')],
         ]);
+
+        // UI supports at most three visible reply levels. Do not store hidden deeper threads.
+        if (!empty($validated['parent_id'])) {
+            $parent = Comment::findOrFail($validated['parent_id']);
+            $depth = 0;
+            while ($parent && $depth <= 3) {
+                $depth++;
+                $parent = $parent->parent;
+            }
+            if ($depth > 3) {
+                return response()->json(['message' => 'Reply nesting limit reached.'], 422);
+            }
+        }
 
         $comment = $post->comments()->create([
             'user_id'   => $authUser->id,
@@ -131,14 +163,16 @@ class CommentController extends Controller
     }
 
     /**
-     * Delete a comment (owner or admin only).
+     * Delete a comment (commenter or author of the containing post).
      */
     public function destroy(Comment $comment): JsonResponse
     {
         $user = Auth::user();
 
-        if ($comment->user_id !== $user->id) {
-            abort(403, 'Unauthorized');
+        // The commenter and the author of the containing post may delete comments.
+        $comment->loadMissing('post');
+        if ($comment->user_id !== $user->id && $comment->post?->user_id !== $user->id) {
+            abort(403, 'You cannot remove this comment.');
         }
 
         $comment->delete();

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { usePage } from '@inertiajs/react';
 
-export default function CommentItem({ comment, onDelete, onReply, depth = 0 }) {
+export default function CommentItem({ comment, onDelete, onReply, postOwnerId, depth = 0 }) {
     const { auth } = usePage().props;
     const isOwner = auth.user?.id === comment.user_id; // Check if current user is the author
-    const isAdmin = auth.user?.role === 'admin'; // Assuming 'role' field exists or similar check
-    const canDelete = isOwner || isAdmin;
+    const isPostOwner = auth.user?.id === postOwnerId;
+    const canDelete = isOwner || isPostOwner;
 
     const [showReplyInput, setShowReplyInput] = useState(false);
     const [replyContent, setReplyContent] = useState('');
@@ -40,7 +40,7 @@ export default function CommentItem({ comment, onDelete, onReply, depth = 0 }) {
 
             {/* Content */}
             <div className="flex-1 min-w-0">
-                <div className="bg-ocean-card/40 rounded-xl p-3 border border-ocean-border/50">
+                <div className="border-b border-ocean-border/50 px-1 py-2.5">
                     <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-semibold text-ocean-text truncate pr-2">
                             {comment.user?.name || 'Unknown User'}
@@ -67,9 +67,9 @@ export default function CommentItem({ comment, onDelete, onReply, depth = 0 }) {
                     {canDelete && (
                         <button
                             onClick={() => onDelete(comment.id)}
-                            className="text-xs font-medium text-ocean-text-dim hover:text-rose-400 transition-colors"
+                            className="text-xs font-medium text-ocean-text-dim hover:text-ocean-text focus-visible:outline-2 transition-colors" aria-label={isPostOwner && !isOwner ? 'Remove comment from your post' : 'Delete your comment'}
                         >
-                            Delete
+                            {isPostOwner && !isOwner ? 'Remove' : 'Delete'}
                         </button>
                     )}
                 </div>
@@ -104,6 +104,7 @@ export default function CommentItem({ comment, onDelete, onReply, depth = 0 }) {
                                 comment={reply}
                                 onDelete={onDelete}
                                 onReply={onReply}
+                                postOwnerId={postOwnerId}
                                 depth={depth + 1}
                             />
                         ))}

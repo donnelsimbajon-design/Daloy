@@ -58,7 +58,7 @@ export default function Voyagers() {
         <MainLayout>
             <Head title="Friends & Connections" />
 
-            <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="daloy-page daloy-voyagers max-w-6xl mx-auto px-4 py-8">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row md:items-start justify-between mb-8 gap-4">
                     <div>

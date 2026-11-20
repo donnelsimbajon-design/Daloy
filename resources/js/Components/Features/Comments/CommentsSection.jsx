@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CommentItem from './CommentItem';
 
-export default function CommentsSection({ postId }) {
+export default function CommentsSection({ postId, postOwnerId }) {
     const [comments, setComments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [newComment, setNewComment] = useState('');
@@ -96,7 +96,7 @@ export default function CommentsSection({ postId }) {
     };
 
     const handleDelete = async (commentId) => {
-        if (!confirm('Are you sure you want to delete this comment?')) return;
+        if (!confirm('Remove this comment? This cannot be undone.')) return;
 
         try {
             await axios.delete(`/comments/${commentId}`);
@@ -104,6 +104,7 @@ export default function CommentsSection({ postId }) {
             setComments(prev => removeItemRecursively(prev, commentId));
         } catch (error) {
             console.error("Error deleting comment:", error);
+            window.alert(error.response?.data?.message || 'Unable to remove this comment.');
         }
     };
 
@@ -126,13 +127,13 @@ export default function CommentsSection({ postId }) {
                         value={newComment}
                         onChange={(e) => setNewComment(e.target.value)}
                         placeholder="Write a comment..."
-                        className="w-full bg-ocean-surface/60 border border-ocean-border rounded-xl px-4 py-2.5 text-sm text-ocean-text placeholder:text-ocean-text-muted focus:outline-none focus:ring-2 focus:ring-biolum/20 focus:border-biolum/50 transition-all"
+                        className="w-full min-h-[44px] bg-ocean-surface/40 border border-ocean-border rounded-full px-4 py-2.5 text-sm text-ocean-text placeholder:text-ocean-text-muted focus:outline-2 focus:outline-offset-2 transition-all"
                     />
                 </div>
                 <button
                     type="submit"
                     disabled={submitting || !newComment.trim()}
-                    className="px-4 py-2 bg-biolum text-white text-sm font-semibold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    className="min-h-[44px] px-5 py-2 bg-ocean-text text-ocean-deep text-sm font-semibold rounded-full disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                     Post
                 </button>
@@ -146,6 +147,7 @@ export default function CommentsSection({ postId }) {
                         comment={comment}
                         onDelete={handleDelete}
                         onReply={handleReply}
+                        postOwnerId={postOwnerId}
                     />
                 ))}
             </div>

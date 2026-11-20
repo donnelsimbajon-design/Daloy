@@ -7,6 +7,7 @@ use App\Models\EventRsvp;
 use App\Models\Post;
 use App\Models\Media;
 use App\Models\School;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -14,6 +15,28 @@ use Inertia\Inertia;
 
 class EventController extends Controller
 {
+    /**
+     * Private schools and members-only events must not disclose event details,
+     * attendee lists, discussion posts, or RSVP endpoints to outsiders.
+     */
+    private function authorizeEventAccess(Event $event, User $viewer): void
+    {
+        $school = $event->school;
+        abort_unless($school, 404);
+        if ($school->privacy === 'private' || $event->privacy === 'members_only') {
+            abort_unless($school->members()->where('users.id', $viewer->id)->exists(), 404);
+        }
+    }
+
+    private function authorizeSchoolEvents(School $school, User $viewer): bool
+    {
+        $member = $school->members()->where('users.id', $viewer->id)->exists();
+        if ($school->privacy === 'private') {
+            abort_unless($member, 404);
+        }
+        return $member;
+    }
+
     /**
      * Global events page — events from all groups the user belongs to.
      */
@@ -55,8 +78,10 @@ class EventController extends Controller
     public function index(School $school)
     {
         $user = Auth::user();
+        $member = $this->authorizeSchoolEvents($school, $user);
 
         $events = $school->events()
+            ->when(!$member, fn ($q) => $q->where('privacy', 'public'))
             ->with('creator:id,name,username,profile_picture')
             ->withCount([
                 'rsvps as going_count' => fn($q) => $q->where('status', 'going'),
@@ -91,6 +116,7 @@ class EventController extends Controller
     public function show(Event $event)
     {
         $user = Auth::user();
+        $this->authorizeEventAccess($event, $user);
 
         $event->syncStatus();
         $event->load('creator:id,name,username,profile_picture', 'school:id,name,profile_image');
@@ -173,8 +199,8 @@ class EventController extends Controller
 
         $coverPath = null;
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('events/covers');
-            $coverPath = Storage::url($path);
+            $path = $request->file('cover_image')->store('events/covers', 'public');
+            $coverPath = Storage::disk('public')->url($path);
         }
 
         $event = Event::create([
@@ -216,6 +242,7 @@ class EventController extends Controller
     public function rsvp(Request $request, Event $event)
     {
         $user = Auth::user();
+        $this->authorizeEventAccess($event, $user);
 
         $validated = $request->validate([
             'status' => 'required|in:going,interested,not_going',
@@ -242,6 +269,7 @@ class EventController extends Controller
      */
     public function cancelRsvp(Event $event)
     {
+        $this->authorizeEventAccess($event, Auth::user());
         EventRsvp::where('event_id', $event->id)
             ->where('user_id', Auth::id())
             ->delete();
@@ -255,6 +283,7 @@ class EventController extends Controller
     public function storePost(Request $request, Event $event)
     {
         $user = Auth::user();
+        $this->authorizeEventAccess($event, $user);
 
         // Must be a member of the school
         if (!$event->school->members()->where('user_id', $user->id)->exists()) {
@@ -263,11 +292,18 @@ class EventController extends Controller
 
         $validated = $request->validate([
             'content' => 'nullable|string|max:2000',
-            'media' => 'nullable|array|max:4',
+            'media' => 'nullable|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
         ]);
 
-        if (empty($validated['content']) && empty($request->file('media'))) {
+        $mediaFiles = $request->file('media', []);
+        if (array_sum(array_map(fn ($file) => $file->getSize(), $mediaFiles)) > 90 * 1024 * 1024) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'media' => 'Photos and videos must total 90 MB or less.',
+            ]);
+        }
+
+        if (empty($validated['content']) && empty($mediaFiles)) {
             return back()->withErrors(['content' => 'Please write something or attach media.']);
         }
 
@@ -282,8 +318,8 @@ class EventController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id);
-                $url = Storage::url($path);
+                $path = $file->store('posts/' . $post->id, 'public');
+                $url = Storage::disk('public')->url($path);
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
 
@@ -321,8 +357,10 @@ class EventController extends Controller
 
         // Delete cover image
         if ($event->cover_image) {
-            $oldPath = $event->cover_image;
-            Storage::disk('public')->delete($oldPath);
+            $urlPath = parse_url($event->cover_image, PHP_URL_PATH) ?: '';
+            if (str_starts_with($urlPath, '/storage/events/covers/')) {
+                Storage::disk('public')->delete(substr($urlPath, strlen('/storage/')));
+            }
         }
 
         $event->delete();
@@ -336,6 +374,7 @@ class EventController extends Controller
     public function checkin(Event $event)
     {
         $user = Auth::user();
+        $this->authorizeEventAccess($event, $user);
 
         // Must have RSVP'd as going
         $rsvp = EventRsvp::where('event_id', $event->id)

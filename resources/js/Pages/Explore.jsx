@@ -90,7 +90,7 @@ export default function Explore({
         <MainLayout>
             <Head title="Explore — Deep Tides" />
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-20">
+            <div className="daloy-page daloy-explore max-w-7xl mx-auto px-4 sm:px-6 pt-4 pb-20">
                 {/* ── Search Results overlay ── */}
                 {searchResults && searchQuery && (
                     <div className="mb-10 animate-subtle-in">

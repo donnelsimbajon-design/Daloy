@@ -198,8 +198,8 @@ class SchoolController extends Controller
 
         $coverPath = null;
         if ($request->hasFile('cover_image')) {
-            $path = $request->file('cover_image')->store('schools/covers');
-            $coverPath = Storage::url($path);
+            $path = $request->file('cover_image')->store('schools/covers', 'public');
+            $coverPath = Storage::disk('public')->url($path);
         }
 
         $school = School::create([
@@ -229,12 +229,14 @@ class SchoolController extends Controller
 
         // Delete old cover
         if ($school->cover_image) {
-            $oldPath = $school->cover_image;
-            Storage::disk('public')->delete($oldPath);
+            $oldPath = parse_url((string) $school->cover_image, PHP_URL_PATH) ?: '';
+            if (str_starts_with($oldPath, '/storage/schools/covers/')) {
+                Storage::disk('public')->delete(substr($oldPath, strlen('/storage/')));
+            }
         }
 
-        $path = $request->file('cover_image')->store('schools/covers');
-        $school->update(['cover_image' => Storage::url($path)]);
+        $path = $request->file('cover_image')->store('schools/covers', 'public');
+        $school->update(['cover_image' => Storage::disk('public')->url($path)]);
 
         return back()->with('status', 'cover-updated');
     }
@@ -252,12 +254,14 @@ class SchoolController extends Controller
 
         // Delete old profile image
         if ($school->profile_image) {
-            $oldPath = $school->profile_image;
-            Storage::disk('public')->delete($oldPath);
+            $oldPath = parse_url((string) $school->profile_image, PHP_URL_PATH) ?: '';
+            if (str_starts_with($oldPath, '/storage/schools/profiles/')) {
+                Storage::disk('public')->delete(substr($oldPath, strlen('/storage/')));
+            }
         }
 
-        $path = $request->file('profile_image')->store('schools/profiles');
-        $school->update(['profile_image' => Storage::url($path)]);
+        $path = $request->file('profile_image')->store('schools/profiles', 'public');
+        $school->update(['profile_image' => Storage::disk('public')->url($path)]);
 
         return back()->with('status', 'profile-updated');
     }
@@ -295,11 +299,19 @@ class SchoolController extends Controller
         $validated = $request->validate([
             'content' => 'nullable|string|max:2000',
             'visibility' => 'required|in:public,followers,private',
-            'media' => 'nullable|array|max:4',
+            'media' => 'nullable|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
         ]);
 
-        if (empty($validated['content']) && empty($request->file('media'))) {
+        $mediaFiles = $request->file('media', []);
+        $totalBytes = array_sum(array_map(fn ($file) => $file->getSize(), $mediaFiles));
+        if ($totalBytes > 90 * 1024 * 1024) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'media' => 'Photos and videos must total 90 MB or less.',
+            ]);
+        }
+
+        if (empty($validated['content']) && empty($mediaFiles)) {
             return back()->withErrors(['content' => 'Please write something or attach media.']);
         }
 
@@ -313,8 +325,8 @@ class SchoolController extends Controller
         if ($request->hasFile('media')) {
             $mediaUrls = [];
             foreach ($request->file('media') as $index => $file) {
-                $path = $file->store('posts/' . $post->id);
-                $url = Storage::url($path);
+                $path = $file->store('posts/' . $post->id, 'public');
+                $url = Storage::disk('public')->url($path);
                 $extension = strtolower($file->getClientOriginalExtension());
                 $type = in_array($extension, ['mp4', 'mov', 'webm']) ? 'video' : 'image';
 

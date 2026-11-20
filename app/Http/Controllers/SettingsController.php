@@ -111,12 +111,11 @@ class SettingsController extends Controller
         $user = $request->user();
 
         if ($user->profile_picture) {
-            $oldPath = $user->profile_picture;
-            Storage::disk('public')->delete($oldPath);
+            $this->deleteManagedUpload($user->profile_picture, 'profile-pictures');
         }
 
-        $path = $request->file('profile_picture')->store('profile-pictures');
-        $user->update(['profile_picture' => Storage::url($path)]);
+        $path = $request->file('profile_picture')->store('profile-pictures', 'public');
+        $user->update(['profile_picture' => Storage::disk('public')->url($path)]);
 
         return back()->with('status', 'profile-picture-updated');
     }
@@ -130,12 +129,11 @@ class SettingsController extends Controller
         $user = $request->user();
 
         if ($user->background_picture) {
-            $oldPath = $user->background_picture;
-            Storage::disk('public')->delete($oldPath);
+            $this->deleteManagedUpload($user->background_picture, 'background-pictures');
         }
 
-        $path = $request->file('background_picture')->store('background-pictures');
-        $user->update(['background_picture' => Storage::url($path)]);
+        $path = $request->file('background_picture')->store('background-pictures', 'public');
+        $user->update(['background_picture' => Storage::disk('public')->url($path)]);
 
         return back()->with('status', 'background-updated');
     }
@@ -317,6 +315,15 @@ class SettingsController extends Controller
         $request->user()->blockedUsers()->detach($userId);
 
         return back()->with('status', 'user-unblocked');
+    }
+
+    private function deleteManagedUpload(?string $url, string $folder): void
+    {
+        if (!$url) return;
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        if (str_starts_with($path, '/storage/'.$folder.'/')) {
+            Storage::disk('public')->delete(substr($path, strlen('/storage/')));
+        }
     }
 
     public function destroy(Request $request): RedirectResponse

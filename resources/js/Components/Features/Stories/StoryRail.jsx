@@ -2,11 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePage } from '@inertiajs/react';
 import axios from 'axios';
+import SafeMediaImage from '@/Components/UI/SafeMediaImage';
 
 
 export default function StoryRail({ horizontal = false, hidden = false, forcedStoryUserId = null, onCloseForced = null }) {
     const { auth } = usePage().props;
     const user = auth.user;
+    // Both the mobile and desktop rails are mounted on the feed.
+    // Fetch only for the visible viewport to avoid duplicate API requests.
+    const [viewportActive, setViewportActive] = useState(() =>
+        typeof window === 'undefined' || (horizontal ? window.innerWidth < 768 : window.innerWidth >= 768)
+    );
     const [stories, setStories] = useState([]);
     const [groupedStories, setGroupedStories] = useState([]);
     const [selectedStory, setSelectedStory] = useState(null);
@@ -62,6 +68,15 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
     };
 
     useEffect(() => {
+        const query = window.matchMedia('(min-width: 768px)');
+        const update = () => setViewportActive(horizontal ? !query.matches : query.matches);
+        update();
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+    }, [horizontal]);
+
+    useEffect(() => {
+        if (!viewportActive && !forcedStoryUserId) return;
         fetchStories().then(() => {
             const urlParams = new URL(window.location.href).searchParams;
             const openStory = urlParams.get('open_story');
@@ -70,7 +85,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                 // It's handled in the next effect
             }
         });
-    }, []);
+    }, [viewportActive, forcedStoryUserId]);
 
     // Initialize local likes state from fetched stories and handle URL parameter
     useEffect(() => {
@@ -113,6 +128,8 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
 
             if (selectedStory.is_owner) {
                 const poll = async () => {
+                    // Skip unnecessary requests when the browser tab is hidden.
+                    if (document.visibilityState === 'hidden') return;
                     try {
                         const res = await axios.get(`/stories/${selectedStory.id}/live-state`);
                         setLiveViewCount(res.data.view_count);
@@ -379,7 +396,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
 
                     {/* Header - only for vertical */}
                     {!horizontal && (
-                        <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Story</h3>
+                        <h3 className="text-xl font-black text-ocean-text mb-6 tracking-tight shrink-0 relative z-[1]">Stories</h3>
                     )}
 
                     {/* Scroll Up Button - Vertical only */}
@@ -439,7 +456,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                     <div className="p-[3px] rounded-full bg-gradient-to-tr from-biolum via-biolum-bright to-ocean-border transition-all duration-300 group-hover:scale-[1.03]">
                                         <div className="w-14 h-14 sm:w-[64px] sm:h-[64px] rounded-full border-[2.5px] border-ocean-card overflow-hidden bg-ocean-surface transition-transform duration-300 relative flex items-center justify-center">
                                             {firstStory.type === 'text' ? (
-                                                <div className="w-full h-full bg-gradient-to-br from-[#c84bb0] to-[#FF6B9E] flex items-center justify-center p-2 text-center">
+                                                <div className="w-full h-full bg-gradient-to-br from-[#303030] to-[#111111] flex items-center justify-center p-2 text-center">
                                                     <span className="text-[8px] font-bold text-white leading-tight line-clamp-4 break-words shadow-sm">
                                                         {firstStory.content}
                                                     </span>
@@ -448,7 +465,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                                 firstStory.type === 'video' ? (
                                                     <video src={firstStory.image} className="w-full h-full object-cover bg-black" muted playsInline />
                                                 ) : (
-                                                    <img src={firstStory.image} alt="Story content" className="w-full h-full object-cover" />
+                                                    <SafeMediaImage src={firstStory.image} alt="Story thumbnail" className="w-full h-full object-cover" fallbackText="No photo" fallbackHelp="" />
                                                 )
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center bg-biolum text-biolum-foreground text-xl font-bold font-serif">
@@ -533,7 +550,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                             fetchStories();
                                         } catch (err) { console.error(err); }
                                     }}
-                                    className="p-2.5 text-white/70 hover:text-amber-300 transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
+                                    className="p-2.5 text-white/70 hover:text-white transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
                                     title="Archive Story"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -551,7 +568,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                             fetchStories();
                                         } catch (err) { console.error(err); }
                                     }}
-                                    className="p-2.5 text-white/70 hover:text-rose-400 transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
+                                    className="p-2.5 text-white/70 hover:text-white transition-all bg-black/40 hover:bg-black/60 rounded-full backdrop-blur-xl border border-white/10 cursor-pointer"
                                     title="Delete Story"
                                 >
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -606,12 +623,12 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                         {/* Story Content Media */}
                         <div className="flex-1 bg-transparent relative flex items-center justify-center pointer-events-auto">
                             {selectedStory.type === 'text' ? (
-                                <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e] flex items-center justify-center p-8">
+                                <div className="w-full h-full bg-gradient-to-br from-[#282828] to-[#090909] flex items-center justify-center p-8">
                                     <p className="text-white text-2xl md:text-3xl font-bold text-center leading-tight drop-shadow-lg">
                                         {selectedStory.content}
                                     </p>
                                 </div>
-                            ) : selectedStory.type === 'video' ? (
+                            ) : selectedStory.type === 'video' && selectedStory.image ? (
                                 <video 
                                     src={selectedStory.image} 
                                     className="w-full h-full object-contain bg-black/50" 
@@ -620,13 +637,31 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                     onEnded={handleNextStory}
                                 />
                             ) : selectedStory.image ? (
-                                <img
+                                <SafeMediaImage
+                                    key={selectedStory.id}
                                     src={selectedStory.image}
-                                    alt="Story content"
+                                    alt="Story photo"
+                                    loading="eager"
                                     className="w-full h-full object-contain md:object-cover"
                                 />
+                            ) : selectedStory.media_unavailable ? (
+                                <div role="status" className="flex h-full w-full flex-col items-center justify-center gap-3 bg-ocean-surface px-7 text-center text-ocean-text">
+                                    <span className="text-xl font-bold">Photo unavailable</span>
+                                    <p className="max-w-xs text-sm leading-relaxed text-ocean-text-muted">
+                                        {selectedStory.is_owner
+                                            ? 'This photo is no longer saved. Please upload it again.'
+                                            : 'This photo is no longer available. Please ask its owner to upload it again.'}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className="mt-2 rounded-full border border-ocean-border bg-ocean-card px-5 py-2.5 text-sm font-semibold hover:bg-ocean-hover"
+                                        onClick={handleNextStory}
+                                    >
+                                        Next story
+                                    </button>
+                                </div>
                             ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#16213e]" />
+                                <div className="w-full h-full bg-ocean-deep" />
                             )}
                             
                             {/* Mobile/Tap Navigation Areas */}
@@ -652,7 +687,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                         <div className="flex items-center justify-center gap-1 mb-2" onClick={e => e.stopPropagation()}>
                                             <div className="flex -space-x-2">
                                                 {liveLikers.slice(0, 3).map(liker => (
-                                                    <div key={liker.id} className="w-6 h-6 rounded-full border-2 border-black/40 overflow-hidden bg-slate-700 shrink-0">
+                                                    <div key={liker.id} className="w-6 h-6 rounded-full border-2 border-black/40 overflow-hidden bg-zinc-800 shrink-0">
                                                         {liker.profile_picture
                                                             ? <img src={liker.profile_picture} className="w-full h-full object-cover" />
                                                             : <div className="w-full h-full flex items-center justify-center text-white text-[8px] font-bold">{liker.name?.charAt(0)}</div>
@@ -660,7 +695,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                                     </div>
                                                 ))}
                                             </div>
-                                            <svg className="w-4 h-4 text-red-400 fill-red-400 ml-1" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
+                                            <svg className="w-4 h-4 text-zinc-200 fill-zinc-200 ml-1" viewBox="0 0 24 24"><path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/></svg>
                                             <span className="text-white/80 text-xs font-medium">{liveLikers.length}</span>
                                         </div>
                                     )}
@@ -687,13 +722,13 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                                             <div className="w-9 h-9 rounded-full overflow-hidden bg-white/20 shrink-0 border border-white/10">
                                                                 {view.viewer?.profile_picture
                                                                     ? <img src={view.viewer.profile_picture} className="w-full h-full object-cover" />
-                                                                    : <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs bg-slate-700">{view.viewer?.name?.charAt(0)}</div>
+                                                                    : <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs bg-zinc-800">{view.viewer?.name?.charAt(0)}</div>
                                                                 }
                                                             </div>
                                                             <span className="text-white text-sm font-medium flex-1">{view.viewer?.name}</span>
                                                             {/* Heart indicator if they liked */}
                                                             {view.liked && (
-                                                                <svg className="w-4 h-4 text-red-400 fill-red-400 shrink-0" viewBox="0 0 24 24">
+                                                                <svg className="w-4 h-4 text-zinc-200 fill-zinc-200 shrink-0" viewBox="0 0 24 24">
                                                                     <path d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"/>
                                                                 </svg>
                                                             )}
@@ -708,13 +743,13 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                 <div className="mt-auto pointer-events-auto w-full flex flex-col gap-2">
                                     {/* Success / error feedback toast */}
                                     {replySent && (
-                                        <div className="flex items-center gap-2 bg-emerald-500/20 border border-emerald-400/30 backdrop-blur-sm rounded-full px-4 py-2 text-emerald-300 text-xs font-semibold self-center animate-in fade-in zoom-in">
+                                        <div className="flex items-center gap-2 bg-white/10 border border-white/20 backdrop-blur-sm rounded-full px-4 py-2 text-white text-xs font-semibold self-center animate-in fade-in zoom-in">
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
                                             Reply sent to Messages!
                                         </div>
                                     )}
                                     {replyError && (
-                                        <div className="flex items-center gap-2 bg-red-500/20 border border-red-400/30 backdrop-blur-sm rounded-full px-4 py-2 text-red-300 text-xs font-semibold self-center animate-in fade-in zoom-in">
+                                        <div className="flex items-center gap-2 bg-white/10 border border-white/20 backdrop-blur-sm rounded-full px-4 py-2 text-white text-xs font-semibold self-center animate-in fade-in zoom-in">
                                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
                                             Failed to send. Try again.
                                         </div>
@@ -736,7 +771,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 hover:scale-110 active:scale-95 transition-transform"
                                             onClick={e => handleLike(e, selectedStory)}
                                         >
-                                            <svg className={`w-7 h-7 drop-shadow-md transition-colors ${likedStories[selectedStory.id] ? 'text-red-500 fill-red-500' : 'text-white hover:text-red-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={likedStories[selectedStory.id] ? 1 : 2}>
+                                            <svg className={`w-7 h-7 drop-shadow-md transition-colors ${likedStories[selectedStory.id] ? 'text-white fill-white' : 'text-white hover:text-white'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={likedStories[selectedStory.id] ? 1 : 2}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                                             </svg>
                                         </button>
@@ -745,7 +780,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                                         {replyText.trim() && (
                                             <button
                                                 type="submit"
-                                                className="w-10 h-10 rounded-full bg-biolum text-white flex items-center justify-center shrink-0 hover:bg-biolum-bright transition-colors shadow-lg"
+                                                className="w-10 h-10 rounded-full bg-biolum text-biolum-foreground flex items-center justify-center shrink-0 hover:bg-biolum-bright transition-colors shadow-lg"
                                                 onClick={e => e.stopPropagation()}
                                             >
                                                 <svg className="w-[18px] h-[18px] ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -804,7 +839,7 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
 
             {/* Create Story Modal (Edit View) */}
             {showCreateModal && typeof document !== 'undefined' && createPortal(
-                <div className="fixed inset-0 z-[100] flex bg-[#030712] animate-in fade-in duration-200">
+                <div className="fixed inset-0 z-[100] flex bg-black animate-in fade-in duration-200">
                     
                     {/* Left Sidebar (Settings) */}
                     <div className="w-full md:w-80 bg-ocean-deep border-r border-ocean-border flex flex-col shrink-0 h-full fixed md:relative z-20 md:z-auto transition-transform duration-300 transform md:translate-x-0 shadow-2xl overflow-hidden">
@@ -913,17 +948,17 @@ export default function StoryRail({ horizontal = false, hidden = false, forcedSt
                             <button onClick={cancelUpload} className="px-6 py-2.5 rounded-full border border-ocean-divider-subtle bg-ocean-card text-ocean-text-muted hover:bg-ocean-surface hover:text-ocean-text focus:outline-none font-semibold text-sm transition-all shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
                                 Discard
                             </button>
-                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-full bg-biolum text-white hover:bg-biolum-bright focus:outline-none font-bold text-sm transition-all shadow-[0_1px_4px_rgba(25,25,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed text-center tracking-wide">
+                            <button onClick={confirmUpload} disabled={uploading || (creationType === 'text' && !creationCaption)} className="flex-1 py-2.5 rounded-full bg-biolum text-biolum-foreground hover:bg-biolum-bright focus:outline-none font-bold text-sm transition-all shadow-[0_1px_4px_rgba(25,25,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed text-center tracking-wide">
                                 {uploading ? 'Sharing...' : 'Share to story'}
                             </button>
                         </div>
                     </div>
 
                     {/* Main Preview Area */}
-                    <div className="hidden md:flex flex-1 items-center justify-center p-6 relative overflow-hidden bg-[#0a0f18] min-h-0">
+                    <div className="hidden md:flex flex-1 items-center justify-center p-6 relative overflow-hidden bg-[#111111] min-h-0">
                         <div
                             ref={previewRef}
-                            className={`relative max-w-sm w-full h-full max-h-[85vh] aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl select-none ${creationType === 'text' ? 'bg-gradient-to-br from-[#1a1a2e] to-[#16213e]' : 'bg-[#111827]'}`}
+                            className={`relative max-w-sm w-full h-full max-h-[85vh] aspect-[9/16] rounded-3xl overflow-hidden shadow-2xl select-none ${creationType === 'text' ? 'bg-gradient-to-br from-[#282828] to-[#090909]' : 'bg-[#181818]'}`}
                         >
                             
                             {creationType === 'photo' && creationPreview && (

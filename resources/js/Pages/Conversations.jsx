@@ -38,6 +38,7 @@ export default function Conversations() {
     const [groupCallActive, setGroupCallActive] = useState(null);
     const [inviteUsername, setInviteUsername] = useState('');
     const [inviteSending, setInviteSending] = useState(false);
+    const [inviteError, setInviteError] = useState('');
     const [editingMessage, setEditingMessage] = useState(null);
     const [editContent, setEditContent] = useState('');
     const [deleteConfirm, setDeleteConfirm] = useState(null); // { messageId, scope }
@@ -67,7 +68,7 @@ export default function Conversations() {
             const conv = conversations.find(c => c.id === parsedId);
             if (conv) {
                 setSelectedConversation(conv);
-                if (window.innerWidth < 768) setMobileView('chat');
+                // On mobile, selectedConversation already drives the chat view.
             }
         }
     }, [conversations, selectedConversation]);
@@ -78,12 +79,21 @@ export default function Conversations() {
             loadMessages(selectedConversation.id);
             loadSharedMedia(selectedConversation.id);
             const interval = setInterval(() => {
+                if (document.visibilityState !== 'visible') return;
                 loadMessages(selectedConversation.id, true);
                 checkTyping(selectedConversation.id);
-            }, 3000);
+            }, 2000);
             return () => clearInterval(interval);
         }
     }, [selectedConversation]);
+
+    // Refresh conversation previews while active without discarding the chat state.
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (document.visibilityState === 'visible') loadConversations();
+        }, 8000);
+        return () => clearInterval(interval);
+    }, []);
 
     const prevMsgLenRef = useRef(0);
     useEffect(() => {
@@ -204,9 +214,19 @@ export default function Conversations() {
             const res = await axios.post('/api/messages/send', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            setMessages(prev => prev.map(m => m.id === tempId ? res.data : m));
+            setMessages(prev => {
+                const withoutPending = prev.filter(m => m.id !== tempId);
+                // Polling may have delivered this message before POST /send resolved.
+                return withoutPending.some(m => m.id === res.data.id)
+                    ? withoutPending : [...withoutPending, res.data];
+            });
+            if (optimisticMessage.media_url?.startsWith('blob:')) URL.revokeObjectURL(optimisticMessage.media_url);
         } catch (error) {
             setMessages(prev => prev.filter(m => m.id !== tempId));
+            // Failed messages must be recoverable; never silently discard a draft.
+            setNewMessage(current => current || optimisticMessage.content || '');
+            setAttachment(current => current || currentAttachment);
+            if (optimisticMessage.media_url?.startsWith('blob:')) URL.revokeObjectURL(optimisticMessage.media_url);
             if (error.response?.status === 403) {
                 // Block detected — silently mark as blocked
                 setIsBlocked(true);
@@ -319,16 +339,35 @@ export default function Conversations() {
     };
 
     const handleInviteMember = async () => {
-        if (!inviteUsername.trim()) return;
+        if (!selectedConversation || selectedConversation.type !== 'group' || !inviteUsername.trim() || inviteSending) return;
         setInviteSending(true);
+        setInviteError('');
         try {
-            // we will search by user ID or username? Wait, let's just make an API call to search user by username or ID
-            // For simplicity, we assume inviteUsername contains the exact user ID right now (since no autocomplete API is built for this yet)
-            // Wait, usually adding someone uses user_id. Let me assume they can type user_id. Or better, just show an alert. 
-            alert('User invitation by username requires a search endpoint which is not yet connected to the modal.');
-            // await axios.post(`/api/conversations/${selectedConversation.id}/invite`, { user_id: inviteUsername });
-        } catch (err) {
-            alert(err.response?.data?.error || 'Failed to invite.');
+            const input = inviteUsername.trim().replace(/^@/, '');
+            let userId = /^\d+$/.test(input) ? Number(input) : null;
+            if (!userId) {
+                // Match an exact username, never the first partial search result.
+                const search = await axios.get('/api/search', { params: { q: input, type: 'people' } });
+                const match = (search.data.people || []).find(
+                    person => person.username?.toLowerCase() === input.toLowerCase()
+                );
+                userId = match?.id;
+            }
+            if (!userId) {
+                setInviteError('Enter an exact @username or numeric user ID.');
+                return;
+            }
+            const { data } = await axios.post(`/api/conversations/${selectedConversation.id}/invite`, { user_id: userId });
+            setSelectedConversation(prev => ({
+                ...prev,
+                participants: [...(prev.participants || []), data.user].filter(
+                    (member, index, all) => all.findIndex(candidate => candidate.id === member.id) === index
+                ),
+            }));
+            setInviteUsername('');
+            await loadConversations();
+        } catch (error) {
+            setInviteError(error.response?.data?.error || error.response?.data?.message || 'Could not invite this member.');
         } finally {
             setInviteSending(false);
         }
@@ -436,7 +475,7 @@ export default function Conversations() {
         <MainLayout>
             <Head title="Conversations" />
 
-            <div className="fixed top-16 bottom-0 left-0 right-0 z-30 flex bg-ocean-card overflow-hidden h-[calc(100dvh-4rem)]">
+            <div className="daloy-conversations fixed top-16 bottom-0 left-0 right-0 lg:right-16 z-30 flex bg-ocean-card overflow-hidden h-[calc(100dvh-4rem)]">
                 {/* 1. List */}
                 <div className={`w-full md:w-[320px] lg:w-[340px] flex flex-col shrink-0 border-r border-ocean-divider/50 bg-ocean-card ${selectedConversation ? 'hidden md:flex' : 'flex'}`}>
                     <div className="h-[72px] px-5 flex items-center justify-between border-b border-ocean-border bg-ocean-card shrink-0">
@@ -625,8 +664,8 @@ export default function Conversations() {
                                         </DropdownMenu>
                                     </div>
                                 </div>
-                                <ScrollArea className="flex-1 bg-ocean-deep">
-                                    <div className="p-4 md:p-6 flex flex-col space-y-4">
+                                <ScrollArea className="flex-1 min-w-0 overflow-hidden bg-ocean-deep">
+                                    <div className="px-4 py-4 md:px-6 md:py-6 flex min-w-0 flex-col space-y-4">
                                         {messages.map((msg) => {
                                             const isMe = msg.user_id === auth.user.id;
                                             const meta = typeof msg.metadata === 'string' ? JSON.parse(msg.metadata) : msg.metadata;
@@ -662,7 +701,7 @@ export default function Conversations() {
 
                                                     {meta?.type === 'shared_post' && !msg.deleted_for_everyone_at ? (
                                                         /* ── Shared Post: standalone card (no bubble) ── */
-                                                        <div className="flex flex-col max-w-[85%] md:max-w-[70%]">
+                                                        <div className="flex min-w-0 flex-col max-w-[85%] md:max-w-[70%]">
                                                             <a
                                                                 href={meta.post_url}
                                                                 target="_blank"
@@ -736,10 +775,10 @@ export default function Conversations() {
                                                         </div>
                                                     ) : (
                                                         /* ── Normal bubble ── */
-                                                        <div className={`max-w-[85%] md:max-w-[70%] relative text-[15px] leading-relaxed overflow-hidden
+                                                        <div className={`min-w-0 max-w-[85%] md:max-w-[70%] relative break-words [overflow-wrap:anywhere] text-[15px] leading-relaxed overflow-hidden
                                                             ${(!msg.content && msg.media_url && !msg.deleted_for_everyone_at)
                                                                 ? (isMe ? 'rounded-[20px] rounded-tr-[4px] self-end' : 'rounded-[20px] rounded-tl-[4px] self-start')
-                                                                : (isMe ? 'bg-biolum text-white rounded-[20px] rounded-tr-[4px] self-end px-4 py-2.5' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start px-4 py-2.5')
+                                                                : (isMe ? 'bg-ocean-text text-ocean-deep rounded-[20px] rounded-tr-[4px] self-end px-4 py-2.5' : 'bg-ocean-surface text-ocean-text rounded-[20px] rounded-tl-[4px] self-start px-4 py-2.5')
                                                             }
                                                             ${msg.deleted_for_everyone_at ? 'italic opacity-60 bg-ocean-surface text-ocean-text px-4 py-2.5' : ''}`}>
                                                         {msg.deleted_for_everyone_at ? (
@@ -791,7 +830,7 @@ export default function Conversations() {
                                                                             (meta.author_name || 'U').charAt(0)
                                                                         )}
                                                                     </div>
-                                                                    <span className={`text-[11px] font-bold truncate ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
+                                                                    <span className={`text-[11px] font-bold truncate ${isMe ? 'text-ocean-deep/70' : 'text-ocean-text-dim'}`}>
                                                                         {meta.author_name || 'Daloy Post'}
                                                                     </span>
                                                                     <span className={`ml-auto text-[9px] font-bold uppercase tracking-widest shrink-0 ${isMe ? 'text-white/40' : 'text-ocean-text-dim/50'}`}>
@@ -886,14 +925,7 @@ export default function Conversations() {
                                                                 })()}
                                                             </div>
                                                         )}
-                                                        {/* Only show timestamp inside bubble when there's text (not media-only) */}
-                                                        {(msg.content || !msg.media_url) && !meta?.type && (
-                                                            <div className={`text-[10px] mt-1 flex items-center gap-2 ${isMe ? 'justify-end text-white/50' : 'text-ocean-text-dim'}`}>
-                                                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                {msg.edited_at && <span className="opacity-70">(edited)</span>}
-                                                            </div>
-                                                        )}
-                                                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-white/80' : 'text-ocean-text-dim'}`}>
+                                                        <div className={`flex items-center justify-end gap-1 mt-1 text-[9.5px] font-bold uppercase tracking-widest ${isMe ? 'text-ocean-deep/70' : 'text-ocean-text-dim'}`}>
                                                             {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                             {isMe && msg.id && msg.id > 100000000000 && ( // Just an optimistic ID check
                                                                 <svg className="w-3.5 h-3.5 opacity-50" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -1193,11 +1225,12 @@ export default function Conversations() {
                             <div className="flex gap-2">
                                 <Input
                                     value={inviteUsername} onChange={e => setInviteUsername(e.target.value)}
-                                    placeholder="Enter User ID to invite..."
+                                    placeholder="Enter @username or user ID..."
                                     className="bg-ocean-surface/50 border-ocean-border text-sm"
                                 />
-                                <Button onClick={handleInviteMember} disabled={inviteSending || !inviteUsername} className="bg-biolum hover:bg-biolum-bright text-white">Add</Button>
+                                <Button onClick={handleInviteMember} disabled={inviteSending || !inviteUsername.trim()} className="bg-ocean-text hover:opacity-90 text-ocean-deep">{inviteSending ? 'Inviting…' : 'Invite'}</Button>
                             </div>
+                            {inviteError && <p role="alert" className="text-xs text-ocean-text-muted">{inviteError}</p>}
                             <ScrollArea className="h-64 rounded-xl border border-ocean-border/50 bg-ocean-surface">
                                 <div className="p-2 space-y-1">
                                     {selectedConversation?.participants?.map(p => (

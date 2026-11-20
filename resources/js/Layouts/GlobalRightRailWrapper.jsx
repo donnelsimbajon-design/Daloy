@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import ReefPanel from '@/Components/UI/Panels/ReefPanel';
 
@@ -10,97 +10,31 @@ const DraggableMobileActionMenu = ({
     activePanel,
     switchPanel
 }) => {
-    const [position, setPosition] = useState({
-        x: typeof window !== 'undefined' ? window.innerWidth - 72 : 0,
-        y: 80
-    });
-    const isDragging = useRef(false);
-    const hasMoved = useRef(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
-    const posStart = useRef({ x: 0, y: 0 });
-
+    // Keep the mobile quick-actions control in a consistent bottom-right position.
+    // The previous free-dragging control started near the top and overlapped page headings.
     useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth >= 1024) {
-                setMobileMenuExpanded(false);
-            } else {
-                setPosition(prev => {
-                    if (prev.x < 0 || prev.x > window.innerWidth) {
-                        return { x: window.innerWidth - 72, y: 80 };
-                    }
-                    return prev;
-                });
-            }
+        const closeOnDesktop = () => {
+            if (window.innerWidth >= 1024) setMobileMenuExpanded(false);
         };
-        handleResize();
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        window.addEventListener('resize', closeOnDesktop);
+        return () => window.removeEventListener('resize', closeOnDesktop);
     }, [setMobileMenuExpanded]);
-
-    const handlePointerDown = (e) => {
-        isDragging.current = true;
-        hasMoved.current = false;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        dragOffset.current = { x: clientX, y: clientY };
-        posStart.current = { ...position };
-        // We do not prevent default here so clicks work normally, but we handle drag logic carefully.
-    };
-
-    const handlePointerMove = (e) => {
-        if (!isDragging.current) return;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const dx = clientX - dragOffset.current.x;
-        const dy = clientY - dragOffset.current.y;
-        
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved.current = true;
-        
-        let newX = posStart.current.x + dx;
-        let newY = posStart.current.y + dy;
-        const maxX = window.innerWidth - 56;
-        const maxY = window.innerHeight - 56;
-        newX = Math.max(0, Math.min(newX, maxX));
-        newY = Math.max(0, Math.min(newY, maxY));
-        setPosition({ x: newX, y: newY });
-    };
-
-    const handlePointerUp = () => {
-        isDragging.current = false;
-    };
-
-    useEffect(() => {
-        window.addEventListener('mouseup', handlePointerUp);
-        window.addEventListener('touchend', handlePointerUp);
-        return () => {
-            window.removeEventListener('mouseup', handlePointerUp);
-            window.removeEventListener('touchend', handlePointerUp);
-        };
-    }, []);
-
-    const handleClick = () => {
-        if (!hasMoved.current) {
-            setMobileMenuExpanded(!mobileMenuExpanded);
-        }
-    };
 
     if (activePanel) return null;
 
     return (
         <div
-            className="lg:hidden fixed z-[100] flex flex-col items-center"
-            style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
+            className="daloy-floating-menu lg:hidden fixed right-4 sm:right-6 bottom-[calc(env(safe-area-inset-bottom)+1.25rem)] z-[100] flex flex-col items-center"
         >
             {mobileMenuExpanded && (
                 <div className="fixed inset-0 z-[-1] bg-transparent" onClick={() => setMobileMenuExpanded(false)} />
             )}
             <button
-                onMouseDown={handlePointerDown}
-                onTouchStart={handlePointerDown}
-                onMouseMove={handlePointerMove}
-                onTouchMove={handlePointerMove}
-                onClick={handleClick}
-                style={{ touchAction: 'none' }}
+                onClick={() => setMobileMenuExpanded(expanded => !expanded)}
+                type="button"
+                aria-label={mobileMenuExpanded ? 'Close quick actions' : 'Open quick actions'}
+                aria-expanded={mobileMenuExpanded}
+                style={{ touchAction: 'manipulation' }}
                 className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all duration-300 relative select-none ${mobileMenuExpanded ? 'bg-ocean-card border border-ocean-border text-ocean-text' : 'bg-biolum text-ocean-deep'}`}
             >
                 <svg className={`w-7 h-7 transition-transform duration-300 ${mobileMenuExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -114,7 +48,7 @@ const DraggableMobileActionMenu = ({
                     <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose-500 rounded-full animate-pulse border-2 border-ocean-deep"></span>
                 )}
             </button>
-            <div className={`absolute bottom-16 flex flex-col-reverse gap-3 transition-all duration-300 ${mobileMenuExpanded ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'} max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide pb-1`}>
+            <div className={`absolute bottom-[calc(100%+0.75rem)] left-1/2 -translate-x-1/2 flex flex-col-reverse items-center gap-2 transition-all duration-300 ${mobileMenuExpanded ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto' : 'opacity-0 translate-y-4 scale-95 pointer-events-none'} max-h-[calc(100dvh-120px)] overflow-y-auto scrollbar-hide pb-1`}>
                 {/* Messages */}
                 <button onClick={() => switchPanel('messages')} className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all relative ${activePanel === 'messages' ? 'bg-biolum text-ocean-deep' : 'bg-ocean-card border border-ocean-border text-ocean-text'}`} title="Messages">
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" /></svg>
@@ -192,20 +126,20 @@ export default function GlobalRightRailWrapper({ children }) {
     );
 
     return (
-        <div className="flex w-full min-h-[calc(100vh-4rem)] relative items-stretch">
+        <div className="flex w-full min-w-0 min-h-[calc(100dvh-4rem)] relative items-stretch">
             {/* 
                 Content area dynamically adjusts padding for the reef panel.
                 Post cards maintain fixed width via feed max-width and center when panel closes.
             */}
-            <div className={`flex-1 transition-all duration-400 ease-in-out w-full max-w-full ${activePanel ? 'lg:pr-[480px]' : 'lg:pr-[80px]'}`}>
+            <div className={`flex-1 min-w-0 transition-all duration-400 ease-in-out w-full max-w-full ${activePanel ? 'lg:pr-[400px] xl:pr-[480px]' : 'lg:pr-[80px]'}`}>
                 {children}
             </div>
 
             {/* Fixed Desktop Right Rail */}
             <div className="hidden lg:flex fixed right-0 top-16 bottom-0 z-20 pointer-events-none">
                 {/* Panel Container */}
-                <div className={`pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[400px]' : 'w-0'}`}>
-                    <div className="w-[400px] h-full overflow-y-auto">
+                <div className={`daloy-quick-panel pointer-events-auto h-full overflow-hidden transition-all duration-400 ease-in-out bg-ocean-deep/97 backdrop-blur-md shadow-[-1px_0_10px_rgba(0,0,0,0.1)] border-l border-ocean-border ${activePanel ? 'w-[320px] xl:w-[400px]' : 'w-0'}`}>
+                    <div className="w-full min-w-0 h-full overflow-y-auto">
                         <div className="p-3">
                             <ReefPanel activePanel={activePanel} />
                         </div>
@@ -213,7 +147,7 @@ export default function GlobalRightRailWrapper({ children }) {
                 </div>
 
                 {/* Always-visible Icon Rail */}
-                <div className="pointer-events-auto flex flex-col items-center py-4 bg-ocean-deep/90 backdrop-blur-md border-l border-ocean-border h-full shadow-[-2px_0_10px_rgba(0,0,0,0.1)] w-[80px]">
+                <div className="daloy-quick-rail pointer-events-auto flex flex-col items-center py-4 bg-ocean-deep/90 backdrop-blur-md border-l border-ocean-border h-full shadow-[-2px_0_10px_rgba(0,0,0,0.1)] w-[80px]">
                     <div className="flex flex-col items-center gap-4 w-full">
                         <RailButton panel="trending" title="Trending Currents" icon={{ strokeWidth: 2, path: "M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941" }} />
                         <RailButton panel="groups" title="Suggested Groups" icon={{ strokeWidth: 2, path: "M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" }} />
@@ -234,7 +168,7 @@ export default function GlobalRightRailWrapper({ children }) {
                     <div className="p-4 h-[100dvh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-6 pt-4">
                             <h2 className="text-lg font-bold text-ocean-text capitalize">{activePanel}</h2>
-                            <button onClick={() => setActivePanel(null)} className="p-2 text-ocean-text-dim hover:text-ocean-text">
+                            <button onClick={() => setActivePanel(null)} aria-label="Close quick actions panel" className="p-2 text-ocean-text-dim hover:text-ocean-text">
                                 <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>

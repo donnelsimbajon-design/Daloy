@@ -110,13 +110,21 @@ class HandleInertiaRequests extends Middleware
         })
         ->where('user_id', '!=', $user->id)
         ->whereNull('read_at')
+        ->whereNotIn('messages.id', function ($hidden) use ($user) {
+            $hidden->select('message_id')->from('message_hides')->where('user_id', $user->id);
+        })
         ->count();
     }
 
     private function getRecentConversations($user): array
     {
         $conversations = $user->conversations()
-            ->with(['participants:id,name,username,profile_picture', 'latestMessage.user:id,name'])
+            ->with([
+                'participants:id,name,username,profile_picture',
+                'latestMessage' => fn ($q) => $q->whereNotIn('messages.id', function ($hidden) use ($user) {
+                    $hidden->select('message_id')->from('message_hides')->where('user_id', $user->id);
+                })->with('user:id,name'),
+            ])
             ->orderByDesc(
                 Message::select('created_at')
                     ->whereColumn('conversation_id', 'conversations.id')
@@ -135,6 +143,9 @@ class HandleInertiaRequests extends Middleware
             $unread = $convo->messages()
                 ->where('user_id', '!=', $user->id)
                 ->whereNull('read_at')
+                ->whereNotIn('messages.id', function ($hidden) use ($user) {
+                    $hidden->select('message_id')->from('message_hides')->where('user_id', $user->id);
+                })
                 ->count() > 0;
 
             $isGroup = $convo->type === 'group';
@@ -148,11 +159,11 @@ class HandleInertiaRequests extends Middleware
                 'avatar'    => $isGroup ? $convo->avatar_url : ($other?->profile_picture ?? null),
                 'initial'   => strtoupper(substr($isGroup ? ($convo->name ?? 'Group Chat') : ($other?->name ?? '?'), 0, 1)),
                 'message'   => $latestMsg ? (
-                    $latestMsg->content ?? (
+                    $latestMsg->deleted_for_everyone_at ? 'Message deleted' : ($latestMsg->content ?? (
                         (isset($latestMsg->metadata) && is_array($latestMsg->metadata) && ($latestMsg->metadata['type'] ?? '') === 'shared_post') ? '📎 Shared a post' : (
                             $latestMsg->media_url ? '📎 Sent an attachment' : 'No messages yet'
                         )
-                    )
+                    ))
                 ) : 'No messages yet',
                 'time'      => $latestMsg ? $latestMsg->created_at->diffForHumans(null, true) . ' ago' : '',
                 'unread'    => $unread,

@@ -90,17 +90,44 @@ class UserProfileController extends Controller
         $followingCount = $user->following()->count();
         $postCount      = $user->posts()->count();
 
-        // Posts visible only if profile is viewable
+        // A public profile is not permission to view every post on it.
+        // Filter the SQL query before serializing post contents to Inertia.
         $posts = [];
         if ($canViewProfile) {
-            $posts = $user->posts()
+            $postsQuery = $user->posts();
+            if (!$isSelf) {
+                $allowedVisibilities = ['public'];
+                if ($isFollowing || $isFriend) {
+                    $allowedVisibilities[] = 'followers';
+                    $allowedVisibilities[] = 'friends';
+                }
+                if ($isCloseFriend) {
+                    $allowedVisibilities[] = 'close_friends';
+                }
+                $joinedSchoolIds = $authUser->schools()->pluck('schools.id')->toArray();
+                $postsQuery->where(function ($query) use ($allowedVisibilities, $joinedSchoolIds) {
+                    $query->whereIn('visibility', $allowedVisibilities);
+                    if (!empty($joinedSchoolIds)) {
+                        $query->orWhereIn('school_id', $joinedSchoolIds);
+                    }
+                });
+            }
+            $posts = $postsQuery
                 ->with(['user', 'media', 'reactions', 'poll.options', 'repostOf.user:id,name,username,profile_picture', 'repostOf.media'])
-                ->withCount('reactions', 'comments')
+                ->withCount(['reactions', 'comments', 'reposts'])
+                ->withExists(['reposts as is_reposted' => fn ($query) => $query->where('user_id', $authUser->id)])
                 ->orderByDesc('is_pinned')
                 ->latest()
-                ->take(20)
+                ->take(50)
                 ->get()
+                ->filter(fn($post) => $post->isVisibleTo($authUser))
+                ->take(20)
+                ->values()
                 ->map(function ($post) use ($authUser) {
+                    if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                        || $post->repostOf->school_id || !$post->repostOf->isVisibleTo($authUser))) {
+                        $post->unsetRelation('repostOf');
+                    }
                     $userReaction = $post->reactions->where('user_id', $authUser->id)->first();
                     $post->user_reaction = $userReaction ? $userReaction->type : null;
                     $post->liked_by_user = $userReaction !== null;
@@ -182,6 +209,12 @@ class UserProfileController extends Controller
             $featuredPost = Post::with(['user', 'media'])
                 ->withCount('reactions', 'comments')
                 ->find($user->featured_post_id);
+            // Pinned/featured content must pass the same audience policy as the
+            // regular profile feed (including private-school membership).
+            if ($featuredPost && ($featuredPost->user_id !== $user->id ||
+                !$featuredPost->isVisibleTo($authUser))) {
+                $featuredPost = null;
+            }
         }
 
         // Tide Score

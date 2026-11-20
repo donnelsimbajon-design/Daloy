@@ -31,7 +31,11 @@ class StoryController extends Controller
 
         $closeFriendOfIds = $user->closeFriendOf()->pluck('users.id');
 
-        $stories = Story::with(['user:id,name,username,profile_picture', 'reactions'])
+        $stories = Story::with(['user:id,name,username,profile_picture'])
+            ->withCount('views')
+            ->withExists(['reactions as liked_by_viewer' => fn ($q) =>
+                $q->where('user_id', $user->id)->where('type', 'like')
+            ])
             ->where('expires_at', '>', now())
             ->whereNull('archived_at')
             ->whereIn('user_id', $eligibleUserIds)
@@ -47,6 +51,7 @@ class StoryController extends Controller
                       });
             })
             ->latest()
+            ->limit(200) // Keep story payloads bounded as student usage grows.
             ->get();
 
         $formatted = $stories->map(function ($story) use ($user) {
@@ -57,15 +62,17 @@ class StoryController extends Controller
             );
 
             $isOwner   = $story->user_id === $user->id;
-            $viewCount = $isOwner ? StoryView::where('story_id', $story->id)->count() : null;
-            $liked     = $story->reactions->where('user_id', $user->id)->where('type', 'like')->isNotEmpty();
+            $viewCount = $isOwner ? $story->views_count : null;
+            $liked     = (bool) $story->liked_by_viewer;
+            $image     = $this->accessibleStoryImage($story->media_url);
 
             return [
                 'id'         => $story->id,
                 'user'       => $story->user,
                 'time'       => $timeAgo . ' ago',
                 'content'    => $story->content,
-                'image'      => $story->media_url,
+                'image'      => $image,
+                'media_unavailable' => $story->type !== 'text' && (bool) $story->media_url && !$image,
                 'type'       => $story->type,
                 'is_owner'   => $isOwner,
                 'view_count' => $viewCount,
@@ -74,6 +81,31 @@ class StoryController extends Controller
         });
 
         return response()->json($formatted);
+    }
+
+    /**
+     * Do not send old broken /storage/stories URLs to browsers.
+     * Files created by earlier deployments may have been stored on the
+     * private disk or lost when Render's ephemeral instance restarted.
+     */
+    private function accessibleStoryImage(?string $url): ?string
+    {
+        if (!$url) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: '';
+        $prefix = '/storage/stories/';
+        if (!str_starts_with($path, $prefix)) {
+            return $url;
+        }
+
+        $file = substr($path, strlen('/storage/'));
+        if (!$file || str_contains($file, '..')) {
+            return null;
+        }
+
+        return Storage::disk('public')->exists($file) ? $url : null;
     }
 
     public function store(Request $request)
@@ -102,8 +134,8 @@ class StoryController extends Controller
         $type = 'text';
 
         if ($storyType !== 'text' && $request->hasFile('media')) {
-            $path      = $request->file('media')->store('stories');
-            $url       = Storage::url($path);
+            $path      = $request->file('media')->store('stories', 'public');
+            $url       = Storage::disk('public')->url($path);
             $extension = strtolower($request->file('media')->getClientOriginalExtension());
             $type      = in_array($extension, ['mp4', 'mov']) ? 'video' : 'image';
         }
@@ -126,6 +158,7 @@ class StoryController extends Controller
     public function recordView(Story $story): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($story->isVisibleTo($user), 404);
 
         if ($story->user_id === $user->id) {
             return response()->json(['ok' => true]);
@@ -208,6 +241,7 @@ class StoryController extends Controller
     public function react(Story $story): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($story->isVisibleTo($user), 404);
 
         $existing = $story->reactions()
             ->where('user_id', $user->id)
@@ -257,10 +291,22 @@ class StoryController extends Controller
         $request->validate(['content' => 'required|string|max:1000']);
 
         $sender     = Auth::user();
+        abort_unless($story->isVisibleTo($sender), 404);
         $receiverId = $story->user_id;
 
         if ($sender->id === $receiverId) {
             return response()->json(['message' => 'Cannot reply to your own story.'], 400);
+        }
+
+        // Story replies are direct messages, so do not bypass DM privacy/restrictions.
+        $receiver = $story->user;
+        if (!$receiver || $receiver->isBlockedWith($sender) || $receiver->hasRestricted($sender)) {
+            return response()->json(['message' => 'You cannot reply to this story.'], 403);
+        }
+        $isFriend = $sender->isFriend($receiver);
+        $mutualFollowing = $sender->isFollowing($receiver) && $receiver->isFollowing($sender);
+        if ($receiver->privacy_setting === 'private' && !$isFriend && !$mutualFollowing) {
+            return response()->json(['message' => 'This user only accepts messages from connections.'], 403);
         }
 
         // Find existing direct conversation using participants pivot (NOT user1_id/user2_id)
@@ -321,7 +367,11 @@ class StoryController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Delete associated views and reactions
+        // Remove public media belonging to this story, not arbitrary URL paths.
+        $mediaPath = parse_url((string) $story->media_url, PHP_URL_PATH) ?: '';
+        if (str_starts_with($mediaPath, '/storage/stories/')) {
+            Storage::disk('public')->delete(substr($mediaPath, strlen('/storage/')));
+        }
         $story->views()->delete();
         $story->reactions()->delete();
         $story->delete();
@@ -379,7 +429,7 @@ class StoryController extends Controller
                     'id'          => $story->id,
                     'user'        => $story->user,
                     'content'     => $story->content,
-                    'image'       => $story->media_url,
+                    'image'       => $this->accessibleStoryImage($story->media_url),
                     'type'        => $story->type,
                     'created_at'  => $story->created_at->toISOString(),
                     'archived_at' => $story->archived_at->toISOString(),

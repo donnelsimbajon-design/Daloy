@@ -814,3 +814,69 @@ html {
     flex-shrink: 0;
 }
 
+
+
+/* ═══════ Daloy responsive & accessibility foundation ═══════ */
+/* The older base rule removes every browser outline. Restore a visible keyboard focus
+   indicator without showing it for pointer/touch clicks. */
+:where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-biolum-bright, #111111) !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 0 4px var(--color-ocean-deep) !important;
+}
+
+html.dark :where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible,
+html[data-theme="dark"] :where(a, button, input, select, textarea, summary, [role="button"], [tabindex]):focus-visible {
+    outline-color: #f8fafc !important;
+    box-shadow: 0 0 0 4px #000 !important;
+}
+
+/* Stop content-sized flex/grid descendants from pushing the page wider than the viewport.
+   This doesn't mask scrollable tab bars or message attachment galleries. */
+#app, main, main > div {
+    min-width: 0;
+}
+img {
+    max-width: 100%;
+}
+:where(p, h1, h2, h3, h4) {
+    overflow-wrap: break-word;
+}
+
+@media (max-width: 1023px) {
+    .daloy-topnav button {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+@media (max-width: 640px) {
+    .main-content-mobile {
+        padding-left: max(0px, var(--safe-area-left)) !important;
+        padding-right: max(0px, var(--safe-area-right)) !important;
+    }
+    .ripple-modal {
+        max-width: calc(100vw - 1.5rem);
+        max-height: calc(100dvh - 2rem);
+        overflow-y: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html:focus-within { scroll-behavior: auto !important; }
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Create Post keeps an accessible rounded focus shell instead of a sharp
+   outline that covers the writing surface in dark and light themes. */
+#daloy-create-post-form .daloy-composer-textarea:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+}
+#daloy-create-post-form .daloy-composer-input-shell:focus-within {
+    border-color: var(--color-ocean-text-dim, #8b8b8b);
+}

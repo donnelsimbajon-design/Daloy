@@ -16,6 +16,17 @@ use CyberDeep\LaravelAgoraTokenGenerator\Services\Agora;
 class SchoolCallController extends Controller
 {
     /**
+     * Private School Currents never issue Agora credentials or expose session
+     * activity to outsiders. Public school sessions remain discoverable.
+     */
+    private function authorizeCurrentAccess(School $school): void
+    {
+        if ($school->privacy === 'private') {
+            abort_unless($school->members()->where('users.id', Auth::id())->exists(), 403);
+        }
+    }
+
+    /**
      * Start a School Currents session (Admin/Moderator only).
      */
     public function start(School $school, Request $request)
@@ -68,6 +79,7 @@ class SchoolCallController extends Controller
      */
     public function join(School $school)
     {
+        $this->authorizeCurrentAccess($school);
         $session = SchoolCurrent::where('school_id', $school->id)
             ->where('is_active', true)
             ->first();
@@ -100,6 +112,7 @@ class SchoolCallController extends Controller
      */
     public function leave(School $school)
     {
+        $this->authorizeCurrentAccess($school);
         $session = SchoolCurrent::where('school_id', $school->id)
             ->where('is_active', true)
             ->first();
@@ -143,6 +156,7 @@ class SchoolCallController extends Controller
      */
     public function liveState(School $school, Request $request)
     {
+        $this->authorizeCurrentAccess($school);
         $session = SchoolCurrent::where('school_id', $school->id)
             ->where('is_active', true)
             ->first();
@@ -227,6 +241,7 @@ class SchoolCallController extends Controller
      */
     public function sendMessage(School $school, Request $request)
     {
+        $this->authorizeCurrentAccess($school);
         $request->validate(['message' => 'required|string|max:500']);
         $session = SchoolCurrent::where('school_id', $school->id)->where('is_active', true)->firstOrFail();
 
@@ -317,6 +332,7 @@ class SchoolCallController extends Controller
      */
     public function vote(School $school, Request $request)
     {
+        $this->authorizeCurrentAccess($school);
         $request->validate(['vote' => 'required|in:good,bad']);
         $session = SchoolCurrent::where('school_id', $school->id)->where('is_active', true)->firstOrFail();
 
@@ -349,6 +365,7 @@ class SchoolCallController extends Controller
      */
     public function saveTrack(School $school)
     {
+        $this->authorizeCurrentAccess($school);
         $session = SchoolCurrent::where('school_id', $school->id)->where('is_active', true)->first();
 
         if (!$session || !$session->track_url) {

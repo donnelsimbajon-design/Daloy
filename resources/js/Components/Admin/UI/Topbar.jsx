@@ -1,76 +1,28 @@
-import { useState } from 'react';
+import { Link } from '@inertiajs/react';
+import { Waves, ArrowUpRight, Menu } from 'lucide-react';
 
-import { AlertTriangle, Lock, BarChart2, User, Siren } from 'lucide-react';
-
-const notifications = [
-    { id: 1, type: 'danger', icon: <AlertTriangle size={14} />, text: 'New critical report: Hate speech detected in Group #412', time: '2 mins ago', unread: true },
-    { id: 2, type: 'warning', icon: <Lock size={14} />, text: 'Brute force attempt detected from IP 192.168.1.1', time: '15 mins ago', unread: true },
-    { id: 3, type: 'info', icon: <BarChart2 size={14} />, text: 'Daily analytics report is ready for review', time: '1 hour ago', unread: true },
-    { id: 4, type: 'info', icon: <User size={14} />, text: 'User verification request from @professional_account', time: '2 hours ago', unread: false },
-    { id: 5, type: 'danger', icon: <Siren size={14} />, text: 'Server CPU usage exceeded 90% threshold', time: '3 hours ago', unread: false },
-];
-
-export default function Topbar({ pageTitle, onMenuToggle, notifOpen, onNotifToggle }) {
-    const [searchQuery, setSearchQuery] = useState('');
-    const unreadCount = notifications.filter(n => n.unread).length;
-
+// This header intentionally avoids hard-coded fake alerts, misleading badges,
+// and a search input that does not search any backend endpoint.
+export default function Topbar({ pageTitle, onMenuToggle }) {
     return (
         <header className="adm-topbar">
             <div className="adm-topbar-left">
-                <button className="adm-menu-toggle" onClick={onMenuToggle} aria-label="Toggle menu">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="3" y1="12" x2="21" y2="12"/>
-                        <line x1="3" y1="6" x2="21" y2="6"/>
-                        <line x1="3" y1="18" x2="21" y2="18"/>
-                    </svg>
+                <button className="adm-menu-toggle" onClick={onMenuToggle}
+                    type="button" aria-label="Open admin navigation">
+                    <Menu size={22} />
                 </button>
-                <h2>{pageTitle}</h2>
+                <div className="flex flex-col min-w-0">
+                    <span className="hidden sm:block text-[10px] uppercase tracking-[.18em] font-bold text-[#555555]">Daloy / Admin</span>
+                    <h2 className="truncate">{pageTitle}</h2>
+                </div>
             </div>
-
             <div className="adm-topbar-right">
-                <div className="adm-search-box">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    <input
-                        type="text"
-                        placeholder="Search system logs..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-
-                <div className="adm-notif-wrapper" style={{ position: 'relative' }}>
-                    <button className="adm-notif-btn" onClick={onNotifToggle} aria-label="Notifications">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                        </svg>
-                        {unreadCount > 0 && <span className="adm-notif-badge">{unreadCount}</span>}
-                    </button>
-
-                    {notifOpen && (
-                        <div className="adm-notif-dropdown open">
-                            <div className="adm-notif-header">
-                                <h3>Notifications</h3>
-                                <button>Mark all read</button>
-                            </div>
-                            <div className="adm-notif-list">
-                                {notifications.map((n) => (
-                                    <div key={n.id} className={`adm-notif-item ${n.unread ? 'unread' : ''}`}>
-                                        <div className={`adm-notif-icon ${n.type}`}>{n.icon}</div>
-                                        <div className="adm-notif-content">
-                                            <p>{n.text}</p>
-                                            <span>{n.time}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="adm-avatar-top">SA</div>
+                <span className="hidden md:inline-flex items-center gap-2 rounded-full border border-[#e5e5e5] bg-[#f7f7f8] px-3 py-2 text-xs font-semibold text-[#555555]">
+                    <Waves size={15} /> Workspace
+                </span>
+                <Link href="/app" className="inline-flex items-center gap-1.5 rounded-xl border border-[#e5e5e5] bg-white px-3 py-2 text-xs font-bold text-[#111111] hover:bg-[#f0f0f1] transition-colors">
+                    Back to Daloy <ArrowUpRight size={15} />
+                </Link>
             </div>
         </header>
     );

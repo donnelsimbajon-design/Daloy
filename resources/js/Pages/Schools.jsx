@@ -59,7 +59,7 @@ export default function Schools() {
         <MainLayout>
             <Head title="Schools & Groups" />
 
-            <div className="max-w-7xl mx-auto px-4 py-10 lg:px-8">
+            <div className="daloy-page daloy-schools max-w-7xl mx-auto px-4 py-10 lg:px-8">
                 {/* ── Editorial Header ── */}
                 <div className="relative mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-ocean-border">
                     <div className="max-w-2xl">
@@ -122,7 +122,7 @@ export default function Schools() {
                         </button>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+                    <div className="daloy-community-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
                         {schools.map((school, index) => (
                             <Link 
                                 href={`/schools/${school.id}`} 

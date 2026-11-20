@@ -2404,3 +2404,65 @@
     color: var(--adm-text-dim);
     margin-top: 4px;
 }
+
+
+/* Isolated admin sign-in: input styles were absent before this page imported
+   admin.css; ensure usable controls even on 320px devices. */
+.admin-login-shell {
+    padding: 20px 0;
+}
+.admin-login-shell .adm-form-input {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 16px;
+    line-height: 1.3;
+    padding: 10px 12px;
+}
+.admin-login-shell .adm-form-group {
+    margin-bottom: 18px;
+}
+.admin-login-shell .adm-form-label {
+    margin-bottom: 7px;
+}
+.admin-login-shell .adm-btn-primary {
+    min-height: 44px;
+}
+.admin-login-shell input[type="checkbox"] {
+    min-width: 16px;
+    min-height: 16px;
+}
+.admin-login-shell :is(input, button):focus-visible {
+    outline: 2px solid #111 !important;
+    outline-offset: 2px !important;
+}
+
+
+/* Layout-only admin refresh. Original black/white/gray tokens above are retained. */
+.tideglass-admin { --adm-sidebar-w: 248px; --adm-radius: 12px; --adm-radius-sm: 10px; }
+.tideglass-admin .adm-sidebar { box-shadow: 6px 0 28px rgba(0,0,0,.045); }
+.tideglass-admin .adm-sidebar-brand { padding-block: 26px 22px; }
+.tideglass-admin .adm-nav-item { border-radius: 12px; margin-block: 2px; }
+.tideglass-admin .adm-main-wrapper { min-width: 0; }
+.tideglass-admin .adm-topbar { backdrop-filter:blur(15px); }
+.tideglass-admin .adm-topbar h2 { font-weight:800; letter-spacing:-.03em; }
+.tideglass-admin .adm-main-content { min-width:0; padding:clamp(16px,2.5vw,34px); }
+.tideglass-admin .adm-card, .tideglass-admin .adm-stat-card,
+.tideglass-admin .adm-health-panel, .tideglass-admin .adm-info-card,
+.tideglass-admin .adm-alert-panel {
+  border-radius:18px; box-shadow:0 5px 18px rgba(0,0,0,.055);
+}
+.tideglass-admin .adm-table-wrapper { max-width:100%; overflow-x:auto; }
+.tideglass-admin .adm-table { min-width:600px; }
+.tideglass-admin :is(input,textarea,select) { min-width:0; border-radius:11px; }
+.admin-login-shell > div { max-width:460px !important; }
+.admin-login-shell .admin-login-card {
+  border-radius:22px !important; box-shadow:0 16px 48px rgba(0,0,0,.08) !important;
+}
+.admin-login-shell .admin-login-card h2 { font-size:22px !important; letter-spacing:-.035em; }
+@media(max-width:768px) {
+ .tideglass-admin .adm-main-content { padding:15px; }
+ .tideglass-admin .adm-stats-grid { gap:12px; }
+ .admin-login-shell { padding:15px !important; }
+}

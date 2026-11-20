@@ -177,6 +177,7 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
     return (
         <MainLayout>
             <Head title="Settings" />
+            <div className="daloy-page daloy-settings px-3 sm:px-0">
 
             {/* ══ Toast ══ */}
             {currentStatus && statusMessages[currentStatus] && (
@@ -805,6 +806,7 @@ export default function Settings({ user, blocked_users = [], muted_keywords = []
                     </Card>
                 </div>
             )}
+            </div>
         </MainLayout>
     );
 }

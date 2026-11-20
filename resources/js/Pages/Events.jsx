@@ -41,7 +41,7 @@ export default function Events() {
         <MainLayout>
             <Head title="Events" />
 
-            <div className="max-w-5xl mx-auto px-4 py-10 lg:px-8">
+            <div className="daloy-page daloy-events max-w-5xl mx-auto px-4 py-10 lg:px-8">
                 {/* ── Editorial Header ── */}
                 <div className="relative mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6 pb-8 border-b border-ocean-border">
                     <div className="max-w-2xl">

@@ -15,11 +15,19 @@ use CyberDeep\LaravelAgoraTokenGenerator\Services\Agora;
 
 class GroupCallController extends Controller
 {
+    /** Never expose call state, chat, or control endpoints to non-members. */
+    private function authorizeGroupCallAccess(Conversation $conversation): void
+    {
+        abort_unless($conversation->type === 'group' && $conversation->participants()
+            ->where('users.id', Auth::id())->exists(), 403);
+    }
+
     /**
      * Start a group call in a conversation.
      */
     public function startGroupCall(Conversation $conversation, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
 
         // Must be group conversation
@@ -45,8 +53,11 @@ class GroupCallController extends Controller
         $appId = config('services.agora.app_id');
         $appCertificate = config('services.agora.app_certificate');
 
-        // Generate Agora token
-        $token = "DEVELOPMENT_TOKEN";
+        if (!$appId || !$appCertificate) {
+            return response()->json(['error' => 'Group calls are not available right now. Please try again later.'], 503);
+        }
+
+        // Generate a real token BEFORE creating call records and notifications.
         try {
             config([
                 'services.agora.app_id' => $appId,
@@ -58,6 +69,7 @@ class GroupCallController extends Controller
                 ->token();
         } catch (\Exception $e) {
             Log::error("Failed to generate Agora group call token: " . $e->getMessage());
+            return response()->json(['error' => 'Cannot start this call right now. Please try again later.'], 503);
         }
 
         // Create the group call record
@@ -126,6 +138,7 @@ class GroupCallController extends Controller
      */
     public function joinGroupCall(Conversation $conversation, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
         $mode = $request->input('mode', 'speaker'); // 'speaker' or 'listener' (chat-only)
 
@@ -138,6 +151,10 @@ class GroupCallController extends Controller
             return response()->json(['error' => 'No active call in this group.'], 404);
         }
 
+        if (!config('services.agora.app_id') || !config('services.agora.app_certificate')) {
+            return response()->json(['error' => 'Group calls are not available right now. Please try again later.'], 503);
+        }
+
         // Check if already in the call
         $existing = GroupCallParticipant::where('group_call_id', $groupCall->id)
             ->where('user_id', $user->id)
@@ -147,7 +164,6 @@ class GroupCallController extends Controller
         if ($existing) {
             // Already in call, just return token
             $appId = config('services.agora.app_id');
-            $token = "DEVELOPMENT_TOKEN";
             try {
                 config([
                     'services.agora.app_id' => $appId,
@@ -159,6 +175,7 @@ class GroupCallController extends Controller
                     ->token();
             } catch (\Exception $e) {
                 Log::error("Failed to generate Agora token: " . $e->getMessage());
+                return response()->json(['error' => 'Cannot join this call right now. Please try again later.'], 503);
             }
 
             return response()->json([
@@ -184,7 +201,6 @@ class GroupCallController extends Controller
 
         // Generate token
         $appId = config('services.agora.app_id');
-        $token = "DEVELOPMENT_TOKEN";
         try {
             config([
                 'services.agora.app_id' => $appId,
@@ -199,6 +215,7 @@ class GroupCallController extends Controller
             $token = $agoraQuery->token();
         } catch (\Exception $e) {
             Log::error("Failed to generate Agora token: " . $e->getMessage());
+            return response()->json(['error' => 'Cannot join this call right now. Please try again later.'], 503);
         }
 
         // Add participant
@@ -225,6 +242,7 @@ class GroupCallController extends Controller
      */
     public function leaveGroupCall(Conversation $conversation): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
         $groupCall = $conversation->activeGroupCall;
 
@@ -237,9 +255,11 @@ class GroupCallController extends Controller
             ->whereNull('left_at')
             ->first();
 
-        if ($participant) {
-            $participant->update(['left_at' => now()]);
+        // A nonparticipant cannot terminate an active call by sending leave.
+        if (!$participant) {
+            return response()->json(['error' => 'You have not joined this call.'], 403);
         }
+        $participant->update(['left_at' => now()]);
 
         // End the call if host leaves, or if participant count drops below 2
         $remainingCount = $groupCall->activeParticipants()->count();
@@ -255,6 +275,7 @@ class GroupCallController extends Controller
      */
     public function endGroupCall(Conversation $conversation): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
         $groupCall = $conversation->activeGroupCall;
 
@@ -277,6 +298,7 @@ class GroupCallController extends Controller
      */
     public function muteParticipant(Conversation $conversation, $userId, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
         $groupCall = $conversation->activeGroupCall;
 
@@ -308,6 +330,7 @@ class GroupCallController extends Controller
      */
     public function getActiveCall(Conversation $conversation): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $groupCall = $conversation->activeGroupCall;
 
         if (!$groupCall) {
@@ -339,6 +362,7 @@ class GroupCallController extends Controller
      */
     public function kickParticipant(Conversation $conversation, $userId): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $user = Auth::user();
         $groupCall = $conversation->activeGroupCall;
 
@@ -367,6 +391,7 @@ class GroupCallController extends Controller
      */
     public function sendCallChat(Conversation $conversation, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $request->validate(['content' => 'required|string|max:500']);
 
         $user = Auth::user();
@@ -402,6 +427,7 @@ class GroupCallController extends Controller
      */
     public function getCallChat(Conversation $conversation, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $groupCall = $conversation->activeGroupCall;
 
         if (!$groupCall) {
@@ -425,6 +451,7 @@ class GroupCallController extends Controller
      */
     public function getMuteStatus(Conversation $conversation): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $groupCall = $conversation->activeGroupCall;
 
         if (!$groupCall) {
@@ -443,6 +470,7 @@ class GroupCallController extends Controller
      */
     public function toggleScreenShareStatus(Conversation $conversation, Request $request): JsonResponse
     {
+        $this->authorizeGroupCallAccess($conversation);
         $groupCall = $conversation->activeGroupCall;
         if (!$groupCall) {
             return response()->json(['error' => 'No active group call'], 422);
@@ -453,11 +481,10 @@ class GroupCallController extends Controller
             ->whereNull('left_at')
             ->first();
 
-        if ($participant) {
-            $participant->update([
-                'is_screen_sharing' => $request->boolean('is_screen_sharing', false)
-            ]);
+        if (!$participant) {
+            return response()->json(['error' => 'Join this call before sharing your screen.'], 403);
         }
+        $participant->update(['is_screen_sharing' => $request->boolean('is_screen_sharing', false)]);
 
         return response()->json(['success' => true]);
     }

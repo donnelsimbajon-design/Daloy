@@ -17,6 +17,7 @@ class BookmarkController extends Controller
     public function toggle(Post $post): JsonResponse
     {
         $user = Auth::user();
+        abort_unless($post->isVisibleTo($user), 404);
 
         $existing = Bookmark::where('user_id', $user->id)
             ->where('post_id', $post->id)
@@ -65,8 +66,17 @@ class BookmarkController extends Controller
 
         // Attach user-specific reaction data to each post
         $bookmarks->getCollection()->transform(function ($bookmark) use ($user) {
+            if ($bookmark->post && !$bookmark->post->isVisibleTo($user)) {
+                $bookmark->setRelation('post', null);
+            }
             if ($bookmark->post) {
                 $post = $bookmark->post;
+                // Repost wrappers must not reveal originals that later became private.
+                if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                    || $post->repostOf->school_id
+                    || !$post->repostOf->isVisibleTo($user))) {
+                    $post->unsetRelation('repostOf');
+                }
                 $userReaction = $post->reactions->where('user_id', $user->id)->first();
                 $post->user_reaction = $userReaction ? $userReaction->type : null;
                 $post->liked_by_user = $userReaction !== null;

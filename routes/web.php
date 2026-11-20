@@ -35,6 +35,15 @@ Route::get('/', function () {
     return Inertia::render('Landing');
 })->name('landing');
 
+// Expose only the deployment revision, so E2E cannot accidentally test old code.
+Route::get('/api/build-revision', function () {
+    return response()->json(
+        ['sha' => getenv('RENDER_GIT_COMMIT') ?: null],
+        200,
+        ['Cache-Control' => 'no-store, max-age=0']
+    );
+})->name('build.revision');
+
 /*
 |--------------------------------------------------------------------------
 | Guest Routes (unauthenticated)
@@ -72,7 +81,8 @@ Route::middleware('auth')->group(function () {
     // Navigation Pages
     Route::get('/explore', [SearchController::class, 'explore'])->name('explore');
     Route::get('/events', [EventController::class, 'globalIndex'])->name('events.global');
-    Route::get('/river-flow', function () { return Inertia::render('RiverFlow'); });
+    // Legacy entry point: never show sample notes instead of the user's real bookmarks.
+    Route::get('/river-flow', fn () => redirect('/saved'));
     Route::get('/ripples', [RippleController::class, 'index'])->name('ripples');
     Route::get('/conversations/{id?}', function () { return Inertia::render('Conversations'); });
 
@@ -173,17 +183,20 @@ Route::middleware('auth')->group(function () {
 
     // Posts
     Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show');
-    Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
+    Route::post('/posts', [PostController::class, 'store'])->middleware('throttle:20,1')->name('posts.store');
     Route::put('/posts/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+    Route::delete('/posts/{post}/media/{media}', [PostController::class, 'destroyMedia'])->name('posts.media.destroy');
     Route::post('/posts/{post}/pin', [PostController::class, 'pin'])->name('posts.pin');
+    Route::post('/posts/{post}/report', [PostController::class, 'report'])->name('posts.report');
+    Route::post('/posts/{post}/repost', [PostController::class, 'repost'])->middleware('throttle:30,1')->name('posts.repost');
 
     // Reactions (updated for multi-type)
     Route::post('/posts/{post}/react', [ReactionController::class, 'toggle'])->name('posts.react');
     Route::post('/posts/{post}/like', [ReactionController::class, 'toggle'])->name('posts.like'); // Legacy compat
 
     // Polls
-    Route::post('/polls/{poll}/vote', [PollController::class, 'vote'])->name('polls.vote');
+    Route::post('/polls/{poll}/vote', [PollController::class, 'vote'])->middleware('throttle:60,1')->name('polls.vote');
 
     // Comments
     Route::get('/posts/{post}/comments', [CommentController::class, 'index'])->name('posts.comments.index');

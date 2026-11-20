@@ -24,6 +24,7 @@ class ReactionController extends Controller
         ]);
 
         $user      = Auth::user();
+        abort_unless($post->isVisibleTo($user), 404);
         $postOwner = $post->user;
         $type      = $request->input('type', 'wave');
 

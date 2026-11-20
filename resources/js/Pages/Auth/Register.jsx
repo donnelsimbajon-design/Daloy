@@ -3,6 +3,7 @@ import TextInput from '@/Components/TextInput';
 import InputLabel from '@/Components/InputLabel';
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
+import AuthShowcase from '@/Components/AuthShowcase';
 
 export default function Register() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -24,7 +25,7 @@ export default function Register() {
         <>
             <Head title="Register" />
 
-            <div className="min-h-screen bg-ocean-deep flex flex-col items-center justify-center p-4 relative overflow-hidden">
+            <div className="daloy-auth-shell min-h-[100dvh] bg-ocean-deep flex flex-col items-center justify-center px-3 py-8 sm:p-6 relative overflow-x-clip">
                 {/* Animated background */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                     <div className="absolute -top-1/4 -right-1/4 w-[800px] h-[800px] rounded-full bg-emerald-500/[0.03] blur-[120px] animate-pulse" style={{ animationDuration: '10s' }}></div>
@@ -32,21 +33,23 @@ export default function Register() {
                     <div className="absolute top-1/3 right-1/3 w-[300px] h-[300px] rounded-full bg-purple-500/[0.02] blur-[80px] animate-pulse" style={{ animationDuration: '7s' }}></div>
                 </div>
 
+                <AuthShowcase variant="register" />
+                <div className="daloy-auth-form-column">
                 {/* Logo */}
                 <div className="relative z-10 mb-8 text-center flex flex-col items-center">
                     <div className="flex items-center justify-center gap-0 mb-1">
-                        <h1 className="text-[5rem] leading-none mb-4 font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</h1>
+                        <h1 className="text-6xl sm:text-[5rem] leading-none mb-4 font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</h1>
                     </div>
                     <p className="text-sm text-ocean-text-muted mt-1">Join the current</p>
                 </div>
 
                 {/* Register Card */}
                 <div className="relative z-10 w-full max-w-md">
-                    <div className="bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-8">
+                    <div className="daloy-auth-card bg-ocean-card/80 backdrop-blur-xl border border-ocean-border rounded-2xl p-5 sm:p-8">
                         <h2 className="text-xl font-bold text-ocean-text mb-1">Create your account</h2>
                         <p className="text-sm text-ocean-text-dim mb-6">Start your voyage through the deep</p>
 
-                        <form onSubmit={submit} className="space-y-5">
+                        <form onSubmit={submit} className="space-y-4 sm:space-y-5">
                             {/* Name */}
                             <div>
                                 <InputLabel htmlFor="name" value="Full Name" />
@@ -124,9 +127,9 @@ export default function Register() {
                             {/* Terms */}
                             <p className="text-xs text-ocean-text-dim leading-relaxed">
                                 By creating an account, you agree to our{' '}
-                                <span className="text-biolum cursor-pointer hover:underline">Terms of Service</span>
+                                <span className="font-semibold">Terms of Service</span>
                                 {' '}and{' '}
-                                <span className="text-biolum cursor-pointer hover:underline">Privacy Policy</span>.
+                                <span className="font-semibold">Privacy Policy</span>.
                             </p>
 
                             {/* Submit */}
@@ -169,6 +172,7 @@ export default function Register() {
                         © 2026 Daloy. All rights reserved.
                     </p>
                 </div>
+            </div>
             </div>
         </>
     );

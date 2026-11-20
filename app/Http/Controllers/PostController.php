@@ -9,6 +9,7 @@ use App\Models\PollOption;
 use App\Models\Mention;
 use App\Models\Hashtag;
 use App\Models\Ripple;
+use App\Models\Report;
 use App\Models\User;
 use App\Traits\LogsUserActivity;
 use Illuminate\Http\RedirectResponse;
@@ -72,20 +73,36 @@ class PostController extends Controller
                 // Also show followers-only posts from people you follow/friend
                 $query->orWhere(function ($q) use ($feedUserIds) {
                     $q->whereIn('user_id', $feedUserIds)
-                      ->where('visibility', 'followers');
+                      ->where('visibility', 'followers')
+                      ->whereNull('school_id');
                 });
 
                 // Close friends visibility: only if I'm in their close friends
                 if (!empty($closeFriendOfIds)) {
                     $query->orWhere(function ($q) use ($closeFriendOfIds) {
                         $q->whereIn('user_id', $closeFriendOfIds)
-                          ->where('visibility', 'close_friends');
+                          ->where('visibility', 'close_friends')
+                          ->whereNull('school_id');
                     });
                 }
 
-                // Posts from joined schools
+                // School membership is necessary for private schools, but
+                // membership never bypasses a post's own audience selection.
                 if (!empty($joinedSchoolIds)) {
-                    $query->orWhereIn('school_id', $joinedSchoolIds);
+                    $query->orWhere(function ($schoolPosts) use ($joinedSchoolIds, $feedUserIds, $friendIds, $closeFriendOfIds) {
+                        $schoolPosts->whereIn('school_id', $joinedSchoolIds)
+                            ->where(function ($audience) use ($feedUserIds, $friendIds, $closeFriendOfIds) {
+                                $audience->where('visibility', 'public')
+                                    ->orWhere(fn ($q) => $q->where('visibility', 'followers')
+                                        ->whereIn('user_id', $feedUserIds))
+                                    ->orWhere(fn ($q) => $q->where('visibility', 'friends')
+                                        ->whereIn('user_id', $friendIds));
+                                if (!empty($closeFriendOfIds)) {
+                                    $audience->orWhere(fn ($q) => $q->where('visibility', 'close_friends')
+                                        ->whereIn('user_id', $closeFriendOfIds));
+                                }
+                            });
+                    });
                 }
 
                 // Always include own posts regardless of visibility
@@ -95,10 +112,15 @@ class PostController extends Controller
             // Filter muted keywords
             ->when(!empty($mutedKeywords), function ($q) use ($mutedKeywords) {
                 foreach ($mutedKeywords as $keyword) {
-                    $q->where('content', 'NOT LIKE', "%{$keyword}%");
+                    $q->where(function ($visible) use ($keyword) {
+                        // NULL content means photo/video-only, not a muted match.
+                        $visible->whereNull('content')
+                            ->orWhere('content', 'NOT LIKE', "%{$keyword}%");
+                    });
                 }
             })
-            ->withCount(['comments', 'reactions', 'bookmarks'])
+            ->withCount(['comments', 'reactions', 'bookmarks', 'reposts'])
+            ->withExists(['reposts as is_reposted' => fn ($q) => $q->where('user_id', $user->id)])
             ->withExists(['bookmarks as is_bookmarked' => function ($q) {
                 $q->where('user_id', Auth::id());
             }])
@@ -111,6 +133,12 @@ class PostController extends Controller
             $userReaction = $post->reactions()->where('user_id', $userId)->first();
             $post->user_reaction = $userReaction ? $userReaction->type : null;
             $post->liked_by_user = $userReaction !== null;
+            // A repost wrapper must not expose an original that has become private.
+            if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+                || $post->repostOf->school_id
+                || !$post->repostOf->isVisibleTo(Auth::user()))) {
+                $post->unsetRelation('repostOf');
+            }
 
             // Reaction counts grouped by type
             $post->reaction_counts = $this->getReactionCounts($post);
@@ -152,6 +180,8 @@ class PostController extends Controller
      */
     public function show(Post $post)
     {
+        abort_unless($post->isVisibleTo(Auth::user()), 404);
+
         $post->load([
             'user:id,name,username,profile_picture',
             'media',
@@ -160,7 +190,7 @@ class PostController extends Controller
             'repostOf.user:id,name,username,profile_picture',
             'repostOf.media',
         ]);
-        $post->loadCount(['comments', 'reactions', 'bookmarks']);
+        $post->loadCount(['comments', 'reactions', 'bookmarks', 'reposts']);
 
         $userId = Auth::id();
         $userReaction = $post->reactions()->where('user_id', $userId)->first();
@@ -170,6 +200,11 @@ class PostController extends Controller
 
         // Check if bookmarked
         $post->is_bookmarked = $post->bookmarks()->where('user_id', $userId)->exists();
+        $post->is_reposted = Post::where('user_id', $userId)->where('repost_of_id', $post->id)->exists();
+        if ($post->repostOf && ($post->repostOf->visibility !== 'public'
+            || $post->repostOf->school_id || !$post->repostOf->isVisibleTo(Auth::user()))) {
+            $post->unsetRelation('repostOf');
+        }
 
         if ($post->poll) {
             $vote = $post->poll->votes()->where('user_id', $userId)->first();
@@ -208,14 +243,14 @@ class PostController extends Controller
             'visibility' => 'required|in:public,followers,private,close_friends',
             'location_tag' => 'nullable|string|max:100',
             'flow_velocity' => 'nullable|in:high,steady,low',
-            'media' => 'nullable|array|max:4',
+            'media' => 'nullable|array|max:10',
             'media.*' => 'file|mimes:jpg,jpeg,png,gif,webp,mp4,mov,webm|max:51200',
             // Repost
             'repost_of_id' => 'nullable|integer|exists:posts,id',
             // Poll
-            'poll_question' => 'nullable|string|max:500',
-            'poll_options' => 'nullable|array|min:2|max:4',
-            'poll_options.*' => 'nullable|string|max:200',
+            'poll_question' => 'required_with:poll_options|nullable|string|max:160',
+            'poll_options' => 'required_with:poll_question|nullable|array|min:2|max:4',
+            'poll_options.*' => 'required|string|min:1|max:100',
             'poll_expires_at' => 'nullable|date|after:now',
             // Content Warning
             'has_content_warning' => 'nullable|boolean',
@@ -226,6 +261,48 @@ class PostController extends Controller
             'is_announcement' => 'nullable|boolean',
             'school_id' => 'nullable|integer|exists:schools,id',
         ]);
+
+        // Validate polls as complete, distinct choices before saving anything.
+        if (!empty($validated['poll_options'])) {
+            $choices = array_map(fn ($choice) => trim((string) $choice), $validated['poll_options']);
+            if (count(array_unique(array_map('strtolower', $choices))) !== count($choices)
+                || count(array_filter($choices)) !== count($choices)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'poll_options' => 'Enter 2–4 different, non-empty poll choices.',
+                ]);
+            }
+        }
+
+        // The Render/PHP transport accepts up to 100 MB per request. Keep media
+        // below that limit so a 10-file post cannot be silently truncated.
+        $mediaFiles = $request->file('media', []);
+        $totalBytes = array_sum(array_map(fn ($file) => $file->getSize(), $mediaFiles));
+        if ($totalBytes > 90 * 1024 * 1024) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'media' => 'Photos and videos must total 90 MB or less.',
+            ]);
+        }
+
+        // Do not let a repost expose protected posts or private School content.
+        if (!empty($validated['repost_of_id'])) {
+            $source = Post::findOrFail($validated['repost_of_id']);
+            $source = $source->repostOf ?: $source;
+            abort_unless($source && $source->visibility === 'public' && !$source->school_id
+                && $source->isVisibleTo($request->user()), 403);
+            $validated['repost_of_id'] = $source->id;
+        }
+
+        // Group posts must belong to a School the author has actually joined.
+        // Otherwise any user could inject a post into someone else's community.
+        if (!empty($validated['school_id'])) {
+            abort_unless($request->user()->schools()
+                ->where('schools.id', $validated['school_id'])->exists(), 403);
+        }
+
+        // Ordinary members must not impersonate an official announcement.
+        if (($validated['is_announcement'] ?? false) && !$request->user()->isAdmin()) {
+            abort(403, 'Only administrators may publish announcements.');
+        }
 
         // Require at least content, media, poll, or repost
         if (empty($validated['content']) && empty($request->file('media'))
@@ -406,14 +483,140 @@ class PostController extends Controller
         }
 
         foreach ($post->media as $media) {
-            $storagePath = $media->url;
-            Storage::disk('public')->delete($storagePath);
+            // Media URLs are served as /storage/posts/<post-id>/<file>.
+            // The "public" disk expects posts/<post-id>/<file>, not the URL.
+            // Only delete files belonging to this post within the managed disk.
+            $urlPath = parse_url((string) $media->url, PHP_URL_PATH) ?: '';
+            $expectedPrefix = '/storage/posts/'.$post->id.'/';
+            if (str_starts_with($urlPath, $expectedPrefix)) {
+                Storage::disk('public')->delete(substr($urlPath, strlen('/storage/')));
+            }
         }
 
         $post->delete();
 
         return back()->with('status', 'post-deleted');
     }
+    /**
+     * Permanently remove one file from a post owned by the authenticated user.
+     */
+    public function destroyMedia(Post $post, Media $media): JsonResponse
+    {
+        abort_unless($post->user_id === Auth::id(), 403);
+        abort_unless($media->post_id === $post->id, 404);
+
+        $urlPath = parse_url((string) $media->url, PHP_URL_PATH) ?: '';
+        $expectedPrefix = '/storage/posts/'.$post->id.'/';
+        if (str_starts_with($urlPath, $expectedPrefix)) {
+            Storage::disk('public')->delete(substr($urlPath, strlen('/storage/')));
+        }
+        $media->delete();
+        $post->update(['media_urls' => $post->media()->pluck('url')->values()->all()]);
+
+        return response()->json(['message' => 'Attachment removed.', 'media_count' => $post->media()->count()]);
+    }
+
+    /**
+     * Let users report a post to the existing moderation queue.
+     * Self-reports and repeated pending reports are not accepted.
+     */
+    public function report(Request $request, Post $post): JsonResponse
+    {
+        abort_unless($post->isVisibleTo($request->user()), 404);
+
+        $validated = $request->validate([
+            'reason' => 'required|string|in:spam,harassment,inappropriate,hate_speech,threats,other',
+            'details' => 'nullable|string|max:1000',
+        ]);
+
+        if ($post->user_id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot report your own post.'], 422);
+        }
+
+        $alreadyReported = Report::where('reporter_id', $request->user()->id)
+            ->where('reportable_type', Post::class)
+            ->where('reportable_id', $post->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($alreadyReported) {
+            return response()->json(['message' => 'You have already reported this post.'], 422);
+        }
+
+        Report::create([
+            'reporter_id' => $request->user()->id,
+            'reportable_type' => Post::class,
+            'reportable_id' => $post->id,
+            'reason' => $validated['reason'].(
+                !empty($validated['details']) ? ': '.$validated['details'] : ''
+            ),
+            'status' => 'pending',
+        ]);
+
+        return response()->json([
+            'message' => 'Post reported successfully. A moderator will review it.',
+        ], 201);
+    }
+
+    /**
+     * One-click repost / undo repost. Reuses the existing repost_of_id column
+     * and soft-deleted record, so a user has one repost per original post.
+     */
+    public function repost(Request $request, Post $post): JsonResponse
+    {
+        $user = $request->user();
+        $source = $post->repostOf ?: $post;
+        abort_unless($source && $source->visibility === 'public' && !$source->school_id
+            && $source->isVisibleTo($user), 403);
+
+        $result = \Illuminate\Support\Facades\DB::transaction(function () use ($source, $user) {
+            // Serializes concurrent repost requests for the same source.
+            Post::whereKey($source->id)->lockForUpdate()->firstOrFail();
+            $existing = Post::withTrashed()
+                ->where('user_id', $user->id)
+                ->where('repost_of_id', $source->id)
+                ->first();
+
+            if ($existing && !$existing->trashed()) {
+                $existing->delete();
+                return ['reposted' => false, 'repost_id' => null];
+            }
+
+            if ($existing) {
+                $existing->restore();
+            } else {
+                $existing = Post::create([
+                    'user_id' => $user->id,
+                    'content' => null,
+                    'visibility' => 'public',
+                    'flow_velocity' => 'steady',
+                    'repost_of_id' => $source->id,
+                ]);
+            }
+
+            return ['reposted' => true, 'repost_id' => $existing->id];
+        });
+
+        if ($result['reposted'] && $source->user_id !== $user->id) {
+            Ripple::create([
+                'user_id' => $source->user_id,
+                'sender_id' => $user->id,
+                'type' => 'repost',
+                'notifiable_type' => Post::class,
+                'notifiable_id' => $result['repost_id'],
+                'data' => [
+                    'post_id' => $result['repost_id'],
+                    'original_post_id' => $source->id,
+                    'message' => $user->name.' reposted your post',
+                ],
+            ]);
+        }
+
+        return response()->json($result + [
+            'reposts_count' => $source->reposts()->count(),
+        ]);
+    }
+
     private function getReactionCounts(Post $post): array
     {
         $counts = $post->reactions()

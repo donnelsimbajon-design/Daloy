@@ -9,11 +9,14 @@ return new class extends Migration
     public function up(): void
     {
         // Drop existing stubs (if they exist from the initial migration)
-        \DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        Schema::dropIfExists('admin_role_permissions');
-        Schema::dropIfExists('role_permissions'); // old pivot name
-        Schema::dropIfExists('admin_permissions');
-        \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        Schema::disableForeignKeyConstraints();
+        try {
+            Schema::dropIfExists('admin_role_permissions');
+            Schema::dropIfExists('role_permissions'); // old pivot name
+            Schema::dropIfExists('admin_permissions');
+        } finally {
+            Schema::enableForeignKeyConstraints();
+        }
 
         // Recreate admin_roles with full schema (drop if bare stub existed)
         Schema::table('admin_roles', function (Blueprint $table) {

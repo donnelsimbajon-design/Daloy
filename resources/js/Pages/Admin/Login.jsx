@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import '../../../css/admin.css';
 import { useForm, Head } from '@inertiajs/react';
 
 export default function AdminLogin() {
@@ -17,11 +18,11 @@ export default function AdminLogin() {
     };
 
     return (
-        <div className="daloy-admin" style={{ justifyContent: 'center', alignItems: 'center', background: '#f7f7f8', minHeight: '100vh' }}>
+        <div className="daloy-admin admin-login-shell" style={{ justifyContent: 'center', alignItems: 'center', background: '#f7f7f8', minHeight: '100dvh' }}>
             <div style={{
                 width: '100%',
                 maxWidth: '420px',
-                padding: '0 24px',
+                padding: '0 16px',
             }}>
                 {/* Brand */}
                 <div style={{ textAlign: 'center', marginBottom: '36px' }}>
@@ -32,11 +33,11 @@ export default function AdminLogin() {
                 </div>
 
                 {/* Login Card */}
-                <div style={{
+                <div className="admin-login-card" style={{
                     background: '#ffffff',
                     border: '1px solid #e5e5e5',
                     borderRadius: '12px',
-                    padding: '32px',
+                    padding: 'clamp(18px, 5vw, 32px)',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                 }}>
                     <h2 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>Admin Access</h2>
@@ -47,8 +48,9 @@ export default function AdminLogin() {
                     <form onSubmit={handleSubmit}>
                         {/* Email */}
                         <div className="adm-form-group">
-                            <label className="adm-form-label">Email Address</label>
+                            <label htmlFor="admin-email" className="adm-form-label">Email Address</label>
                             <input
+                                id="admin-email"
                                 className="adm-form-input"
                                 type="email"
                                 value={data.email}
@@ -64,8 +66,9 @@ export default function AdminLogin() {
 
                         {/* Password */}
                         <div className="adm-form-group">
-                            <label className="adm-form-label">Password</label>
+                            <label htmlFor="admin-password" className="adm-form-label">Password</label>
                             <input
+                                id="admin-password"
                                 className="adm-form-input"
                                 type="password"
                                 value={data.password}
@@ -78,23 +81,26 @@ export default function AdminLogin() {
 
                         {/* Access Code */}
                         <div className="adm-form-group">
-                            <label className="adm-form-label">Access Code</label>
+                            <label htmlFor="admin-access-code" className="adm-form-label">Access Code</label>
                             <div style={{ position: 'relative' }}>
                                 <input
+                                    id="admin-access-code"
                                     className="adm-form-input"
                                     type={showCode ? 'text' : 'password'}
                                     value={data.access_code}
                                     onChange={e => setData('access_code', e.target.value)}
-                                    placeholder="Enter admin access code"
+                                    placeholder="Access code"
                                     autoComplete="off"
                                     required
-                                    style={{ paddingRight: '40px' }}
+                                    style={{ paddingRight: '64px' }}
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowCode(!showCode)}
+                                    aria-label={showCode ? 'Hide access code' : 'Show access code'}
                                     style={{
-                                        position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)',
+                                        position: 'absolute', right: '6px', top: '50%', transform: 'translateY(-50%)',
+                                        minWidth: '44px', minHeight: '44px',
                                         background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '12px',
                                     }}
                                 >

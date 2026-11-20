@@ -59,7 +59,7 @@ export default function NavDrawer({ isOpen, onClose }) {
 
     const navItems = [
         {
-            name: 'Deep Flow',
+            name: 'Your Feed',
             href: '/',
             icon: (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -129,14 +129,14 @@ export default function NavDrawer({ isOpen, onClose }) {
             description: t('Meetups & live sessions'),
         },
         {
-            name: 'River Flow',
-            href: '/river-flow',
+            name: 'Saved Posts',
+            href: '/saved',
             icon: (
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                 </svg>
             ),
-            description: t('Your saved notes & bookmarks'),
+            description: t('Posts you bookmarked'),
         },
         {
             name: 'Settings',
@@ -183,19 +183,20 @@ export default function NavDrawer({ isOpen, onClose }) {
             {/* Drawer */}
             <div
                 ref={drawerRef}
-                className={`fixed top-0 left-0 z-50 h-full w-80 bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+                className={`daloy-drawer fixed top-0 left-0 z-50 h-[100dvh] w-[min(20rem,calc(100vw-1rem))] max-w-full bg-ocean-deep border-r border-ocean-border transform transition-transform duration-300 ease-out flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
             >
                 {/* Header - fixed at top */}
                 <div className="flex items-center justify-between p-5 border-b border-ocean-border shrink-0">
                     <div className="flex items-center gap-0">
                         <div className="ml-2">
                             <span className="text-3xl font-medium text-ocean-text tracking-wide" style={{ fontFamily: '"Pacifico", cursive' }}>Daloy</span>
-                            <p className="text-[10px] text-biolum tracking-widest uppercase mt-[-4px]">{t('Navigate the deep')}</p>
+                            <p className="text-[10px] text-ocean-text-muted tracking-widest uppercase mt-[-4px]">{t('Navigate the deep')}</p>
                         </div>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-xl text-ocean-text-dim hover:text-biolum hover:bg-ocean-card transition-all"
+                        aria-label="Close menu"
+                        className="grid h-11 w-11 place-items-center rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-card transition-all"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -213,19 +214,19 @@ export default function NavDrawer({ isOpen, onClose }) {
                                 href={item.href}
                                 onClick={onClose}
                                 className={`flex items-center gap-3.5 px-4 py-2.5 rounded-xl transition-all duration-200 group ${isActive
-                                    ? 'bg-biolum/15 text-biolum border border-biolum/20'
+                                    ? 'bg-ocean-surface text-ocean-text border border-ocean-border'
                                     : 'text-ocean-text-muted hover:bg-ocean-card hover:text-ocean-text border border-transparent'
                                     }`}
                                 style={{ animationDelay: `${index * 30}ms` }}
                             >
                                 <div className={`p-2 rounded-lg transition-all ${isActive
-                                    ? 'bg-biolum/20 text-biolum'
-                                    : 'bg-ocean-surface text-ocean-text-dim group-hover:bg-ocean-hover group-hover:text-biolum'
+                                    ? 'bg-ocean-text text-ocean-deep'
+                                    : 'bg-ocean-surface text-ocean-text-dim group-hover:bg-ocean-hover group-hover:text-ocean-text'
                                     }`}>
                                     {item.icon}
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                    <p className={`text-sm font-semibold ${isActive ? 'text-biolum' : 'text-ocean-text'}`}>
+                                    <p className={`text-sm font-semibold ${isActive ? 'text-ocean-text' : 'text-ocean-text'}`}>
                                         {t(item.name)}
                                     </p>
                                     <p className="text-[11px] text-ocean-text-dim truncate">
@@ -233,7 +234,7 @@ export default function NavDrawer({ isOpen, onClose }) {
                                     </p>
                                 </div>
                                 {isActive && (
-                                    <div className="ml-auto w-1.5 h-6 rounded-full bg-biolum" />
+                                    <div className="ml-auto w-1 h-6 rounded-full bg-ocean-text" />
                                 )}
                             </Link>
                         );
@@ -246,7 +247,7 @@ export default function NavDrawer({ isOpen, onClose }) {
                         <Link
                             href={user ? `/users/${user.id}` : '#'}
                             onClick={onClose}
-                            className="w-10 h-10 rounded-full bg-biolum flex items-center justify-center text-white font-bold text-sm ring-2 ring-biolum/30 hover:ring-biolum/60 transition-all overflow-hidden shrink-0"
+                            className="w-10 h-10 rounded-full bg-ocean-surface flex items-center justify-center text-ocean-text font-bold text-sm ring-1 ring-ocean-border transition-all overflow-hidden shrink-0"
                         >
                             {user?.profile_picture ? (
                                 <img src={user.profile_picture} alt={user.name} className="w-full h-full object-cover" />
@@ -255,12 +256,12 @@ export default function NavDrawer({ isOpen, onClose }) {
                             )}
                         </Link>
                         <Link href={user ? `/users/${user.id}` : '#'} onClick={onClose} className="min-w-0 flex-1 group">
-                            <p className="text-sm font-semibold text-ocean-text truncate group-hover:text-biolum transition-colors">{user ? user.name : 'Guest'}</p>
-                            <p className="text-xs text-biolum">{t('Pro Voyager')}</p>
+                            <p className="text-sm font-semibold text-ocean-text truncate group-hover:text-ocean-text-muted transition-colors">{user ? user.name : 'Guest'}</p>
+                            <p className="text-xs text-ocean-text-muted">{t('Pro Voyager')}</p>
                         </Link>
                         <button
                             onClick={() => { onClose(); router.visit('/settings'); }}
-                            className="p-2 rounded-lg text-ocean-text-dim hover:text-biolum hover:bg-ocean-surface transition-all"
+                            className="grid h-11 w-11 place-items-center rounded-xl text-ocean-text-dim hover:text-ocean-text hover:bg-ocean-surface transition-all"
                             title="Settings"
                         >
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -273,7 +274,7 @@ export default function NavDrawer({ isOpen, onClose }) {
                     {/* Logout button */}
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center justify-center gap-2 p-2.5 rounded-xl text-sm font-medium text-rose-400 bg-rose-500/10 border border-rose-500/20 hover:bg-rose-500/20 hover:text-rose-300 transition-all"
+                        className="w-full flex min-h-[46px] items-center justify-center gap-2 rounded-xl border border-ocean-border bg-ocean-surface text-sm font-semibold text-ocean-text hover:bg-ocean-hover transition-all"
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />

@@ -21,6 +21,7 @@ class PollController extends Controller
         ]);
 
         $user = Auth::user();
+        abort_unless($poll->post && $poll->post->isVisibleTo($user), 404);
 
         // Check if poll is expired
         if ($poll->isExpired()) {

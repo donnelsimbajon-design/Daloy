@@ -106,6 +106,68 @@ class Post extends Model
         return $this->hasMany(Post::class, 'repost_of_id');
     }
 
+    /**
+     * Visibility check for direct post URLs and interactive endpoints.
+     * Feed/profile queries still filter at the database layer to avoid leaks.
+     */
+    public function isVisibleTo(User $viewer): bool
+    {
+        if ($this->user_id === $viewer->id) {
+            return true;
+        }
+
+        $owner = $this->user;
+        if (!$owner || $owner->isBlockedWith($viewer)) {
+            return false;
+        }
+
+        // School membership does not override the author's selected audience.
+        // Private schools additionally require membership, even for public posts.
+        if ($this->school_id) {
+            $school = $this->school;
+            if (!$school) return false;
+            if ($school->privacy === 'private' &&
+                !$school->members()->where('users.id', $viewer->id)->exists()) {
+                return false;
+            }
+        }
+
+        return match ($this->visibility) {
+            'public' => true,
+            'followers' => $viewer->isFollowing($owner) || $viewer->isFriend($owner),
+            'friends' => $viewer->isFriend($owner), // legacy posts
+            'close_friends' => $owner->isCloseFriend($viewer),
+            default => false,
+        };
+    }
+
+    /**
+     * Consistent discovery filter for Explore, Search and hashtag results.
+     * A public visibility flag does not make a private School public.
+     */
+    public function scopeDiscoverableBy($query, User $viewer)
+    {
+        $joinedSchools = $viewer->schools()->pluck('schools.id')->all();
+        $blocked = array_unique(array_merge(
+            $viewer->blockedUsers()->pluck('users.id')->all(),
+            $viewer->blockedBy()->pluck('users.id')->all()
+        ));
+
+        return $query->where('visibility', 'public')
+            ->whereNotIn('user_id', $blocked)
+            ->where(function ($posts) use ($joinedSchools) {
+                $posts->whereNull('school_id')
+                    ->orWhereHas('school', function ($schools) use ($joinedSchools) {
+                        $schools->where(function ($accessible) use ($joinedSchools) {
+                            $accessible->where('privacy', 'public');
+                            if (!empty($joinedSchools)) {
+                                $accessible->orWhereIn('schools.id', $joinedSchools);
+                            }
+                        });
+                    });
+            });
+    }
+
     // --- Scopes ---
 
     public function scopePublic($query)
