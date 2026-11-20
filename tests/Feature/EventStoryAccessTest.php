@@ -21,6 +21,13 @@ class EventStoryAccessTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // Inertia HTTP feature tests should not require a compiled Vite manifest.
+        $this->withoutVite();
+    }
+
     private function school(User $owner, string $privacy = 'public'): School
     {
         $school = School::create([
