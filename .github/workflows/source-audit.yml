@@ -53,11 +53,11 @@ jobs:
           php artisan key:generate --ansi
       - name: Validate PHP syntax
         run: |
-          for file in app/Http/Controllers/GroupCallController.php app/Http/Controllers/SchoolCallController.php app/Http/Controllers/ShareController.php app/Http/Controllers/MessagingController.php app/Http/Controllers/CommentController.php tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php app/Http/Controllers/AnnouncementInteractionController.php app/Http/Controllers/EventController.php app/Http/Controllers/StoryController.php routes/web.php; do
+          for file in app/Http/Controllers/GroupCallController.php app/Http/Controllers/SchoolCallController.php app/Http/Controllers/ShareController.php app/Http/Controllers/MessagingController.php app/Http/Controllers/CommentController.php tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php tests/Feature/MediaLifecycleTest.php app/Http/Controllers/AnnouncementInteractionController.php app/Http/Controllers/EventController.php app/Http/Controllers/StoryController.php routes/web.php; do
             php -l "$file"
           done
       - name: Run permission and privacy regression suites
-        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php
+        run: php artisan test tests/Feature/SocialFlowIntegrityTest.php tests/Feature/CommunicationAccessTest.php tests/Feature/EventStoryAccessTest.php tests/Feature/AnnouncementVisibilityTest.php tests/Feature/MediaLifecycleTest.php
 
   frontend:
     name: React/Vite compile
